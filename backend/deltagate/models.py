@@ -149,3 +149,28 @@ class Decision(BaseModel):
     groups: list[GroupDecision]
     committed_version: str | None
     check: CheckResult | None  # the full Check (exact Shapley), built when a group is held; None when all pass
+
+
+class AuditEntry(BaseModel):
+    """One audit_log row as the API returns it. `payload` is `payload_json` parsed; canonical() round-trips it,
+    so the hash can still be recomputed from this shape."""
+    seq: int
+    ts: str
+    actor: str
+    action: str
+    payload: dict
+    prev_hash: str
+    hash: str
+
+
+class AuditCheckpoint(BaseModel):
+    seq: int
+    head_hash: str
+    ts: str
+    signature: str  # hex Ed25519 over canonical({seq, head_hash, ts})
+
+
+class AuditLog(BaseModel):
+    """Body of GET /api/audit: the whole chain and its signed checkpoints, oldest first."""
+    entries: list[AuditEntry]
+    checkpoints: list[AuditCheckpoint]
