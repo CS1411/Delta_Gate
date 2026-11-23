@@ -48,3 +48,16 @@ export interface Decision {
   committed_version: string | null
   check: CheckResult | null
 }
+
+// GET /api/audit (models.py: AuditEntry, AuditCheckpoint, AuditLog), oldest first
+export interface AuditEntry {
+  seq: number
+  ts: string
+  actor: string
+  action: string
+  payload: Record<string, unknown> // free-form, differs by action
+  prev_hash: string
+  hash: string
+}
+export interface AuditCheckpoint { seq: number; head_hash: string; ts: string; signature: string }
+export interface AuditLog { entries: AuditEntry[]; checkpoints: AuditCheckpoint[] }

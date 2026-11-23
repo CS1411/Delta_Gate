@@ -1,7 +1,7 @@
 // The only module that talks to the backend. Plain fetch, no library: moving to react-query later means
 // replacing the callers of these three functions, nothing else. /api is proxied to uvicorn in vite.config.ts.
 
-import type { Decision } from './types'
+import type { AuditLog, Decision } from './types'
 
 /** A non-2xx answer. `message` is the server's own `detail` (e.g. why an approve was refused). */
 export class ApiError extends Error {
@@ -31,3 +31,9 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 export const fetchHeld = () => call<Decision[]>('/api/edits?status=held')
 export const approveEdit = (editId: string) => call<Decision>(`/api/edits/${encodeURIComponent(editId)}/approve`, { method: 'POST' })
 export const denyEdit = (editId: string) => call<Decision>(`/api/edits/${encodeURIComponent(editId)}/deny`, { method: 'POST' })
+
+export const fetchAudit = () => call<AuditLog>('/api/audit')
+
+/** GET /api/audit/verify. A tampered log still answers 200: always read `ok`, never the status. (Defined in api.py, not models.py.) */
+export interface AuditVerdict { ok: boolean; entries: number; checkpoints: number; error: string | null }
+export const verifyAudit = () => call<AuditVerdict>('/api/audit/verify')
