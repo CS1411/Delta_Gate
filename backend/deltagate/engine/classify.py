@@ -109,11 +109,14 @@ _NOUN = {"data": ("Value changed", "values changed"), "logic": ("Formula changed
 
 def _label(key: tuple, cells: dict, base: Book) -> str:
     n, kind = len(cells), key[-1]
+    changes = "change" if n == 1 else "changes"
     if len(key) == 1:
-        return f"{n} {kind} changes"
+        return f"{n} {kind} {changes}"
     if len(key) == 2:
-        return f"{n} {kind} changes in {key[0]}"
+        return f"{n} {kind} {changes} in {key[0]}"
     sheet, marker, _ = key
+    if marker.startswith("→"):
+        return f"Sheet {sheet} renamed to {marker[1:]}"
     rows = len({split(a)[1] for a in cells})
     if marker == "~":
         return f"Rows inserted, deleted or moved in {sheet}"
@@ -128,9 +131,34 @@ def _label(key: tuple, cells: dict, base: Book) -> str:
     return f"{n} {_NOUN[kind][1]} in {sheet}!{marker}" + (f" ({header})" if header else "")
 
 
+def renamed_sheets(base: Book, new: Book) -> dict[str, str]:
+    """{old name: new name} for sheets whose only change is the name: same constants, formulas in the same places.
+
+    ponytail: exact content match only; a sheet renamed and edited in one go still reads as deleted + added.
+    """
+    def content(book: Book, sheet: str) -> dict:
+        return {split(a)[1:]: "\0formula" if isinstance(v, Formula) else v
+                for a, v in book.cells.items() if split(a)[0] == sheet}
+
+    came = {s: content(new, s) for s in new.sheets if s not in base.sheets}
+    out: dict[str, str] = {}
+    for sheet in (s for s in base.sheets if s not in new.sheets):
+        before = content(base, sheet)
+        match = next((s for s, c in came.items() if c == before and s not in out.values()), None)
+        if match:
+            out[sheet] = match
+    return out
+
+
 def classify(base: Book, new: Book) -> tuple[list[ChangeGroup], list[Change], dict[str, Alignment]]:
     raw, changes, aligns = diff(base, new)
     keys = {a: _key(a, b, n, aligns) for a, (b, n) in raw.items()}
+    renames = renamed_sheets(base, new)
+    old_name = {new_name: old for old, new_name in renames.items()}
+    for a in keys:  # a renamed sheet is one structural group, not its cells deleted and added again
+        sheet = split(a)[0]
+        if (old := sheet if sheet in renames else old_name.get(sheet)) is not None:
+            keys[a] = (old, "→" + renames[old], "structural")
 
     def bucket(level_of) -> dict[tuple, dict]:
         buckets: dict[tuple, dict] = {}
