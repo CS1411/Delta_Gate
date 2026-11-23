@@ -1,94 +1,138 @@
-# Delta Gate: who does what, 23 Nov → 2 Dec 2026
+# Delta Gate: who does what, 23 Nov → 2 Dec 2026 (v2: two teams)
 
-**Team:** P1 = `<name>`, P2 = `<name>`, P3 = `<name>`, P4 = `<name>` (fill in the names).
-**State on 23 Nov:** Phases 0–2 are merged to `main` (Check engine + CLI, gate, managed store, audit log, MCP server; 95 tests; Claude Desktop connects). **Left:** Phase 3 (REST API + web UI), Phase 4 (demo hardening), the PPT, the pitch, the demo.
+**Teams.** **Team A, Backend:** P1 = `<name>`, P3 = `<name>`. **Team B, Frontend + demo:** P2 = `<name>`, P4 = `<name>` (fill in the names).
+**State on 23 Nov, evening:** Phases 0–2 are on `main`. Seven PRs are open (#6–#12), and a trial merge of all seven into `main` passes: 139 passed, 5 skipped, `npm run build` clean. Not started yet: `api.py`, the page shell, the Check tab, the PPT.
 
 Sources: `CLAUDE.md` (build rules, wins on conflict), `docs/PROGRESS.md` (what is built, known issues), `docs/PROMPTS.md` (Prompts 3 and 4), `docs/delta-gate-final.md` (§10 demo, §11 plan, §12 Q&A).
 
-## 1. Rebalance against CLAUDE.md §10
+## 0. Merge queue (do this first, by 24 Nov 12:00)
 
-The §10 areas stay as code ownership. The remaining load does not match them: P1–P3's areas are built, and almost all of Phase 3 would land on P4. So:
+Merge in this order. After each merge, run `uv run pytest -q` on `main`. Two merges hit a small conflict; the fix is in the table.
 
-| | Owns (unchanged, §10) | Takes on now |
+| # | PR | Branch | What | Approver | Conflict when merged in this order |
+|---|---|---|---|---|---|
+| 1 | #7 | `p1-api` | UI fixtures from the real engine + fixture tests | P3 | none |
+| 2 | #8 | `p2-approvals` | HELD card, Tailwind, `types.ts`, `format.ts` | P4 | none |
+| 3 | #6 | `p3-hardening` | compile cap (≤ 8 compiles), Session Audit engine | P1 | `docs/PROGRESS.md`: keep both "Done" sections |
+| 4 | #11 | `p2-messy-drill` | judge's-file drill, 3 messy pairs, renamed sheets | P1 | none |
+| 5 | #12 | `p3-engine-fixes` | no ₹0 shares through unverifiable cells; new and renamed sheets grouped | P1 | `classify.py`: keep the renamed/new-sheet grouping, then the compile-budget loop from #6 |
+| 6 | #10 | `p3-lostlink-data` | **contract:** `region`, `path_before`, `kept` on lost-link findings | P1, P2, P4 (§8) | `structural.py`: map base regions through renames *and* fill `region` / `path_before` / `kept` |
+| 7 | #9 | `p2-graph` | Check tab structural panel (lost link as the headline) | P4 | none |
+
+## 1. Two teams
+
+| | Team A: Backend | Team B: Frontend + demo |
 |---|---|---|
-| **P1** | `mcp_server.py`, `gate/`, `db.py` | **All of `api.py`** (moved from P4), Claude Desktop on the demo laptop |
-| **P2** | `parse.py`, `graph.py`, `align.py`, `classify.py`, `structural.py` | **UI tabs 2 and 3** (Approvals inbox, Audit log) + lost-link graph (moved from P4), judge's-file drill |
-| **P3** | `recalc.py`, `verify.py`, `allowlist.py`, `shapley.py`, `proof.py`, `check.py` | **Phase 4 scripts**, Session Audit backend, engine known issues |
-| **P4** | `frontend/` shell + **UI tab 1** (Check result), `golden/`, `scripts/` | **PPT lead**, `DEMO_RUNBOOK.md`, backup recording |
+| People | P1 (lead), P3 | P4 (lead), P2 |
+| Owns | `backend/`, `scripts/` (except `demo_reset.ps1`), Claude Desktop, `DEMO_RUNBOOK.md` | `frontend/`, the PPT, the backup recording, the demo laptop |
+| Reviews | P1 and P3 review each other's PRs, the same day | P2 and P4 review each other's PRs, the same day |
+| Hands to the other team | REST endpoints, fixtures, contract changes | the UI that the runbook and `demo_check.py` describe |
 
-## 2. Per person
+Code ownership from `CLAUDE.md` §10 stays as it is. A contract change (`models.py`, REST payloads) also needs approval from the other team (§8).
+
+**Why this split:** what is left in the backend is the API and the demo proof; what is left in the frontend is three tabs and the PPT. Each pair works in one folder, reviews its own work quickly and rarely touches the other pair's files.
+
+## 2. Per person (what is left)
 
 Definition of done (DoD) for every code task also includes: `uv run pytest -q` green, PR merged, `docs/PROGRESS.md` updated.
 
-### P1 — REST API + agent surface
-**Files:** `backend/deltagate/api.py`, `mcp_server.py`, `gate/`, `db.py`, `backend/tests/test_api.py`. **Branch:** `p1-api`.
-**Claude Code prompt:** Prompt 3, scoped: *"API part only (api.py + tests). No frontend."*
+### Team A
+
+#### P1: REST API (team lead)
+**Files:** `backend/deltagate/api.py`, `mcp_server.py`, `gate/`, `db.py`, `scripts/dump_fixtures.py`, `backend/tests/test_api.py`.
+**Already done:** fixtures and fixture tests (#7).
 
 | # | Task | Done when | Deadline |
 |---|---|---|---|
-| 1 | Commit `frontend/src/fixtures/*.json`: one real `CheckResult` (v2→v3), one judge result, two held `Decision`s, audit rows (dump from the engine, do not hand-write) | UI people can build against them without the API | **24 Nov, 12:00** |
-| 2 | Approvals endpoints: `GET /api/edits?status=held`, `POST /api/edits/{id}/approve`, `/deny`, `POST /api/workbooks/{id}/rollback` | pytest: Session A held edit approved and denied over HTTP; a `Conflict` returns 409 with the message | **25 Nov, 18:00** |
-| 3 | Check endpoints: `POST /api/checks` (two files), `GET /api/checks/{id}`, `POST /api/checks/{id}/proof/{group_id}` | upload v2 + v3 → +42,000 = 38,000 + 4,000; the proof file downloads | **25 Nov, 23:59** |
-| 4 | Audit + export: `GET /api/audit`, `GET /api/audit/verify`, `GET /api/exports/{check_id}.csv` | verify returns ok / the failing entry; the CSV opens in Excel | **26 Nov, 18:00** |
-| 5 | Session Audit endpoints: `POST /api/session-audit/snapshot`, `/complete` (engine call from P3) | snapshot → edit elsewhere → complete returns a Check with `mode = session_audit` | **28 Nov, 18:00** |
-| 6 | Known issue: clean up old shadow / candidate files; MCP server shows the banner wording from `saved_by` | no files left in `store/<id>/shadow/` after approve / deny | 29 Nov |
-| 7 | Claude Desktop on the **demo laptop** (see §6) | Act 2 prompt gives `PARTIAL` on that machine | **30 Nov, 12:00** |
+| 1 | Merge queue (§0): review and merge the backend PRs | all seven merged, `main` green | **24 Nov, 12:00** |
+| 2 | Approvals endpoints: `GET /api/edits?status=held`, `POST /api/edits/{id}/approve`, `/deny`, `POST /api/workbooks/{id}/rollback` | pytest: Session A held edit approved and denied over HTTP; a `Conflict` returns 409 | **25 Nov, 18:00** |
+| 3 | Check endpoints: `POST /api/checks`, `GET /api/checks/{id}`, `POST /api/checks/{id}/proof/{group_id}` | v2 + v3 → +42,000 = 38,000 + 4,000; the proof file downloads | **25 Nov, 23:59** |
+| 4 | Audit and export: `GET /api/audit`, `GET /api/audit/verify`, `GET /api/exports/{check_id}.csv` | verify returns ok or the failing entry; the CSV opens in Excel | **26 Nov, 18:00** |
+| 5 | Session Audit endpoints on `session_audit.snapshot` / `complete` (engine ready in #6; a bad id returns 404) | snapshot → edit elsewhere → complete returns `mode = session_audit` | **26 Nov, 23:59** (was 28 Nov) |
+| 6 | One fixture script: fold `scripts/make_fixtures.py` (the `decision_*` HELD and can't-verify cards) into `dump_fixtures.py`, delete the old one | one command regenerates every fixture | 26 Nov |
+| 7 | Clean up old shadow and candidate files; the MCP server shows the banner wording from `saved_by` | nothing left in `store/<id>/shadow/` after approve or deny | 29 Nov |
+| 8 | Claude Desktop on the **demo laptop** (§6) | Act 2 prompt gives `PARTIAL` on that machine | **30 Nov, 12:00** |
 
-### P2 — Approvals inbox, Audit tab, structure
-**Files:** `frontend/src/tabs/Approvals*`, `frontend/src/tabs/Audit*`, `frontend/src/components/LostLinkGraph*`, engine files from §10, `golden/messy_*.xlsx`. **Branch:** `p2-approvals`.
-**Claude Code prompt:** Prompt 3, scoped: *"UI tabs 2 and 3 and the React Flow lost-link graph only. Build the HELD card first. Use the fixtures until the API is merged."*
-
-| # | Task | Done when | Deadline |
-|---|---|---|---|
-| 1 | **HELD card** (edit, reasons, ₹ impact per output, Approve / Deny) on fixtures | readable from 3 metres; Indian number format | **25 Nov, 18:00** |
-| 2 | Approvals inbox live: polling every 2 s, Approve / Deny / Rollback wired to P1's endpoints | Act 2 Session A: card appears within 2 s of the Desktop edit; Deny removes it | **27 Nov, 18:00** |
-| 3 | Audit tab: entries, checkpoints, "Verify log" with ✅ / ❌ | tampering a row in SQLite turns it ❌ | **28 Nov, 12:00** |
-| 4 | Lost-link mini-graph (React Flow) on the Check tab | v3 shows "Collected no longer depends on Payments!C"; the text alert works without the graph | **28 Nov, 23:59** |
-| 5 | Judge's-own-file drill: 3 messy workbooks (merged headers, no key column, blank rows, unsupported functions, a macro) | nothing crashes; every failure ends in an honest "can't verify" | **30 Nov, 12:00** |
-| 6 | Known issues in own area: reverse-direction `lost_link` noise; renamed sheet reads as deleted + added (document, do not fix unless the drill hits it) | decision recorded in PROGRESS.md | 30 Nov |
-
-### P3 — demo hardening + engine
-**Files:** `scripts/demo_check.py`, `backend/deltagate/engine/` files from §10, Session Audit engine path, `backend/tests/`. **Branch:** `p3-hardening`.
-**Claude Code prompt:** Prompt 4, scoped: *"demo_check.py, Session Audit, performance. Not the runbook."*
+#### P3: engine and demo proof
+**Files:** `backend/deltagate/engine/` (§10 files), `session_audit.py`, `scripts/demo_check.py`, `docs/DEMO_RUNBOOK.md`.
+**Already done:** compile cap and Session Audit engine (#6), engine fixes (#12), lost-link path data (#10).
 
 | # | Task | Done when | Deadline |
 |---|---|---|---|
-| 1 | Known issue: cap formula-group compiles (merge formula groups so one Check never exceeds 8 compiles) | a test with 5 formula groups finishes in < 10 s | **25 Nov, 23:59** |
-| 2 | Session Audit engine path: snapshot → Check with `mode = session_audit` | pytest: snapshot v2, "return" v3 → +42,000 and the lost link | **26 Nov, 23:59** |
-| 3 | `scripts/demo_check.py`: Acts 1–3 headless, asserts every on-screen number (42,000 / 38,000 / 4,000, lost link, `PARTIAL`, drift on the 9th, XLOOKUP unverifiable) | passes 3 times in a row after `demo_reset.ps1` | **28 Nov, 23:59** |
-| 4 | Known issue: the `pending` window (~2 s after a commit, 8–9 s on the first) | demo_check warms the LibreOffice profile; the UI label for `pending` agreed with P4 | 29 Nov |
-| 5 | Performance: print p95 for Check and gate on the demo files | numbers in PROGRESS.md; gate p95 stays ≤ 3 s | 29 Nov |
-| 6 | Stretch, only if 1–5 are done: Excel-compatible ROUND with a golden test (`ROUND(7.5*1.234,2)` = 9.26) | golden test passes against Excel, else ROUND stays unverifiable | 30 Nov |
+| 1 | Review P1's API PRs the day they open | no API PR waits overnight | ongoing |
+| 2 | `scripts/demo_check.py`: Acts 1–3 headless, asserts every on-screen number (42,000 / 38,000 / 4,000, lost link on C4, `PARTIAL`, drift on the 9th, XLOOKUP unverifiable) | passes 3 times in a row after `demo_reset.ps1` | **28 Nov, 23:59** |
+| 3 | The `pending` window (~2 s after a commit, 8–9 s the first time): warm the LibreOffice profile in `demo_check`; agree the UI label with P4 | the first commit in the demo is not slow; label agreed | 29 Nov |
+| 4 | Performance: p95 for Check and gate on the demo files, in PROGRESS.md (the gate test already prints p95) | gate p95 ≤ 3 s, numbers recorded | 29 Nov |
+| 5 | `docs/DEMO_RUNBOOK.md` (moved from P4): words per act, the Desktop prompt, fallbacks, how to play the recording. P4 adds the UI clicks | P2 can run the demo from the runbook alone | **29 Nov, 23:59** |
+| 6 | Stretch, only if 2–5 are done: Excel-compatible ROUND with a golden test (`ROUND(7.5*1.234,2)` = 9.26) | golden test passes, else ROUND stays unverifiable | 30 Nov |
 
-### P4 — Check result tab, PPT, demo assets
-**Files:** `frontend/` (shell, `src/tabs/Check*`, shared components, formatting), `golden/`, `scripts/demo_reset.ps1`, `docs/DEMO_RUNBOOK.md`, the PPT. **Branch:** `p4-check-ui`.
-**Claude Code prompt:** Prompt 3, scoped: *"UI shell and tab 1 (Check result) only."* Then Prompt 4, scoped: *"DEMO_RUNBOOK.md only."*
+### Team B
+
+#### P4: shell, Check tab, PPT (team lead)
+**Files:** `frontend/` (shell, `src/tabs/Check*`), `golden/`, `scripts/demo_reset.ps1`, the PPT.
+**Reuse, do not rebuild:** Tailwind, `src/types.ts` and `src/format.ts` (`inr`, `signedInr`, `savedByBanner`) from #8; `src/components/StructuralPanel.tsx` from #9.
 
 | # | Task | Done when | Deadline |
 |---|---|---|---|
-| 1 | **PPT** (see §4) | submitted, confirmation screenshot in the team chat | **24 Nov, 20:00** (hard limit 23:59) |
-| 2 | Page shell: three tabs, Tailwind, react-query, `inr()` formatter (₹2,86,000), honest banner from `saved_by` | fixtures render; `pending` and `none` both say "Not verifiable against saved values" | **25 Nov, 23:59** |
+| 1 | **PPT** (§4) | submitted, confirmation screenshot in the team chat | **24 Nov, 20:00** (hard limit 23:59) |
+| 2 | Page shell: three tabs, react-query, the honest banner | fixtures render; `pending` and `none` both say "Not verifiable against saved values" | **25 Nov, 23:59** |
 | 3 | Check tab core: upload, banner, template headline, ECharts waterfall whose bars sum to Δ, groups table (solo / share / interaction) | v2 + v3 → "+₹42,000 = ₹38,000 … + ₹4,000 …"; a null output shows "unknown", never 0 | **27 Nov, 12:00** |
-| 4 | Check tab rest: type filter, clickable rows, "Prove it", structural panel, unverifiable list, CSV export | judge file shows 38,000 verified + 4,000 unverified and the XLOOKUP list | **28 Nov, 18:00** |
-| 5 | `docs/DEMO_RUNBOOK.md`: clicks and words per act, the Desktop prompt, fallbacks, how to play the recording | P2 can run the demo from the runbook alone | **29 Nov, 23:59** |
-| 6 | Backup screen recording of Acts 1–3 | on the demo laptop **and** a USB stick | **30 Nov, 23:59** |
+| 4 | Check tab rest: type filter, clickable rows, "Prove it", drop in `StructuralPanel`, unverifiable list, CSV export | judge file shows 38,000 verified + 4,000 unverified and the XLOOKUP list | **28 Nov, 18:00** |
+| 5 | Demo laptop: Excel, LibreOffice, uv, Node, repo on `main`, `uv sync`, `npm i` | `uv run pytest -q` green on it | 29 Nov |
+| 6 | UI clicks in P3's runbook; backup screen recording of Acts 1–3 | recording on the demo laptop **and** a USB stick | **30 Nov, 23:59** |
 
-## 3. Dependencies (who blocks whom)
+#### P2: Approvals, Audit, lost-link graph
+**Files:** `frontend/src/tabs/Approvals*`, `frontend/src/tabs/Audit*`, `frontend/src/tabs/SessionAudit*`, `frontend/src/components/LostLinkGraph*`, engine structure files from §10.
+**Already done:** HELD card (#8), structural panel (#9), judge's-file drill (#11).
+
+| # | Task | Done when | Deadline |
+|---|---|---|---|
+| 1 | Review P4's shell PR the day it opens | the shell merges on 25 Nov | 25 Nov |
+| 2 | Approvals inbox live: poll every 2 s, Approve / Deny / Rollback wired to P1's endpoints | Act 2 Session A: the card appears within 2 s of the Desktop edit; Deny removes it | **27 Nov, 18:00** |
+| 3 | Audit tab: entries, checkpoints, "Verify log" with ✅ / ❌ | tampering a row in SQLite turns it ❌ | **28 Nov, 12:00** |
+| 4 | Lost-link mini-graph (React Flow) from `region`, `path_before`, `kept` (#10) | v3: dashed red Payments!C → Summary!C4; C6 still connected via Payments!D and LateFees!C; the text alert works without it | **28 Nov, 23:59** |
+| 5 | Session Audit screen (it had no owner): snapshot → upload the after-file → show the Check | Act 3 can show it; cut-list item 2 if late | 29 Nov |
+| 6 | Judge's-file drill again on the demo laptop (`tests/test_messy.py` + one real file a teammate brings) | nothing crashes; every failure is an honest "can't verify" | **30 Nov, 12:00** |
+
+## 3. Order and dependencies
+
+**Build order:**
+1. **24 Nov:**
+   - Merge queue by 12:00.
+   - P4's PPT by 20:00.
+   - Nothing else waits on the PPT.
+2. **25 Nov:**
+   - P1 builds the approvals and check endpoints.
+   - P4 builds the shell, which P2's tabs sit in.
+   - P2 builds the inbox against fixtures.
+3. **26 Nov:**
+   - P1 builds the audit, CSV and Session Audit endpoints.
+   - P2 builds the Audit tab against fixtures.
+4. **27 Nov:**
+   - P4 finishes the Check tab core.
+   - P2's inbox goes live on the real API.
+5. **28 Nov:**
+   - Every tab and endpoint is merged.
+   - P3's `demo_check.py` runs against them.
+6. **29 Nov:**
+   - Runbook, demo laptop, rehearsal 1.
+7. **30 Nov:**
+   - Phase 4 done, freeze, rehearsal 2, recording.
 
 | Needed by | What | From | By |
 |---|---|---|---|
-| P2, P4 | JSON fixtures (real engine output) | P1 | 24 Nov 12:00 |
+| everyone | merge queue (§0) | both teams | 24 Nov 12:00 |
+| everyone (pitch) | slide deck | P4 | 24 Nov 20:00 |
+| P2 | page shell | P4 | 25 Nov 23:59 |
 | P2 | approve / deny / rollback / held endpoints | P1 | 25 Nov 18:00 |
 | P4 | checks + proof endpoints | P1 | 25 Nov 23:59 |
 | P2, P4 | audit + CSV endpoints | P1 | 26 Nov 18:00 |
-| P1 | Session Audit engine function | P3 | 26 Nov 23:59 |
-| P2 | page shell + shared components (`inr`, banner) | P4 | 25 Nov 23:59 |
-| P3 (`demo_check.py`) | all Phase 3 endpoints merged | P1 | 28 Nov 18:00 |
-| P4 (runbook, recording) | all three tabs merged | P2, P4 | 28 Nov 23:59 |
-| Everyone (pitch) | slide deck | P4 | 24 Nov 20:00 |
-| P1 (demo laptop) | the laptop chosen, Excel + LibreOffice + uv + Node installed | P4 | 29 Nov |
+| P2 | Session Audit endpoints | P1 | 26 Nov 23:59 |
+| P3 (`demo_check.py`) | all endpoints merged | P1 | 28 Nov 18:00 |
+| P3 (runbook), P4 (recording) | all three tabs merged | P2, P4 | 28 Nov 23:59 |
+| P1 (Desktop) | the demo laptop set up | P4 | 29 Nov |
 
-If a dependency slips by more than half a day, the blocked person keeps building on fixtures and says so in the sync.
+If a dependency slips by more than half a day, the blocked person keeps building on fixtures and says so in the sync. Inside a team, the lead decides who helps whom.
 
 ## 4. PPT (due 24 Nov, 23:59)
 
@@ -182,10 +226,10 @@ CSV export → Session Audit screen (explain it verbally) → Ed25519 checkpoint
 
 ## 9. Merge rules
 
-- One branch per person (`p1-api`, `p2-approvals`, `p3-hardening`, `p4-check-ui`). Short-lived extra branches are fine; they merge into `main`, not into each other.
+- One branch per task (`p1-…`, `p2-…`, `p3-…`, `p4-…`), off `main`. Branches merge into `main`, not into each other. If you must build on an open PR, say so in your PR and merge after it.
 - **PRs into `main`. Nobody pushes to `main` directly.**
 - Before every PR: `cd backend && uv run pytest -q` (and `npm run build` if `frontend/` changed). Paste the last line into the PR.
-- One other person approves. For a contract change, see §8.
+- **Your teammate approves** (Team A: P1 and P3; Team B: P2 and P4). For a contract change, see §8: the other team approves too.
 - **Doc-only PRs may be self-merged.** Any PR that touches `backend/` or `frontend/` needs one teammate's approval.
 - Merge commit (no squash), no AI attribution lines in commits or PRs.
 - Rebase or merge `main` into your branch at least once a day.
@@ -203,15 +247,15 @@ CSV export → Session Audit screen (explain it verbally) → Ed25519 checkpoint
 
 ## 11. Timeline
 
-| Date | Build | Everything else |
-|---|---|---|
-| **Mon 23 Nov** | Phases 0–2 merged. This split agreed, names filled in | PPT outline (P4) |
-| **Tue 24 Nov** | P1 fixtures 12:00 | PPT inputs 14:00, review 18:00, **submit 20:00 (limit 23:59)**; registration confirmed |
-| **Wed 25 Nov** | P1 approvals + checks endpoints; P2 HELD card; P4 shell; P3 compile cap | Pitch script 20:00, dry run 21:00 |
-| **Thu 26 Nov** | P1 audit + CSV; P3 Session Audit engine | **Pitch (day 1)**; dry run in the morning |
-| **Fri 27 Nov** | P4 Check tab core 12:00; P2 inbox live 18:00 | **Pitch (day 2)** |
-| **Sat 28 Nov** | P2 Audit tab + lost-link graph; P4 Check tab rest; P1 Session Audit endpoints; P3 `demo_check.py`. **Phase 3 done** | |
-| **Sun 29 Nov** | Known issues (P1 shadow cleanup, P3 pending window + performance) | Runbook (P4); demo laptop ready; **rehearsal 1, 21:00** |
-| **Mon 30 Nov** | P2 judge's-file drill 12:00. **Phase 4 done. Code freeze except fixes** | Desktop on demo laptop 12:00; **rehearsal 2, 18:00**; backup recording; confirm what may be brought on site |
-| **Tue 1 Dec** | Hackathon hours 0–18: integrate, polish, **freeze at hour 18** | |
-| **Wed 2 Dec** | Hours 18–24: rehearse ×3, judge-sheet drill | **Demo** |
+| Date | Team A (P1, P3) | Team B (P2, P4) | Everything else |
+|---|---|---|---|
+| **Mon 23 Nov** | Phases 0–2 merged; #6, #7, #10–#12 open | #8, #9 open | This split agreed, names filled in |
+| **Tue 24 Nov** | Merge queue 12:00 | Merge queue 12:00 | PPT inputs 14:00, review 18:00, **submit 20:00 (limit 23:59)** |
+| **Wed 25 Nov** | P1 approvals + checks endpoints | P4 shell; P2 inbox on fixtures | Pitch script 20:00, dry run 21:00 |
+| **Thu 26 Nov** | P1 audit, CSV, Session Audit endpoints; one fixture script | P2 Audit tab on fixtures | **Pitch (day 1)**; dry run in the morning |
+| **Fri 27 Nov** | P3 `demo_check.py` on what is merged | P4 Check core 12:00; P2 inbox live 18:00 | **Pitch (day 2)** |
+| **Sat 28 Nov** | P3 `demo_check.py` 23:59. **Phase 3 done** | P2 Audit tab + graph; P4 Check rest | |
+| **Sun 29 Nov** | P1 shadow cleanup; P3 pending window, performance, runbook | P2 Session Audit screen; P4 demo laptop | **Rehearsal 1, 21:00** |
+| **Mon 30 Nov** | P1 Desktop on demo laptop 12:00. **Phase 4 done, freeze except fixes** | P2 drill 12:00; P4 recording | **Rehearsal 2, 18:00**; confirm what may be brought on site |
+| **Tue 1 Dec** | Hackathon hours 0–18 (§7) | Hackathon hours 0–18 (§7) | |
+| **Wed 2 Dec** | Hours 18–24 (§7) | Hours 18–24 (§7) | **Demo** |
