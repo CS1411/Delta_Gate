@@ -85,6 +85,20 @@ p95 > 1.5 s, so **sidecar mode** was built: a commit writes the openpyxl file at
 - **How they are compared:** `tests/test_fixtures.py` compares field by field with every sha256 and signature normalised to a placeholder (runs everywhere), plus a test that the normaliser still rejects a changed money value, label or status. The exact byte check is opt-in, `DG_FIXTURE_EXACT=1`, and is expected to pass only on the machine that generated the fixtures: a `.xlsx` is a zip, so its bytes are not reproducible across platforms, and the version hashes, audit chain and signatures all derive from them. `.gitattributes` pins `frontend/src/fixtures/*.json` to LF.
 - Regenerate whenever `models.py`, the engine or the gate changes; the test fails until you do.
 
+## Known issue: `test_proof_workbook_for_f3` fails when two LibreOffice runs overlap
+- **Test:** `tests/test_check.py::test_proof_workbook_for_f3`. **Failure line:** `subprocess.CalledProcessError: Command '[…/soffice, --headless, --calc, --convert-to, xlsx, …]' returned non-zero exit status 1`.
+- **Rate:** 0 failures in 5 unloaded full runs (`DG_FIXTURE_EXACT=1 pytest -q -rf`); 3 failure reports in 10 loaded runs (5 iterations, each with a second full pytest in parallel; the per-run log names got crossed, so I can't say which of the two runs in an iteration failed). One unlabelled `1 failed, 111 passed` earlier, probably the same test. It is the only test that failed.
+- **Cause (from the command line, not yet confirmed by a fix):** the test starts `soffice` with the default LibreOffice user profile. A second `soffice` already using that profile (a parallel pytest, a lingering run, the user's own LibreOffice) makes the headless convert exit 1. The store's worker avoids this with its own profile under `data/libreoffice_profile`.
+- **Not the pending-window issue (known issue 4):** this test does not read `saved_by = pending` and does not sleep, so the hypothesis about P3's pending window does not apply.
+- **Proposed fix (not done, P3's test):** pass `-env:UserInstallation=file://<tmp_path>/profile` in that test's `subprocess.run`, as `store.recalculate` does. Until then: do not run two pytest sessions, or LibreOffice, at once on the demo laptop.
+
+## Done (P1-2): REST API group 1, approvals (`deltagate/api.py`)
+- `GET /api/edits?status=held` (HELD and PARTIAL edits, `list[Decision]`), `POST /api/edits/{id}/approve`, `POST /api/edits/{id}/deny`, `POST /api/workbooks/{id}/rollback`. One SQLite connection per request.
+- Responses are the pydantic models as they are: no formatting, no computing, null stays null. Errors: `store.Conflict` and `ValueError` from the gate (nothing waiting, nothing to roll back to) → **409** `{"detail": <the gate's message>}`; unknown edit or workbook → **404**.
+- **New payload, flagged:** rollback needs a body and no model existed, so `RollbackResult` (`workbook_id, sha256, saved_by, source, created_at`: the restored `versions` row) is defined in `api.py`, not `models.py`. P2 and P4 should confirm it before the UI uses it; if it should be a contract it moves to `models.py`.
+- `tests/test_api.py` (11 tests, over the FastAPI test client on a real gate): Session A held edit approved, and separately denied; double action → 409 with the message; stale held cell → 409; unknown → 404; rollback marks the edit `ROLLED_BACK`; approve / deny / rollback are not MCP tools and not importable from `mcp_server`.
+- Not started: checks, proof, audit, export and session-audit endpoints.
+
 ## How a Check decides what is verified (read before Phase 2)
 - **Unverifiable roots:** formula not on the allowlist (reason = the function name), `#REF!`-style error, named range / table / external reference, array formula, a workbook with macros or pivot tables (every formula), a base cell whose engine value differs from its saved value, an engine error.
 - **Tainted** = roots + everything downstream, taken on the union of the base and new graphs (every coalition's dependencies are a subset of that union).
