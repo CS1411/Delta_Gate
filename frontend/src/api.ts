@@ -1,7 +1,6 @@
-// The only module that talks to the backend. Plain fetch, no library: moving to react-query later means
-// replacing the callers of these three functions, nothing else. /api is proxied to uvicorn in vite.config.ts.
+// The only module that talks to the backend. Plain fetch, no library. /api is proxied to uvicorn in vite.config.ts.
 
-import type { AuditLog, Decision } from './types'
+import type { AuditLog, CheckResult, Decision, SavedBy } from './types'
 
 /** A non-2xx answer. `message` is the server's own `detail` (e.g. why an approve was refused). */
 export class ApiError extends Error {
@@ -37,3 +36,42 @@ export const fetchAudit = () => call<AuditLog>('/api/audit')
 /** GET /api/audit/verify. A tampered log still answers 200: always read `ok`, never the status. (Defined in api.py, not models.py.) */
 export interface AuditVerdict { ok: boolean; entries: number; checkpoints: number; error: string | null }
 export const verifyAudit = () => call<AuditVerdict>('/api/audit/verify')
+
+// --- Check tab and shell (P1) -------------------------------------------------------------------------------
+
+/** POST /api/checks with the two versions of a workbook. */
+export function runCheck(base: File, next: File) {
+  const form = new FormData()
+  form.append('base', base)
+  form.append('new', next)
+  return call<CheckResult>('/api/checks', { method: 'POST', body: form })
+}
+
+/** The change log of a stored Check, as a download link. */
+export const csvHref = (checkId: string) => `/api/exports/${encodeURIComponent(checkId)}.csv`
+
+/** POST /api/checks/{id}/proof/{group}: the proof workbook, saved by the browser under the server's file name. */
+export async function downloadProof(checkId: string, groupId: string) {
+  const response = await fetch(`/api/checks/${encodeURIComponent(checkId)}/proof/${encodeURIComponent(groupId)}`, { method: 'POST' })
+  if (!response.ok) {
+    const detail = await response.json().then((b) => b?.detail, () => null)
+    throw new ApiError(response.status, typeof detail === 'string' ? detail : `Request failed (${response.status})`)
+  }
+  const name = /filename="?([^";]+)"?/.exec(response.headers.get('content-disposition') ?? '')?.[1] ?? `proof-${groupId}.xlsx`
+  const url = URL.createObjectURL(await response.blob())
+  const link = Object.assign(document.createElement('a'), { href: url, download: name })
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+/** GET /api/workbooks: managed workbooks and their current version (defined in api.py, not models.py). */
+export interface WorkbookSummary {
+  workbook_id: string
+  name: string
+  current_version: string
+  saved_by: SavedBy | 'pending'
+  source: 'managed' | 'unmanaged'
+  updated_at: string
+  can_rollback: boolean
+}
+export const fetchWorkbooks = () => call<WorkbookSummary[]>('/api/workbooks')

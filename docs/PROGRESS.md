@@ -277,6 +277,25 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 - **Fix:** `gate.approve`, `gate.deny` and `gate.rollback` now sign a checkpoint on their own entry, inside the same transaction. Every 50 entries and session end still apply. Test: `test_every_approver_action_signs_a_checkpoint` (deny, approve, rollback → the signed head is the latest entry each time; verify ok with 3 checkpoints).
 - **Demo checklist item (for the runbook):** restart Claude Desktop after pulling `main`. A running MCP server keeps the code it started with: this session's server still had no `banner` in `read_range` (pre-#15).
 
+## Done (P1, SPLIT v3): page shell and the Check tab container (branch `p1-shell`)
+- **Shell (`frontend/src/App.tsx`):**
+  - Three tabs: Check, Approvals, Audit. The active tab is kept in the URL hash (`#check`, `#approvals`, `#audit`), so the runbook can link straight to one.
+  - A status line per managed workbook from `GET /api/workbooks`, polled every 5 s, using `savedByBanner` (`pending` and `none` both read "Not verifiable against saved values").
+  - "Changed outside Delta Gate" for an unmanaged version, and "API offline: tabs show sample data" when the API can't be reached.
+  - Layout and look are Nitika's to restyle.
+- **Check tab container (`frontend/src/tabs/Check/index.tsx`):**
+  - Upload base and new → `POST /api/checks` → Hemanth's `CheckResultView`, with `StructuralPanel` passed in as `structuralSlot`.
+  - "Prove it" downloads the proof workbook; "Export CSV" links to `/api/exports/{id}.csv`.
+  - Two labelled samples (v2 → v3, and the judge file) render the real engine fixtures with no backend. Prove it and CSV are offered only for a live Check.
+  - The server's error `detail` is shown as is.
+- **`api.ts`:** `runCheck`, `csvHref`, `downloadProof`, `fetchWorkbooks` (plain fetch, same `call` helper).
+- **Dependencies:** `echarts` and `echarts-for-react`, for Hemanth's waterfall. `@tanstack/react-query` was not added: `api.ts` and the per-tab polling already cover what the tabs do. Add it if a tab needs caching.
+- **Checked in the browser against the live API:**
+  - uploaded v2 + v3 → "+₹42,000 = +₹38,000 New row in Expenses: Lift repair (data) + +₹4,000 Formula changed: LateFees!F3 (logic)", banner "Verified against Excel's saved values: 307 / 307";
+  - the lost-link card on Summary!C4;
+  - the proof download (200, xlsx) and the CSV (200);
+  - the Approvals and Audit tabs, and phone width.
+
 ## In progress
 Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phase-2-gate` goes to `main` by pull request. Phase 3 has not started.
 
