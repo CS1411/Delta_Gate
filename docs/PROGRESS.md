@@ -204,6 +204,13 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
   - A sheet the base does not have (renamed or new) made any coalition holding the formulas that use it, but not its cells, evaluate a reference to a missing sheet (`FormulaEvalError`); a pure rename failed closed instead of Δ 0. Root cause was the grouping, not `recalc.py`: `classify` now puts a renamed or new sheet and every changed formula that refers to it in one structural group ("Sheet Data renamed to Costs", "New sheet Extra"), so no coalition points at a sheet it does not create. Pure rename: Δ 0 exact; new sheet + formula using it: Δ exact.
   - Left as is: a new sheet that no changed formula uses stays a value group that `set_cell` skips (nothing reads it, so nothing moves).
 
+## Done (P1 task 7): shadow cleanup and the MCP banner (branch `p1-shadow-cleanup`)
+- **`store.discard(workbook_id, edit_id, keep_shadow=False)`** deletes an edit's shadow copy and its candidates (`<edit>.pass.xlsx`, `<edit>.approved.xlsx`); it never creates folders, so an unknown workbook id leaves nothing behind. Called by the gate:
+  - `propose_edit` PASS → everything deleted; HELD / PARTIAL → only the shadow kept (approve copies the held cells from it); any exception before the edit is recorded → everything deleted.
+  - `approve` and `deny` → everything deleted after the transaction. A refused approval (`Conflict`) keeps the shadow, so the approver can still deny.
+- **One wording for the banner:** `parse.banner(saved_by)`: "Verified against Excel's saved values" / "Verified against LibreOffice's saved values" / "Not verifiable against saved values" (`pending` and `none`). The CLI uses it (plus the match counts), and the MCP server now returns `banner` next to `saved_by` in `read_range` and in `explain_delta`, so the agent can quote it as is.
+- Tests: cleanup after PASS, PARTIAL → approve, HELD → deny, a failed proposal, a refused approval, an unknown id; the banner for all four labels and in both MCP tools.
+
 ## In progress
 Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phase-2-gate` goes to `main` by pull request. Phase 3 has not started.
 
@@ -265,7 +272,6 @@ Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phas
 - **The sidecar is discarded if LibreOffice drops or changes any cell** (label `none`). Seen to pass on the demo files; not tried on messy real workbooks.
 - **Module state outside `config.py` / `db.py`:** `store.py` holds the single LibreOffice worker and its job list; `mcp_server.py` holds the set of sessions it served. Both are process-local.
 - **Approver actions have no interface yet** (functions and tests only); REST comes in Phase 3.
-- **Old shadow and candidate files are never cleaned up** (`store/<id>/shadow/`).
 - `uv run mcp dev` needs Node (`npx`) for the inspector; `mcp_server.py` puts `backend/` on `sys.path` when it is loaded by file path.
 
 ## Cut list status
