@@ -2,7 +2,7 @@
 so they fire even when no total moves.
 
   typed_over_formula      a cell that held a formula now holds a constant (or nothing)
-  shortened_range         a formula's range covers fewer rows/columns; or a new row sits just past a range
+  shortened_range         a formula's range covers fewer rows/columns; or a range does not cover a new row
   protected_formula_edit  a cell listed in policy.protected was edited directly
   rows_deleted_in_range   rows removed inside a range some formula uses
   lost_link               a watched output no longer depends on an input region (sheet + column header)
@@ -92,8 +92,10 @@ def findings(base: Book, new: Book, gb: nx.DiGraph, gn: nx.DiGraph, changes: lis
                     continue
                 cell = next((a for c in range(r.c1, r.c2 + 1) if (a := addr(sheet, row, c)) in new.cells), None)
                 if cell:
-                    add("shortened_range", cell, f"New row {row} in {sheet} is outside {name}: "
-                        "formulas using that range do not count it", output=reaches(name))
+                    users = sorted(gn.successors(name), key=split)  # the formulas that use this range
+                    more = f" (and {len(users) - 1} more formulas)" if len(users) > 1 else ""
+                    add("shortened_range", cell, f"Range {name} in {users[0]}{more} does not cover new row {row}",
+                        output=reaches(name))
 
     for w in policy.watched_outputs:
         before, after = graph.input_regions(gb, base, w.cell), graph.input_regions(gn, new, w.cell)

@@ -198,5 +198,6 @@ def test_appended_row_outside_the_range_is_a_finding_not_a_crash(tmp_path, polic
     new = book(tmp_path / "b.xlsx", {"Summary": POLICY_CELLS, "Data": DATA | {"A5": "F4", "B5": 40}})
     result = check(base, new, policy)
     finding = next(f for f in result.structural if f.kind == "shortened_range")
-    assert finding.cell == "Data!B5" and finding.output == C6 and "Data!B2:B4" in finding.message
+    assert finding.cell == "Data!B5" and finding.output == C6
+    assert finding.message == "Range Data!B2:B4 in Summary!C6 does not cover new row 5"
     assert next(o for o in result.outputs if o.cell == C6).delta_verified == 0  # the new row is not counted

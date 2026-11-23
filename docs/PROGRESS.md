@@ -1,6 +1,6 @@
 # Delta Gate — progress
 
-_Last updated: 23 Nov 2026, end of Phase 1 (branch `phase-1-check`)._
+_Last updated: 23 Nov 2026, end of Phase 1 (reviewed; branch `phase-1-check`)._
 
 ## Done (Phase 0)
 - **Scaffold:** `backend/` (uv, Python 3.12, deps locked in `uv.lock`), `frontend/` (Vite React TS template, builds), `policy.yaml`, `.gitignore`.
@@ -117,7 +117,7 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 7. Coerce numpy scalars from pycel (e.g. SUMPRODUCT) to Python numbers.
 
 ## In progress
-Nothing. Phase 1 is complete and waiting for review; Phase 2 has not started.
+Nothing. Phase 1 is reviewed (decisions marked below); Phase 2 has not started.
 
 ## Decisions (with why)
 - **Base value ₹2,86,000 → ₹3,28,000**, not the earlier example ₹1,86,000 → ₹2,28,000. Overdue total is fixed at ₹2,00,000 and is part of pending dues, so pending cannot be below ₹2,04,000 unless flats carry advance credits. Δ is unchanged (+₹42,000). The JSON example in the contracts section is illustrative only and was left as is.
@@ -129,13 +129,13 @@ Nothing. Phase 1 is complete and waiting for review; Phase 2 has not started.
 - **Coalition oracle shape:** `shapley(groups, v)` takes `v(frozenset) -> float` and calls it once per coalition; the engine precomputes `F(S)` for all S and passes a table lookup.
 - **`pyyaml` added** to backend dependencies (needed for `policy.yaml`).
 - **No package build step:** `pytest` uses `pythonpath = ["."]`; run commands work from `backend/`.
-- **Branch:** Phase 0 merged to `main` (PR #1). Phase 1 is on `phase-1-check`, not pushed.
+- **Branch:** Phase 0 merged to `main` (PR #1). Phase 1 is on `phase-1-check`, merged to `main` by pull request after review.
 
 **Phase 1 decisions**
-- **Contract widened (`models.py`):** `Output.base`, `new`, `delta_observed`, `delta_unverified` are `float | null`. Null means "no saved value and the engine must not compute it" (e.g. a ROUND output in an openpyxl-written file). Reporting 0 there would be a guess. `delta_verified` is always a number.
-- **`formulas` fallback engine not wired in.** Under the current rules no function may be routed to it (XLOOKUP needs a golden test first, and the acceptance test requires XLOOKUP to be unverifiable), so the code would be unreachable. Add it together with the XLOOKUP golden test.
-- **`protected_formula_edit` follows the build rules, not the spec:** it fires on a direct edit (value or formula) to a cell in `policy.protected`. The spec's wider "any formula on the way to a watched output" is not implemented.
-- **A row appended just past a range** (range ended at the old last row and was not extended) is reported as `shortened_range` ("New row 5 in Data is outside Data!B2:B4 …"). No new finding kind, so the contract enum is unchanged.
+- **Contract widened (`models.py`):** `Output.base`, `new`, `delta_observed`, `delta_unverified` are `float | null`. Null means "no saved value and the engine must not compute it" (e.g. a ROUND output in an openpyxl-written file). Reporting 0 there would be a guess. `delta_verified` is always a number. **Accepted in review;** the CheckResult example in the build rules §5 now shows the null case.
+- **`formulas` fallback engine not wired in.** Under the current rules no function may be routed to it (XLOOKUP needs a golden test first, and the acceptance test requires XLOOKUP to be unverifiable), so the code would be unreachable. **Review decision: skip for now; wire after XLOOKUP golden test.**
+- **`protected_formula_edit` follows the build rules, not the spec:** it fires on a direct edit (value or formula) to a cell in `policy.protected`. **Accepted in review for the hackathon.** Roadmap item: the spec's wider version, "any formula changed on the way to a watched output".
+- **A row appended just past a range** (range ended at the old last row and was not extended) is reported as kind `shortened_range` with the message "Range <ref> in <cell> does not cover new row <n>" (e.g. "Range Data!B2:B4 in Summary!C6 does not cover new row 5"; "(and N more formulas)" is added when several formulas use the range). `finding.cell` is the new row's cell. No new finding kind, so the contract enum is unchanged. **Kind and wording confirmed in review.**
 - **Group labels are engine templates:** "New row in Expenses: Lift repair", "Formula changed: LateFees!F3", "Formula replaced by a value: Summary!C4", "3 values changed in Payments!C (Amount paid)".
 - **Grouping:** (sheet, column, type); appended rows = one data group per sheet; trailing deleted rows = one structural group per sheet; a sheet whose rows moved = one structural group. More than 8 → merge to (sheet, type), then (type).
 - **`finding.output`:** the cell itself if it is watched, else the first watched output (policy order) it feeds, else null.
