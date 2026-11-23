@@ -5,6 +5,7 @@ import sessionA from '../../fixtures/decision_session_a.json'
 import sessionB from '../../fixtures/decision_session_b.json'
 import type { Decision } from '../../types'
 import HeldCard from './HeldCard'
+import Workbooks from './Workbooks'
 
 // Approvals inbox, live: polls GET /api/edits?status=held every 2 s. If the API cannot be reached it shows the
 // engine-generated fixtures instead (the demo must still work with no backend) and says so.
@@ -82,6 +83,7 @@ export default function Approvals() {
           )}
         </div>
       ))}
+      <Workbooks />
     </div>
   )
 }
