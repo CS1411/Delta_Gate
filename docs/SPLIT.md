@@ -1,31 +1,96 @@
-# Delta Gate: who does what, 23 Nov → 2 Dec 2026 (v2: two teams)
+# Delta Gate: who does what, 23 Nov → 2 Dec 2026 (v3: Nitika on design only)
 
-**Teams.** **Team A, Backend:** P1 = `<name>`, P3 = `<name>`. **Team B, Frontend + demo:** P2 = `<name>`, P4 = `<name>` (fill in the names).
-**State on 23 Nov, evening:** Phases 0–2 are on `main`. Seven PRs are open (#6–#12), and a trial merge of all seven into `main` passes: 139 passed, 5 skipped, `npm run build` clean. Not started yet: `api.py`, the page shell, the Check tab, the PPT.
+**People.** P1 = `<name>` · P2 = Nikita · P3 = Hemanth · P4 = Nitika.
+**Teams.** **Team A, Backend:** P1, P3. **Team B, Frontend:** P2 (Nikita), with P4 (Nitika) on **visual design only**.
+**State on 24 Nov, 01:45:**
+- On `main`: #6, #7, #11, #12, #15 (tests green).
+- Open: #8, #9, #10, #16, #17, #18, #19, #20.
+- P1 and Hemanth are working tonight; Nikita and Nitika are not.
 
-Sources: `CLAUDE.md` (build rules, wins on conflict), `docs/PROGRESS.md` (what is built, known issues), `docs/PROMPTS.md` (Prompts 3 and 4), `docs/delta-gate-final.md` (§10 demo, §11 plan, §12 Q&A).
+Sources: `CLAUDE.md` (build rules, wins on conflict), `docs/PROGRESS.md` (what is built, known issues), `docs/delta-gate-final.md` (§10 demo, §12 Q&A).
 
-## 0. Merge queue (do this first, by 24 Nov 12:00)
+## 0. v3 changes (24 Nov, 01:45): these win over anything below that disagrees
 
-Merge in this order. After each merge, run `uv run pytest -q` on `main`. Two merges hit a small conflict; the fix is in the table.
+### 0.1 Nitika does frontend design only
+Nitika keeps the **visual design**: layout, colour, type, spacing, readability from 3 metres, and the look of the waterfall, cards and tables, for every tab. She restyles components that already work against real data, changing markup and classes, not data logic. Before editing a file, she tells its owner (§0.4).
 
-| # | PR | Branch | What | Approver | Conflict when merged in this order |
-|---|---|---|---|---|---|
-| 1 | #7 | `p1-api` | UI fixtures from the real engine + fixture tests | P3 | none |
-| 2 | #8 | `p2-approvals` | HELD card, Tailwind, `types.ts`, `format.ts` | P4 | none |
-| 3 | #6 | `p3-hardening` | compile cap (≤ 8 compiles), Session Audit engine | P1 | `docs/PROGRESS.md`: keep both "Done" sections |
-| 4 | #11 | `p2-messy-drill` | judge's-file drill, 3 messy pairs, renamed sheets | P1 | none |
-| 5 | #12 | `p3-engine-fixes` | no ₹0 shares through unverifiable cells; new and renamed sheets grouped | P1 | `classify.py`: keep the renamed/new-sheet grouping, then the compile-budget loop from #6 |
-| 6 | #10 | `p3-lostlink-data` | **contract:** `region`, `path_before`, `kept` on lost-link findings | P1, P2, P4 (§8) | `structural.py`: map base regions through renames *and* fill `region` / `path_before` / `kept` |
-| 7 | #9 | `p2-graph` | Check tab structural panel (lost link as the headline) | P4 | none |
+Everything else she owned moves to P1 and Hemanth:
+
+| Moved from Nitika | New owner |
+|---|---|
+| Reviewing frontend PRs (#8, #9, #17, #19, and later ones) | **Hemanth** |
+| Approving the frontend side of contracts (#10, #16) | covered by the new approval rule (§0.5) |
+| Page shell: three tabs, `@tanstack/react-query`, the `/api` proxy in `vite.config.ts`, banner logic | **P1** |
+| Check tab data: upload two files, call the API, "Prove it" and CSV downloads, null → "unknown" | **P1** |
+| Check tab results view, built on fixtures: template headline, ECharts waterfall whose bars sum to Δ, groups table (solo / share / interaction), type filter, clickable rows, unverifiable list, where `StructuralPanel` sits | **Hemanth** |
+| Demo laptop setup (Excel, LibreOffice, uv, Node, repo, tests green, `demo_check` p95 re-run) | **Hemanth** |
+| UI clicks in `DEMO_RUNBOOK.md` | **Hemanth** (Nikita adds the clicks for her tabs) |
+| Backup screen recording of Acts 1–3 | **Hemanth** |
+| `golden/` and `scripts/demo_reset.ps1` | **Hemanth** |
+
+### 0.2 Tonight's order (P1 and Hemanth)
+**P1**
+1. Merge this split (doc-only).
+2. Merge queue as approvals land: **#8 → #10 → #16 → #9 → #17 → #19 → #20**.
+   - #19 also lands #18.
+   - Before #20 merges, merge `main` into it.
+   - Delete each branch after its merge.
+   - #10, #16, #17 and #20 are approved already. #8, #9 and #19 wait on Hemanth.
+3. **Shell PR (`p1-shell`), after #19:**
+   - It replaces Nikita's temporary Approvals/Audit switch in `App.tsx`.
+   - It adds **all** new frontend dependencies in one go (`@tanstack/react-query`, `echarts`, `echarts-for-react`), so only one PR touches the lockfile.
+   - It adds the Vite `/api` proxy and the three tabs (Check, Approvals, Audit) with the honest banner.
+4. **Check tab container (`src/tabs/Check/index.tsx`):**
+   - upload two files → `POST /api/checks` → render Hemanth's `CheckResultView`;
+   - "Prove it" → `POST /api/checks/{id}/proof/{group_id}` → download;
+   - CSV → `/api/exports/{check_id}.csv`.
+
+**Hemanth**
+1. **Review and approve #8, #9 and #19**, so the queue can move.
+2. **Check results view (`p3-check-view`) in `src/tabs/Check/`,** built against `fixtures/check_v2_v3.json` and `fixtures/check_judge_xlookup.json`.
+   - **Before the shell PR merges:** the headline, groups table and unverifiable list, which need no new dependencies.
+   - **After the shell PR merges:** the ECharts waterfall.
+3. **29 Nov:** demo laptop setup and the `demo_check` p95 re-run. **30 Nov:** backup recording. Runbook UI clicks once the tabs work.
+
+### 0.3 The interface between P1's container and Hemanth's view
+```ts
+// src/tabs/Check/CheckResultView.tsx (Hemanth)
+export default function CheckResultView(props: {
+  check: CheckResult                  // from src/types.ts
+  onProve?: (groupId: string) => void // P1 wires it to POST /api/checks/{id}/proof/{group_id}
+  csvHref?: string                    // P1 passes /api/exports/{check_id}.csv
+}): JSX.Element
+```
+- Every number is formatted with `src/format.ts` (`inr`, `signedInr`). The view computes nothing.
+- **Null shows "unknown", never 0.**
+- **Groups with a zero share** stay out of the headline sentence and the waterfall bars, but they are listed in the groups table (PROGRESS.md UI note).
+- **`StructuralPanel`** (from #9) goes in as is.
+
+### 0.4 Who edits which frontend files (avoids clashes tonight)
+| Owner | Files |
+|---|---|
+| P1 | `package.json`, `package-lock.json`, `vite.config.ts`, `App.tsx`, `main.tsx`, `src/api.ts`, `src/tabs/Check/index.tsx` |
+| Hemanth | `src/tabs/Check/CheckResultView.tsx`, `Waterfall.tsx`, `GroupsTable.tsx` |
+| Nikita | `src/tabs/Approvals/`, `src/tabs/Audit/`, `src/tabs/SessionAudit/`, `src/components/LostLinkGraph*` |
+| Nitika | styling passes on any of the above, after telling the owner |
+
+### 0.5 Approvals until 30 Nov (replaces the review lines in §1, §8 and §9)
+- **Every code PR needs one approval from someone other than its author.**
+- **A contract PR** (`models.py`, REST routes and payloads) needs one approval from a non-author on each side:
+  - backend side: P1 or Hemanth;
+  - frontend side: Nikita, or P1 / Hemanth where they wire the UI themselves.
+- **Doc-only PRs may be self-merged.**
+- **Nitika's approval is not required for anything.**
+
+So #10 (Hemanth + Nikita), #16 (Hemanth; P1 wires the UI that uses it, and Nikita's written review had no blockers), #17 and #20 are ready to merge now.
 
 ## 1. Two teams
 
 | | Team A: Backend | Team B: Frontend + demo |
 |---|---|---|
-| People | P1 (lead), P3 | P4 (lead), P2 |
-| Owns | `backend/`, `scripts/` (except `demo_reset.ps1`), Claude Desktop, `DEMO_RUNBOOK.md` | `frontend/`, the PPT, the backup recording, the demo laptop |
-| Reviews | P1 and P3 review each other's PRs, the same day | P2 and P4 review each other's PRs, the same day |
+| People | P1 (lead), P3 | P2 (Nikita); P4 (Nitika) on visual design only (§0.1) |
+| Owns | `backend/`, `scripts/`, Claude Desktop, `DEMO_RUNBOOK.md`; since v3 also the shell, the Check tab, the demo laptop, the recording, `golden/` (§0.1) | Approvals, Audit and Session Audit tabs, the lost-link graph; Nitika: the look of every tab |
+| Reviews | see §0.5 | see §0.5 |
 | Hands to the other team | REST endpoints, fixtures, contract changes | the UI that the runbook and `demo_check.py` describe |
 
 Code ownership from `CLAUDE.md` §10 stays as it is. A contract change (`models.py`, REST payloads) also needs approval from the other team (§8).
@@ -61,25 +126,18 @@ Definition of done (DoD) for every code task also includes: `uv run pytest -q` g
 |---|---|---|---|
 | 1 | Review P1's API PRs the day they open | no API PR waits overnight | ongoing |
 | 2 | `scripts/demo_check.py`: Acts 1–3 headless, asserts every on-screen number (42,000 / 38,000 / 4,000, lost link on C4, `PARTIAL`, drift on the 9th, XLOOKUP unverifiable) | passes 3 times in a row after `demo_reset.ps1` | **28 Nov, 23:59** |
-| 3 | The `pending` window (~2 s after a commit, 8–9 s the first time): warm the LibreOffice profile in `demo_check`; agree the UI label with P4 | the first commit in the demo is not slow; label agreed | 29 Nov |
+| 3 | The `pending` window (~2 s after a commit, 8–9 s the first time): warm the LibreOffice profile in `demo_check`; agree the UI label with P1 | the first commit in the demo is not slow; label agreed | 29 Nov |
 | 4 | Performance: p95 for Check and gate on the demo files, in PROGRESS.md (the gate test already prints p95) | gate p95 ≤ 3 s, numbers recorded | 29 Nov |
-| 5 | `docs/DEMO_RUNBOOK.md` (moved from P4): words per act, the Desktop prompt, fallbacks, how to play the recording. P4 adds the UI clicks | P2 can run the demo from the runbook alone | **29 Nov, 23:59** |
+| 5 | `docs/DEMO_RUNBOOK.md` (moved from P4): words per act, the Desktop prompt, fallbacks, how to play the recording. Since v3 P3 also adds the UI clicks (Nikita for her tabs) | P2 can run the demo from the runbook alone | **29 Nov, 23:59** |
 | 6 | Stretch, only if 2–5 are done: Excel-compatible ROUND with a golden test (`ROUND(7.5*1.234,2)` = 9.26) | golden test passes, else ROUND stays unverifiable | 30 Nov |
 
 ### Team B
 
-#### P4: shell, Check tab, PPT (team lead)
-**Files:** `frontend/` (shell, `src/tabs/Check*`), `golden/`, `scripts/demo_reset.ps1`, the PPT.
-**Reuse, do not rebuild:** Tailwind, `src/types.ts` and `src/format.ts` (`inr`, `signedInr`, `savedByBanner`) from #8; `src/components/StructuralPanel.tsx` from #9.
-
-| # | Task | Done when | Deadline |
-|---|---|---|---|
-| 1 | **PPT** (§4) | submitted, confirmation screenshot in the team chat | **24 Nov, 20:00** (hard limit 23:59) |
-| 2 | Page shell: three tabs, react-query, the honest banner | fixtures render; `pending` and `none` both say "Not verifiable against saved values" | **25 Nov, 23:59** |
-| 3 | Check tab core: upload, banner, template headline, ECharts waterfall whose bars sum to Δ, groups table (solo / share / interaction) | v2 + v3 → "+₹42,000 = ₹38,000 … + ₹4,000 …"; a null output shows "unknown", never 0 | **27 Nov, 12:00** |
-| 4 | Check tab rest: type filter, clickable rows, "Prove it", drop in `StructuralPanel`, unverifiable list, CSV export | judge file shows 38,000 verified + 4,000 unverified and the XLOOKUP list | **28 Nov, 18:00** |
-| 5 | Demo laptop: Excel, LibreOffice, uv, Node, repo on `main`, `uv sync`, `npm i` | `uv run pytest -q` green on it | 29 Nov |
-| 6 | UI clicks in P3's runbook; backup screen recording of Acts 1–3 | recording on the demo laptop **and** a USB stick | **30 Nov, 23:59** |
+#### P4 (Nitika): visual design only (v3)
+- The look of the shell, the Check tab, and the Approvals, Audit and Session Audit tabs: layout, colour, type, spacing, readability from 3 metres, and the waterfall and card styling.
+- She works on components that already render real data and tells the file's owner first (§0.4).
+- Her former shell, Check tab, demo laptop, runbook, recording and review tasks moved to P1 and Hemanth (§0.1).
+- The PPT is handled separately.
 
 #### P2: Approvals, Audit, lost-link graph
 **Files:** `frontend/src/tabs/Approvals*`, `frontend/src/tabs/Audit*`, `frontend/src/tabs/SessionAudit*`, `frontend/src/components/LostLinkGraph*`, engine structure files from §10.
@@ -87,7 +145,7 @@ Definition of done (DoD) for every code task also includes: `uv run pytest -q` g
 
 | # | Task | Done when | Deadline |
 |---|---|---|---|
-| 1 | Review P4's shell PR the day it opens | the shell merges on 25 Nov | 25 Nov |
+| 1 | Review P1's shell PR the day it opens | the shell merges on 25 Nov | 25 Nov |
 | 2 | Approvals inbox live: poll every 2 s, Approve / Deny / Rollback wired to P1's endpoints | Act 2 Session A: the card appears within 2 s of the Desktop edit; Deny removes it | **27 Nov, 18:00** |
 | 3 | Audit tab: entries, checkpoints, "Verify log" with ✅ / ❌ | tampering a row in SQLite turns it ❌ | **28 Nov, 12:00** |
 | 4 | Lost-link mini-graph (React Flow) from `region`, `path_before`, `kept` (#10) | v3: dashed red Payments!C → Summary!C4; C6 still connected via Payments!D and LateFees!C; the text alert works without it | **28 Nov, 23:59** |
@@ -103,13 +161,13 @@ Definition of done (DoD) for every code task also includes: `uv run pytest -q` g
    - Nothing else waits on the PPT.
 2. **25 Nov:**
    - P1 builds the approvals and check endpoints.
-   - P4 builds the shell, which P2's tabs sit in.
+   - P1 builds the shell, which P2's tabs sit in.
    - P2 builds the inbox against fixtures.
 3. **26 Nov:**
    - P1 builds the audit, CSV and Session Audit endpoints.
    - P2 builds the Audit tab against fixtures.
 4. **27 Nov:**
-   - P4 finishes the Check tab core.
+   - P1 and Hemanth finish the Check tab core; Nitika styles it.
    - P2's inbox goes live on the real API.
 5. **28 Nov:**
    - Every tab and endpoint is merged.
@@ -123,14 +181,14 @@ Definition of done (DoD) for every code task also includes: `uv run pytest -q` g
 |---|---|---|---|
 | everyone | merge queue (§0) | both teams | 24 Nov 12:00 |
 | everyone (pitch) | slide deck | P4 | 24 Nov 20:00 |
-| P2 | page shell | P4 | 25 Nov 23:59 |
+| P2 | page shell | P1 | 25 Nov 23:59 |
 | P2 | approve / deny / rollback / held endpoints | P1 | 25 Nov 18:00 |
-| P4 | checks + proof endpoints | P1 | 25 Nov 23:59 |
-| P2, P4 | audit + CSV endpoints | P1 | 26 Nov 18:00 |
+| Check tab (P1, Hemanth) | checks + proof endpoints (#16) | P1 | 24 Nov |
+| P2, Check tab | audit + CSV endpoints (#16) | P1 | 24 Nov |
 | P2 | Session Audit endpoints | P1 | 26 Nov 23:59 |
 | P3 (`demo_check.py`) | all endpoints merged | P1 | 28 Nov 18:00 |
-| P3 (runbook), P4 (recording) | all three tabs merged | P2, P4 | 28 Nov 23:59 |
-| P1 (Desktop) | the demo laptop set up | P4 | 29 Nov |
+| P3 (runbook, recording) | all three tabs merged | P1, P2, P3 | 28 Nov 23:59 |
+| P1 (Desktop) | the demo laptop set up | P3 | 29 Nov |
 
 If a dependency slips by more than half a day, the blocked person keeps building on fixtures and says so in the sync. Inside a team, the lead decides who helps whom.
 
@@ -178,12 +236,12 @@ If a dependency slips by more than half a day, the blocked person keeps building
 
 | Item | Owner | Done when | By |
 |---|---|---|---|
-| Demo laptop set up: Excel, LibreOffice, uv, Node, repo on `main`, `uv sync`, `npm i` | P4 | `uv run pytest -q` green on it | 29 Nov |
+| Demo laptop set up: Excel, LibreOffice, uv, Node, repo on `main`, `uv sync`, `npm i` | P3 | `uv run pytest -q` green on it | 29 Nov |
 | Claude Desktop on it: config backed up, `delta-gate` merged in with the absolute path of `uv.exe`, restart, `main.log` shows "Connected to delta-gate (5 tools)" | P1 | Act 2 prompt returns `PARTIAL` | 30 Nov 12:00 |
 | Second laptop as a spare, same setup | P2 | same checks | 30 Nov |
-| Rehearsal 1 (full, timed, from the runbook) | all, P4 runs it | under 3 min, no dead air | 29 Nov 21:00 |
+| Rehearsal 1 (full, timed, from the runbook) | all, P3 runs it | under 3 min, no dead air | 29 Nov 21:00 |
 | Rehearsal 2 + judge's-file drill | all, P2 runs the drill | 3 clean runs in a row | 30 Nov 18:00 |
-| Backup recording | P4 | plays offline from USB | 30 Nov 23:59 |
+| Backup recording | P3 | plays offline from USB | 30 Nov 23:59 |
 
 `scripts\demo_reset.ps1` before **every** rehearsal and before the real demo. Quit nothing: it works with Desktop connected.
 
@@ -214,10 +272,10 @@ CSV export → Session Audit screen (explain it verbally) → Ed25519 checkpoint
 
 | Contract | Producer | Consumers who must approve |
 |---|---|---|
-| `CheckResult` | P3 | P1 (API, gate), P4 (Check tab), P2 (lost-link graph) |
+| `CheckResult` | P3 | P1 (API, gate, Check tab), P2 (lost-link graph) |
 | `Decision`, edit ops | P1 | P2 (Approvals), P3 (`demo_check.py`) |
-| REST routes and payloads | P1 | P2, P4 |
-| `policy.yaml` | P1 | P3, P4 |
+| REST routes and payloads | P1 | P2 (and P3 where it wires the UI) |
+| `policy.yaml` | P1 | P3 |
 | SQLite tables | P1 | P3 |
 
 - The frontend types are generated from, or copied from, `models.py`. A field the UI needs that is not there is a contract PR, not a workaround.
@@ -229,7 +287,7 @@ CSV export → Session Audit screen (explain it verbally) → Ed25519 checkpoint
 - One branch per task (`p1-…`, `p2-…`, `p3-…`, `p4-…`), off `main`. Branches merge into `main`, not into each other. If you must build on an open PR, say so in your PR and merge after it.
 - **PRs into `main`. Nobody pushes to `main` directly.**
 - Before every PR: `cd backend && uv run pytest -q` (and `npm run build` if `frontend/` changed). Paste the last line into the PR.
-- **Your teammate approves** (Team A: P1 and P3; Team B: P2 and P4). For a contract change, see §8: the other team approves too.
+- **Approvals: see §0.5** (until 30 Nov: one non-author approval; contracts need a non-author on each side; Nitika's approval not required).
 - **Doc-only PRs may be self-merged.** Any PR that touches `backend/` or `frontend/` needs one teammate's approval.
 - Merge commit (no squash), no AI attribution lines in commits or PRs.
 - Rebase or merge `main` into your branch at least once a day.
@@ -251,11 +309,11 @@ CSV export → Session Audit screen (explain it verbally) → Ed25519 checkpoint
 |---|---|---|---|
 | **Mon 23 Nov** | Phases 0–2 merged; #6, #7, #10–#12 open | #8, #9 open | This split agreed, names filled in |
 | **Tue 24 Nov** | Merge queue 12:00 | Merge queue 12:00 | PPT inputs 14:00, review 18:00, **submit 20:00 (limit 23:59)** |
-| **Wed 25 Nov** | P1 approvals + checks endpoints | P4 shell; P2 inbox on fixtures | Pitch script 20:00, dry run 21:00 |
+| **Wed 25 Nov** | P1 shell + Check tab data; P3 Check results view (both started 24 Nov night) | P2 Rollback button, lost-link graph; Nitika design pass | Pitch script 20:00, dry run 21:00 |
 | **Thu 26 Nov** | P1 audit, CSV, Session Audit endpoints; one fixture script | P2 Audit tab on fixtures | **Pitch (day 1)**; dry run in the morning |
-| **Fri 27 Nov** | P3 `demo_check.py` on what is merged | P4 Check core 12:00; P2 inbox live 18:00 | **Pitch (day 2)** |
-| **Sat 28 Nov** | P3 `demo_check.py` 23:59. **Phase 3 done** | P2 Audit tab + graph; P4 Check rest | |
-| **Sun 29 Nov** | P1 shadow cleanup; P3 pending window, performance, runbook | P2 Session Audit screen; P4 demo laptop | **Rehearsal 1, 21:00** |
-| **Mon 30 Nov** | P1 Desktop on demo laptop 12:00. **Phase 4 done, freeze except fixes** | P2 drill 12:00; P4 recording | **Rehearsal 2, 18:00**; confirm what may be brought on site |
+| **Fri 27 Nov** | Check tab done (P1 + P3) | P2 lost-link graph; Nitika design pass | **Pitch (day 2)** |
+| **Sat 28 Nov** | P3 runbook UI clicks. **Phase 3 done** | P2 graph done; Nitika design pass | |
+| **Sun 29 Nov** | P3 demo laptop + `demo_check` p95 re-run | P2 Session Audit screen | **Rehearsal 1, 21:00** |
+| **Mon 30 Nov** | P1 Desktop on demo laptop 12:00; P3 recording. **Phase 4 done, freeze except fixes** | P2 drill 12:00 | **Rehearsal 2, 18:00**; confirm what may be brought on site |
 | **Tue 1 Dec** | Hackathon hours 0–18 (§7) | Hackathon hours 0–18 (§7) | |
 | **Wed 2 Dec** | Hours 18–24 (§7) | Hours 18–24 (§7) | **Demo** |
