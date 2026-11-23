@@ -14,7 +14,7 @@ from deltagate.engine import graph
 from deltagate.engine.align import Alignment
 from deltagate.engine.classify import Change
 from deltagate.engine.parse import Book, Formula, addr, split
-from deltagate.models import Policy, StructuralFinding
+from deltagate.models import KeptPath, Policy, Region, StructuralFinding
 
 
 def _ranges(formula: str, sheet: str):
@@ -45,9 +45,9 @@ def findings(base: Book, new: Book, gb: nx.DiGraph, gn: nx.DiGraph, changes: lis
 
     out = []
 
-    def add(kind, cell, message, output=...):
+    def add(kind, cell, message, output=..., **lost_link):
         out.append(StructuralFinding(kind=kind, cell=cell, message=message,
-                                     output=reaches(cell) if output is ... else output))
+                                     output=reaches(cell) if output is ... else output, **lost_link))
 
     for ch in changes:
         was_formula, is_formula = isinstance(ch.base, Formula), isinstance(ch.new, Formula)
@@ -97,10 +97,15 @@ def findings(base: Book, new: Book, gb: nx.DiGraph, gn: nx.DiGraph, changes: lis
                     add("shortened_range", cell, f"Range {name} in {users[0]}{more} does not cover new row {row}",
                         output=reaches(name))
 
+    after = {w: graph.input_regions(gn, new, w) for w in watched}
     for w in policy.watched_outputs:
-        before, after = graph.input_regions(gb, base, w.cell), graph.input_regions(gn, new, w.cell)
-        for key in sorted(before.keys() - after.keys(), key=str):
+        before = graph.input_regions(gb, base, w.cell)
+        for key in sorted(before.keys() - after[w.cell].keys(), key=str):
             sheet, column, header = before[key]
+            kept = [KeptPath(output=o, path=graph.column_path(gn, new, *after[o][key][:2], o))
+                    for o in watched if o != w.cell and key in after[o]]
             add("lost_link", w.cell, f"{w.label} no longer depends on {sheet}!{column}"
-                + (f" ({header})" if header else ""), output=w.cell)
+                + (f" ({header})" if header else ""), output=w.cell,
+                region=Region(sheet=sheet, column=column, header=header),
+                path_before=graph.column_path(gb, base, sheet, column, w.cell), kept=kept)
     return out

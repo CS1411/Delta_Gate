@@ -36,12 +36,12 @@
       ]
     }
   ],
-  "committed_version": "3c52ff6465c8c147a0daf1810414b5369b1160ed86fb232458de2c16479d69f8",
+  "committed_version": "be6ce40c8d77ef43d38915c7cd7f51ac5803e716cde2352478f9ae38eaa1aa83",
   "check": {
     "check_id": "chk_000000400000",
     "mode": "gate",
     "base_version": "e5ea5f376d408106f165cb72ebe0b70867bc2f7547fcbad5b7f3bca6b32a009d",
-    "new_version": "dfef19d3581caa1035f4717a5bf14240fa54c1e0aa9c7bcb6421389678697941",
+    "new_version": "9d018b85c7c0a2e8bf265fdade19999def7524bed602640479ae90bbee0f3b47",
     "verification": {
       "saved_by": "Microsoft Excel",
       "formula_cells": 307,
@@ -121,7 +121,10 @@
         "kind": "protected_formula_edit",
         "cell": "LateFees!F3",
         "output": "Summary!C6",
-        "message": "Protected cell LateFees!F3 was edited directly (formula changed)"
+        "message": "Protected cell LateFees!F3 was edited directly (formula changed)",
+        "region": null,
+        "path_before": null,
+        "kept": null
       }
     ],
     "unverifiable": [],

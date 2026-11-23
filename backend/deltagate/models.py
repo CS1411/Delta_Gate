@@ -59,11 +59,28 @@ class Output(BaseModel):
     attribution: list[Attribution]
 
 
+class Region(BaseModel):
+    """An input region: a column of one sheet, named by its row-1 header when it has one."""
+    sheet: str
+    column: str  # column letter, e.g. "C"
+    header: str | None
+
+
+class KeptPath(BaseModel):
+    output: str  # another watched output that still reaches the lost region in the new file
+    path: list[str]  # column-level nodes from the region to that output, e.g. ["Payments!C", "Payments!D", "Summary!C6"]
+
+
 class StructuralFinding(BaseModel):
     kind: FindingKind
     cell: str
     output: str | None  # the watched output this reaches, if any
     message: str
+    # lost_link only (None for every other kind): the region that was lost, how the output reached it in the
+    # base file, and the other watched outputs that still reach it in the new file.
+    region: Region | None = None
+    path_before: list[str] | None = None  # column-level nodes, region first, the output cell last
+    kept: list[KeptPath] | None = None
 
 
 class Unverifiable(BaseModel):

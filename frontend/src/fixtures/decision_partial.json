@@ -1,5 +1,5 @@
 {
-  "edit_id": "ed_e6d3ca26968c",
+  "edit_id": "ed_93ca04594732",
   "session_id": "s_A",
   "status": "PARTIAL",
   "groups": [
@@ -36,12 +36,12 @@
       ]
     }
   ],
-  "committed_version": "f2d4ae847b39c28168c2d0f096ebf2f33140e499c937caeb753a735e68bc68d9",
+  "committed_version": "b49c704d63e4dde5a72cdf9cba0bb8e05ef42c5a44abf8c147fc6c91a722cf7b",
   "check": {
-    "check_id": "chk_4cab7e1d0a41",
+    "check_id": "chk_2bb04dc3a103",
     "mode": "gate",
     "base_version": "e5ea5f376d408106f165cb72ebe0b70867bc2f7547fcbad5b7f3bca6b32a009d",
-    "new_version": "0f312f1b1941bf7ca75186e9ce7be7d83309df96c0fc700f097184a6fb18bdb9",
+    "new_version": "35d473d19b6823065e505d52d372d2b11232011aa544c787a0e2129c81ee6d41",
     "verification": {
       "saved_by": "Microsoft Excel",
       "formula_cells": 307,
@@ -121,7 +121,10 @@
         "kind": "protected_formula_edit",
         "cell": "LateFees!F3",
         "output": "Summary!C6",
-        "message": "Protected cell LateFees!F3 was edited directly (formula changed)"
+        "message": "Protected cell LateFees!F3 was edited directly (formula changed)",
+        "region": null,
+        "path_before": null,
+        "kept": null
       }
     ],
     "unverifiable": [],

@@ -18,7 +18,18 @@ export interface Output {
   delta_unverified: number | null
   attribution: Attribution[]
 }
-export interface StructuralFinding { kind: FindingKind; cell: string; output: string | null; message: string }
+export interface Region { sheet: string; column: string; header: string | null }
+export interface KeptPath { output: string; path: string[] } // column-level nodes, region first, output cell last
+export interface StructuralFinding {
+  kind: FindingKind
+  cell: string
+  output: string | null
+  message: string
+  // lost_link only; null for every other kind
+  region: Region | null
+  path_before: string[] | null // e.g. ["Payments!C", "Summary!C4"]
+  kept: KeptPath[] | null // other watched outputs that still reach the region in the new file
+}
 export interface Unverifiable { cell: string; reason: string }
 export interface CheckResult {
   check_id: string
