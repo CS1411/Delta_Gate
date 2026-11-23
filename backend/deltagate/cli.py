@@ -11,6 +11,7 @@ from pathlib import Path
 
 from deltagate.config import POLICY_PATH, load_policy
 from deltagate.engine.check import check
+from deltagate.engine.parse import banner as saved_values
 from deltagate.gate.policy import inr
 from deltagate.models import CheckResult, Verification
 
@@ -18,9 +19,8 @@ from deltagate.models import CheckResult, Verification
 def banner(v: Verification) -> str:
     """Names the app that actually saved the values. Never claims Excel when it was not Excel."""
     if v.saved_by == "none":
-        return "Not verifiable against saved values"
-    app = "Excel" if v.saved_by == "Microsoft Excel" else v.saved_by
-    return f"Verified against {app}'s saved values: {v.matched:,} / {v.formula_cells:,} formula cells match"
+        return saved_values(v.saved_by)
+    return f"{saved_values(v.saved_by)}: {v.matched:,} / {v.formula_cells:,} formula cells match"
 
 
 def summary(r: CheckResult, base: Path, new: Path) -> str:

@@ -201,3 +201,43 @@ def test_appended_row_outside_the_range_is_a_finding_not_a_crash(tmp_path, polic
     assert finding.cell == "Data!B5" and finding.output == C6
     assert finding.message == "Range Data!B2:B4 in Summary!C6 does not cover new row 5"
     assert next(o for o in result.outputs if o.cell == C6).delta_verified == 0  # the new row is not counted
+
+
+# --- compile budget (P3 #1) -----------------------------------------------------------------------
+
+
+def test_five_formula_groups_stay_within_the_compile_budget(tmp_path, policy):
+    import time
+
+    from deltagate.engine.classify import MAX_FORMULA_GROUPS
+
+    cols = "BCDEF"
+    inputs = {f"A{i}": i * 1000 for i in range(1, 6)}
+    calc = {f"{c}1": f"=Inputs!A{i}*2" for i, c in enumerate(cols, start=1)}
+    summary = {"C6": "=SUM(Calc!B1:F1)", "C4": "=Inputs!A1"}
+    base = book(tmp_path / "a.xlsx", {"Inputs": inputs, "Calc": calc, "Summary": summary})
+    new_calc = {f"{c}1": f"=Inputs!A{i}*3" for i, c in enumerate(cols, start=1)}  # five columns: five logic groups
+    new = book(tmp_path / "b.xlsx", {"Inputs": inputs, "Calc": new_calc, "Summary": summary})
+
+    groups, _, _ = classify(parse(base), parse(new))
+    assert sum(recalc.needs_recompile(g.cells) for g in groups) <= MAX_FORMULA_GROUPS
+    assert sum(len(g.cells) for g in groups) == 5
+
+    start = time.perf_counter()
+    result = check(base, new, policy)
+    assert time.perf_counter() - start < 10
+    out = next(o for o in result.outputs if o.cell == C6)
+    assert out.delta_verified == 15000  # sum(1..5) * 1000 * (3 - 2)
+    assert abs(sum(a.share for a in out.attribution) - out.delta_verified) < 1e-9
+
+
+def test_data_groups_are_not_merged_by_the_compile_budget(tmp_path):
+    from deltagate.engine.classify import MAX_FORMULA_GROUPS
+
+    cells = {"A1": "Flat No", **{f"{c}1": f"h{c}" for c in "BCDEFG"}, "A2": "F1"}
+    cells |= {f"{c}2": 1 for c in "BCD"} | {f"{c}2": f"=B2*{i}" for i, c in enumerate("EFG", start=2)}
+    base = parse(book(tmp_path / "a.xlsx", {"P": cells}))
+    edits = {f"{c}2": 2 for c in "BCD"} | {f"{c}2": f"=B2*{i + 5}" for i, c in enumerate("EFG", start=2)}
+    groups, _, _ = classify(base, parse(book(tmp_path / "b.xlsx", {"P": cells | edits})))
+    assert [g.type for g in groups].count("data") == 3  # three value columns stay three groups
+    assert sum(recalc.needs_recompile(g.cells) for g in groups) <= MAX_FORMULA_GROUPS
