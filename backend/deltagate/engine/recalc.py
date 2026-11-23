@@ -98,8 +98,7 @@ def coalitions(path: Path | str, groups: dict[str, dict], pins: dict[str, object
     the same dict again and nothing is compiled twice (the gate asks for solo effects first, the full
     Check for every coalition later).
     """
-    # ponytail: 2^k compiles for k formula groups (~0.25 s each on the demo file). Fine up to k = 3-4;
-    # past that, merge formula groups before calling.
+    # 2^k compiles for k formula groups (~0.25 s each on the demo file); classify caps k at 3.
     formula_groups = frozenset(g for g, cells in groups.items() if needs_recompile(cells))
     value_groups = [g for g in groups if g not in formula_groups]
     models = {} if models is None else models

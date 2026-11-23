@@ -43,10 +43,20 @@ def held(conn: sqlite3.Connection) -> list[Decision]:
 
 
 def propose_edit(conn: sqlite3.Connection, workbook_id: str, ops: list, session_id: str) -> Decision:
-    started = time.perf_counter()
-    policy = config.load_policy()
     ops = _OPS.validate_python(ops)
     edit_id = f"ed_{uuid.uuid4().hex[:12]}"
+    try:
+        decision = _propose(conn, workbook_id, ops, session_id, edit_id)
+    except BaseException:
+        store.discard(workbook_id, edit_id)  # nothing was recorded: no file may outlive the attempt
+        raise
+    store.discard(workbook_id, edit_id, keep_shadow=decision.status in ("HELD", "PARTIAL"))
+    return decision
+
+
+def _propose(conn: sqlite3.Connection, workbook_id: str, ops: list, session_id: str, edit_id: str) -> Decision:
+    started = time.perf_counter()
+    policy = config.load_policy()
     base, _ = store.current(conn, workbook_id, policy)
     base_path = store.path_of(base)
     shadow = store.shadow(workbook_id, edit_id, base_path, ops)
@@ -125,6 +135,7 @@ def approve(conn: sqlite3.Connection, edit_id: str) -> Decision:
         _save(conn, decision)
         audit.append(conn, "approver", "approve", {"edit_id": edit_id, "workbook_id": workbook_id, "groups": sorted(waiting),
                                                    "committed_version": decision.committed_version})
+    store.discard(workbook_id, edit_id)
     return decision
 
 
@@ -136,6 +147,7 @@ def deny(conn: sqlite3.Connection, edit_id: str) -> Decision:
         _save(conn, decision)
         audit.append(conn, "approver", "deny", {"edit_id": edit_id, "workbook_id": edit["workbook_id"],
                                                 "groups": [g.group_id for g in decision.groups if g.status != "PASS"]})
+    store.discard(edit["workbook_id"], edit_id)
     return decision
 
 
