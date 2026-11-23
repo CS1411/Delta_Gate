@@ -141,26 +141,37 @@ def test_messy_2_gate_holds_both_edits_as_cant_verify(home):
     assert d.groups[1].reasons == ["Can't verify: LateFees!B2 (XLOOKUP)"]
 
 
-@pytest.mark.xfail(strict=True, reason="P3 known issue (check.py): a group whose every path to an output runs "
-                                       "through an unverifiable cell gets share 0 instead of being left out")
 def test_messy_2_payment_through_xlookup_is_not_shown_as_zero(checks):
+    """Its whole effect runs through XLOOKUP cells: left out of the attribution, not a ₹0 row."""
     payment = next(g.group_id for g in checks["messy_2"].groups if g.cells == ["Payments!B4"])
     for cell in (C4, C6):
         assert payment not in {a.group_id for a in out(checks["messy_2"], cell).attribution}
 
 
-def test_rename_with_verifiable_formulas_fails_closed(tmp_path, policy):
-    """A pure rename should be Δ 0. Today the engine cannot evaluate the halfway coalitions (P3 known issue), so it
-    must say it cannot compute the outputs, with a plain reason, and never show 0 for them."""
+def test_pure_rename_is_exact_zero(tmp_path, policy):
+    """The rename and the formulas rewritten for it are one group, so no coalition refers to a missing sheet."""
     data = {"A1": "Item", "B1": "Amount", "A2": "x", "B2": 100, "A3": "y", "B3": 200}
     a = book(tmp_path / "a.xlsx", {"Data": data, "Summary": {"C6": "=SUM(Data!B2:B3)", "C4": "=Data!B2"}})
     b = book(tmp_path / "b.xlsx", {"Costs": data, "Summary": {"C6": "=SUM(Costs!B2:B3)", "C4": "=Costs!B2"}})
     result = check(a, b, policy)
-    assert "Sheet Data renamed to Costs" in [g.label for g in result.groups]
+    assert [g.label for g in result.groups] == ["Sheet Data renamed to Costs"]
     assert not any(f.kind in ("lost_link", "rows_deleted_in_range") for f in result.structural)
-    for o in result.outputs:
-        assert o.base is None and o.new is None and o.delta_observed is None and o.delta_unverified is None
-    assert {u.cell for u in result.unverifiable} == {C4, C6} and all(plain(u.reason) for u in result.unverifiable)
+    assert not result.unverifiable
+    assert [(o.base, o.new, o.delta_verified) for o in result.outputs] == [(300, 300, 0), (100, 100, 0)]
+
+
+def test_new_sheet_and_the_formula_that_uses_it_are_one_group(tmp_path, policy):
+    data = {"A1": "Item", "B1": "Amount", "A2": "x", "B2": 100, "A3": "y", "B3": 200}
+    summary = {"C6": "=SUM(Data!B2:B3)", "C4": "=Data!B2"}
+    a = book(tmp_path / "a.xlsx", {"Data": data, "Summary": summary})
+    b = book(tmp_path / "b.xlsx", {"Data": data, "Extra": {"A1": "Item", "B1": "Amount", "B2": 50},
+                                   "Summary": summary | {"C6": "=SUM(Data!B2:B3)+Extra!B2"}})
+    result = check(a, b, policy)
+    assert [(g.label, sorted(g.cells)) for g in result.groups] == [
+        ("New sheet Extra", ["Extra!A1", "Extra!B1", "Extra!B2", "Summary!C6"])]
+    assert not result.unverifiable
+    c6 = out(result, C6)
+    assert (c6.base, c6.new, c6.delta_verified) == (300, 350, 50) and c6.attribution[0].share == 50
 
 
 # --- 3: .xlsm with a macro, hidden sheet, text numbers, empty sheet --------------------------------

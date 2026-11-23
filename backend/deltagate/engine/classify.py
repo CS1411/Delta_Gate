@@ -13,6 +13,7 @@ from openpyxl.formula.translate import Translator
 from openpyxl.utils import get_column_letter
 
 from deltagate.engine.align import Alignment, align_rows, key_column
+from deltagate.engine.graph import references
 from deltagate.engine.parse import Book, Formula, addr, same, split
 from deltagate.engine.shapley import MAX_GROUPS
 
@@ -113,6 +114,8 @@ def _label(key: tuple, cells: dict, base: Book) -> str:
     sheet, marker, _ = key
     if marker.startswith("→"):
         return f"Sheet {sheet} renamed to {marker[1:]}"
+    if marker == "new sheet":
+        return f"New sheet {sheet}"
     rows = len({split(a)[1] for a in cells})
     if marker == "~":
         return f"Rows inserted, deleted or moved in {sheet}"
@@ -149,12 +152,19 @@ def renamed_sheets(base: Book, new: Book) -> dict[str, str]:
 def classify(base: Book, new: Book) -> tuple[list[ChangeGroup], list[Change], dict[str, Alignment]]:
     raw, changes, aligns = diff(base, new)
     keys = {a: _key(a, b, n, aligns) for a, (b, n) in raw.items()}
+    # A sheet the base does not have (renamed or new) is one structural group, and every changed formula that
+    # refers to it joins that group: applied without the sheet, such a formula would point at nothing.
     renames = renamed_sheets(base, new)
     old_name = {new_name: old for old, new_name in renames.items()}
-    for a in keys:  # a renamed sheet is one structural group, not its cells deleted and added again
+    sheet_key = {s: (old_name[s], "→" + s, "structural") if s in old_name else (s, "new sheet", "structural")
+                 for s in new.sheets if s not in base.sheets}
+    sheet_key |= {old: sheet_key[s] for old, s in renames.items()}
+    for a, (_, n) in raw.items():
         sheet = split(a)[0]
-        if (old := sheet if sheet in renames else old_name.get(sheet)) is not None:
-            keys[a] = (old, "→" + renames[old], "structural")
+        uses = [r.sheet for r in references(n, sheet)] if isinstance(n, Formula) else []
+        target = sheet if sheet in sheet_key else next((s for s in uses if s in sheet_key and s not in base.sheets), None)
+        if target:
+            keys[a] = sheet_key[target]
     # Too many groups for exact Shapley: merge by sheet + type, then by type alone (never more than 3).
     for coarser in (lambda k: k, lambda k: (k[0], k[2]), lambda k: (k[2],)):
         buckets: dict[tuple, dict] = {}
