@@ -1,0 +1,139 @@
+"""Raw cell differences -> at most 8 change groups (data / logic / structural).
+
+Two views of the same difference:
+  raw      {address: (base content, new content)}: what to apply to the base to get the new file.
+           Groups are built from this, so base + all groups == new, always.
+  changes  the same edits with rows aligned (a row that only moved is not a change). Structural
+           checks read these.
+"""
+
+from dataclasses import dataclass
+
+from openpyxl.formula.translate import Translator
+from openpyxl.utils import get_column_letter
+
+from deltagate.engine.align import Alignment, align_rows, key_column
+from deltagate.engine.parse import Book, Formula, addr, same, split
+from deltagate.engine.shapley import MAX_GROUPS
+
+
+@dataclass
+class Change:
+    base_cell: str | None  # None: the row is new
+    new_cell: str | None  # None: the row was deleted
+    base: object  # a formula is rewritten for the new position when its row moved
+    new: object
+
+
+@dataclass
+class ChangeGroup:
+    group_id: str
+    label: str
+    type: str  # data | logic | structural
+    cells: dict[str, tuple[object, object]]  # address -> (base content, new content)
+
+
+def _rows(book: Book, sheet: str, width: int) -> list[tuple]:
+    """Rows 2..max_row as tuples (row 1 is the header)."""
+    max_row = book.sheets.get(sheet, (0, 0))[0]
+    return [tuple(book.cells.get(addr(sheet, r, c)) for c in range(1, width + 1)) for r in range(2, max_row + 1)]
+
+
+def _align(base: Book, new: Book, sheet: str) -> Alignment:
+    width = max(base.sheets.get(sheet, (0, 0))[1], new.sheets.get(sheet, (0, 0))[1])
+    headers = [base.cells.get(addr(sheet, 1, c)) for c in range(1, width + 1)]
+    a = align_rows(_rows(base, sheet, width), _rows(new, sheet, width), key_column(headers))
+    return Alignment([(b + 2, n + 2) for b, n in a.pairs], [b + 2 for b in a.deleted], [n + 2 for n in a.added], a.key)
+
+
+def diff(base: Book, new: Book) -> tuple[dict, list[Change], dict[str, Alignment]]:
+    order = {name: i for i, name in enumerate([*base.sheets, *(s for s in new.sheets if s not in base.sheets)])}
+    position = lambda a: (order[split(a)[0]], *split(a)[1:])  # noqa: E731
+    raw = {a: (base.cells.get(a), new.cells.get(a)) for a in sorted(base.cells.keys() | new.cells.keys(), key=position)
+           if not same(base.cells.get(a), new.cells.get(a))}
+    aligns = {sheet: _align(base, new, sheet) for sheet in dict.fromkeys(split(a)[0] for a in raw)}
+
+    changes = []
+    for a, (b, n) in raw.items():
+        sheet, row, _ = split(a)
+        al = aligns[sheet]
+        if row == 1 or not al.shifted:
+            changes.append(Change(None, a, None, n) if row in al.added
+                           else Change(a, None, b, None) if row in al.deleted else Change(a, a, b, n))
+    for sheet, al in aligns.items():
+        if not al.shifted:
+            continue
+        width = max(base.sheets[sheet][1], new.sheets[sheet][1])
+        for base_row, new_row in al.pairs:
+            for col in range(1, width + 1):
+                at_base, at_new = addr(sheet, base_row, col), addr(sheet, new_row, col)
+                b, n = base.cells.get(at_base), new.cells.get(at_new)
+                if base_row != new_row and isinstance(b, Formula) and isinstance(n, Formula):
+                    coordinate = lambda a: a.rsplit("!", 1)[1]  # noqa: E731
+                    b = Formula(Translator(b, origin=coordinate(at_base)).translate_formula(coordinate(at_new)))
+                if not same(b, n):
+                    changes.append(Change(at_base, at_new, b, n))
+        changes += [Change(a, None, c, None) for a, c in base.cells.items()
+                    if split(a)[0] == sheet and split(a)[1] in al.deleted]
+        changes += [Change(None, a, None, c) for a, c in new.cells.items()
+                    if split(a)[0] == sheet and split(a)[1] in al.added]
+    return raw, changes, aligns
+
+
+def _kind(b, n) -> str:
+    if isinstance(b, Formula) and not isinstance(n, Formula):
+        return "structural"  # typed over (or removed): always applied by recompiling, never by set_value
+    return "logic" if isinstance(n, Formula) else "data"
+
+
+def _key(a: str, b, n, aligns) -> tuple[str, str, str]:
+    """Finest grouping: (sheet, column or row marker, type)."""
+    sheet, row, col = split(a)
+    al = aligns[sheet]
+    if al.shifted and row > 1:
+        return sheet, "~", "structural"
+    if row in al.added:
+        return sheet, "+", "data"
+    if row in al.deleted:
+        return sheet, "-", "structural"
+    return sheet, get_column_letter(col), _kind(b, n)
+
+
+_NOUN = {"data": ("Value changed", "values changed"), "logic": ("Formula changed", "formulas changed"),
+         "structural": ("Formula replaced by a value", "formulas replaced by values")}
+
+
+def _label(key: tuple, cells: dict, base: Book) -> str:
+    n, kind = len(cells), key[-1]
+    if len(key) == 1:
+        return f"{n} {kind} changes"
+    if len(key) == 2:
+        return f"{n} {kind} changes in {key[0]}"
+    sheet, marker, _ = key
+    rows = len({split(a)[1] for a in cells})
+    if marker == "~":
+        return f"Rows inserted, deleted or moved in {sheet}"
+    if marker == "-":
+        return f"{rows} row{'s' if rows > 1 else ''} deleted in {sheet}"
+    if marker == "+":
+        name = next((v for _, v in cells.values() if isinstance(v, str) and not isinstance(v, Formula)), None)
+        return f"New row in {sheet}" + (f": {name}" if name else "") if rows == 1 else f"{rows} new rows in {sheet}"
+    if n == 1:
+        return f"{_NOUN[kind][0]}: {next(iter(cells))}"
+    header = base.header(sheet, split(next(iter(cells)))[2])
+    return f"{n} {_NOUN[kind][1]} in {sheet}!{marker}" + (f" ({header})" if header else "")
+
+
+def classify(base: Book, new: Book) -> tuple[list[ChangeGroup], list[Change], dict[str, Alignment]]:
+    raw, changes, aligns = diff(base, new)
+    keys = {a: _key(a, b, n, aligns) for a, (b, n) in raw.items()}
+    # Too many groups for exact Shapley: merge by sheet + type, then by type alone (never more than 3).
+    for coarser in (lambda k: k, lambda k: (k[0], k[2]), lambda k: (k[2],)):
+        buckets: dict[tuple, dict] = {}
+        for a, pair in raw.items():
+            buckets.setdefault(coarser(keys[a]), {})[a] = pair
+        if len(buckets) <= MAX_GROUPS:
+            break
+    groups = [ChangeGroup(f"g{i}", _label(key, cells, base), key[-1], cells)
+              for i, (key, cells) in enumerate(buckets.items(), start=1)]
+    return groups, changes, aligns
