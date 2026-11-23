@@ -125,6 +125,11 @@ p95 > 1.5 s, so **sidecar mode** was built: a commit writes the openpyxl file at
 - `tests/test_api.py` (11 tests, over the FastAPI test client on a real gate): Session A held edit approved, and separately denied; double action → 409 with the message; stale held cell → 409; unknown → 404; rollback marks the edit `ROLLED_BACK`; approve / deny / rollback are not MCP tools and not importable from `mcp_server`.
 - Not started: checks, proof, audit, export and session-audit endpoints.
 
+## Done (P3): Check results view (`frontend/src/tabs/Check/`)
+- Built `frontend/src/tabs/Check/CheckResultView.tsx` and `frontend/src/tabs/Check/GroupsTable.tsx` on `types.ts` + `format.ts` (`inr`, `signedInr`, `savedByBanner`), with no edits to `package.json` or `App.tsx` (`SPLIT.md` v3 §0.3–0.4).
+- **Features:** honest verification banner, coverage badge, `Export CSV` link (`csvHref`), watched output switcher, template headline sentence (zero-share groups excluded from headline and kept in the groups table; null rendered as `"unknown"`, never `0`), `GroupsTable` with `All / Data / Logic / Structural / Unverified` filter, clickable rows highlighting cells, `"Prove it"` button (`onProve`), built-in structural summary / `structuralSlot` (ready to drop in `#9`'s `StructuralPanel`), `waterfallSlot` (ready for `Waterfall.tsx` once P1's shell PR adds `echarts`), and grouped unverifiable panel.
+- **Verified:** SSR-rendered against `check_v2_v3.json`, `check_judge_xlookup.json`, and a null-output `CheckResult`; `npm run build` (`vite` + `tsc -b`) and `npm run lint` (`oxlint`) clean with 0 warnings/errors.
+
 ## How a Check decides what is verified (read before Phase 2)
 - **Unverifiable roots:** formula not on the allowlist (reason = the function name), `#REF!`-style error, named range / table / external reference, array formula, a workbook with macros or pivot tables (every formula), a base cell whose engine value differs from its saved value, an engine error.
 - **Tainted** = roots + everything downstream, taken on the union of the base and new graphs (every coalition's dependencies are a subset of that union).
