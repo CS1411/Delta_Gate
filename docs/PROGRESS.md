@@ -155,6 +155,20 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 ## Phase 3 requirements (UI)
 - **One card per cell for structural findings.** On v2 → v3, `Summary!C4` gets three findings: `typed_over_formula`, `protected_formula_edit` and `lost_link`. The Check tab groups findings by `cell` into one card, with the lost-link message ("Collected no longer depends on Payments!C (Amount paid)") as the headline and the other two as lines under it, so Act 1 shows one warning for that cell, not three. `LateFees!F3` (`protected_formula_edit`) stays its own card.
 
+## Done (Phase 3, P2: judge's-own-file drill; branch `p2-messy-drill`)
+- **Messy workbooks:** `scripts/make_messy.py` builds three v2/v3 pairs in `golden/` with openpyxl, applies the ops in `golden/messy_ops.json` the way the gate's shadow copy does, then runs LibreOffice headless so both files carry saved values (`saved_by` LibreOffice, never Excel).
+  - `messy_1`: merged header cells, blank rows between data, no key column (repeated names). v3: one payment edit + a row appended past the summed range.
+  - `messy_2`: XLOOKUP, SORT (dynamic-array function) and a user-defined name (`LateRate`) in the output chain. v3: billed and paid edits, and the Expenses sheet renamed to Costs (not expressible as gate ops: Check only).
+  - `messy_3`: `.xlsm` with a VBA project part (an inert marker, added after LibreOffice), a hidden sheet, text-formatted numbers, an empty sheet.
+- **`tests/test_messy.py` (21 tests + 1 strict xfail):** Check in-process and through the CLI (plain and `--json`; exit 0, no traceback), and the v3 ops through the gate. Every watched output is reported; null stays null; verified + unverified = observed; every reason is plain text; a macro file is never run (child processes and `os.startfile` are refused during the macro test) and never written.
+  - `messy_1`: exact (+₹500 / −₹500, coverage 100%); `shortened_range` on Ledger!C13; gate PARTIAL (payment PASS, uncovered row HELD).
+  - `messy_2`: C6 −₹1,460 = ₹1,000 verified + −₹2,460 unverified; C4 +₹2,500 all unverified; reasons XLOOKUP, SORT, "unsupported reference LateRate"; gate holds both edits `CANT_VERIFY_HELD`.
+  - `messy_3`: coverage 0, every formula "macros (VBA)", verified ₹0 with the whole change unverified; gate `CANT_VERIFY_HELD`.
+- **What broke and was fixed (P2 files):**
+  - `classify.py` / `structural.py`: a renamed sheet read as all its rows deleted + a new sheet, which raised a false `rows_deleted_in_range` and a false `lost_link` ("Total pending dues no longer depends on Expenses!B (Amount)"). `classify.renamed_sheets` now detects a sheet whose only change is its name (exact content match); its cells form one structural group, "Sheet Expenses renamed to Costs", and structural checks map regions through the rename. A sheet renamed *and* edited in one go still reads as deleted + added.
+  - `classify.py`: group labels said "1 data changes"; now "1 data change".
+- **Handed to P3:** two engine issues, under Known issues.
+
 ## In progress
 Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phase-2-gate` goes to `main` by pull request. Phase 3 has not started.
 
@@ -209,7 +223,9 @@ Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phas
 - **Formula groups cost a compile each way:** 2^k compiles for k formula groups (~0.25 s each). 3 → 2 s, 5 → 8 s. The classifier does not yet merge formula groups to stay under a budget.
 - **Rows inserted or deleted mid-sheet** are one structural group applied cell by cell. If the tool that produced the file did not rewrite dependent formulas (openpyxl `delete_rows`), outputs come back "can't verify" rather than a number. Fail closed, but no attribution.
 - **Reverse direction:** restoring a formula over a typed value (v3 → v2) reports a `lost_link` on Summary!C6 for region Summary!C, because the typed constant was an input and no longer is. True, but noisy.
-- No alignment across renamed sheets; a renamed sheet reads as one deleted and one added.
+- **Renamed sheets** are detected only on an exact content match (`classify.renamed_sheets`); a sheet renamed and edited in one go still reads as one deleted and one added.
+- **P3, `check.py`: a group whose whole effect runs through an unverifiable cell gets share ₹0 instead of being left out.** `analyse()` puts a group in `excluded[output]` only when the group's *own* cells are pinned; a live input whose every path to the output passes a pinned cell becomes a null player. messy_2: `Payments!B4` (feeds LateFees!B via XLOOKUP) shows solo ₹0 / share ₹0 on Summary!C4 and C6, and the sheet rename shows ₹0 on C6 (through SORT). Totals stay honest (the change is in `delta_unverified`), but the per-group row reads as "₹0". Pinned by `test_messy_2_payment_through_xlookup_is_not_shown_as_zero` (strict xfail: it fails loudly once fixed).
+- **P3, `recalc.py`: a value group on a sheet the base does not have is never applied.** `set_cell` returns early for addresses not in `xl.cell_map`, so a renamed (or new) sheet's cells never reach the model, and the formula group that refers to it raises `FormulaEvalError` in every coalition that includes it, the full one too. Result: a pure rename with verifiable formulas fails closed (both outputs "the engine could not compute this output as a number", base/new null) instead of Δ 0. Pinned by `test_rename_with_verifiable_formulas_fails_closed`.
 - **Committed files are written by openpyxl.** Charts, images, pivot caches and other things openpyxl does not model are lost on the first gated commit. The demo workbooks have none.
 - **A version is `pending` for about 2 s after a commit** (8–9 s the first time, while LibreOffice creates its profile under `data/libreoffice_profile`). A Check in that window says "Not verifiable against saved values", and on a file with unverifiable cells there are no saved values to pin at yet, so those outputs are held rather than partly verified.
 - **The sidecar is discarded if LibreOffice drops or changes any cell** (label `none`). Seen to pass on the demo files; not tried on messy real workbooks.
