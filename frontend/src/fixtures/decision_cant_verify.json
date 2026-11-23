@@ -43,14 +43,7 @@
         "delta_observed": null,
         "delta_verified": 0.0,
         "delta_unverified": null,
-        "attribution": [
-          {
-            "group_id": "g1",
-            "solo": 0.0,
-            "share": 0.0,
-            "interaction": 0.0
-          }
-        ]
+        "attribution": []
       },
       {
         "cell": "Summary!C4",
