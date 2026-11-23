@@ -334,3 +334,49 @@ def test_failed_libreoffice_run_is_labelled_none(dues, monkeypatch):
     assert version["saved_by"] == "none" and store.saved_source(version) is None
     held = gate.propose_edit(dues, "dues", [{"op": "set_formula", "cell": F3, "formula": "=F2*0.04"}], "s_1")
     assert held.check.verification.saved_by == "none" and held.check.verification.matched == 0
+
+
+# --- shadow and candidate files are cleaned up (P1 task 7) --------------------------------------------
+
+
+def shadow_files(workbook_id="dues"):
+    folder = config.store_dir() / workbook_id / "shadow"
+    return sorted(p.name for p in folder.iterdir()) if folder.exists() else []
+
+
+def test_shadow_files_are_cleaned_up_after_every_decision(dues):
+    assert gate.propose_edit(dues, "dues", pay(5), "s_1").status == "PASS" and shadow_files() == []
+
+    held = gate.propose_edit(dues, "dues", PAYMENTS_AND_F3, "s_2")  # PARTIAL: the shadow waits for the approver
+    assert held.status == "PARTIAL" and shadow_files() == [f"{held.edit_id}.xlsx"]
+    gate.approve(dues, held.edit_id)
+    assert shadow_files() == []
+
+    denied = gate.propose_edit(dues, "dues", [{"op": "set_formula", "cell": F3, "formula": "=F2*0.03"}], "s_3")
+    assert shadow_files() == [f"{denied.edit_id}.xlsx"]
+    gate.deny(dues, denied.edit_id)
+    assert shadow_files() == []
+
+
+def test_a_failed_proposal_leaves_no_shadow(dues, monkeypatch):
+    def broken(*args, **kwargs):
+        raise RuntimeError("engine failed")
+
+    monkeypatch.setattr(gate.engine, "analyse", broken)
+    with pytest.raises(RuntimeError):
+        gate.propose_edit(dues, "dues", pay(5), "s_1")
+    assert shadow_files() == []
+    with pytest.raises(KeyError):
+        gate.propose_edit(dues, "nope", pay(5), "s_1")
+    assert not (config.store_dir() / "nope").exists()  # cleanup never creates folders for an unknown id
+
+
+def test_a_refused_approval_keeps_the_shadow_for_deny(dues):
+    first = gate.propose_edit(dues, "dues", [{"op": "set_formula", "cell": F3, "formula": "=F2*0.04"}], "s_1")
+    second = gate.propose_edit(dues, "dues", [{"op": "set_formula", "cell": F3, "formula": "=F2*0.03"}], "s_1")
+    gate.approve(dues, second.edit_id)
+    with pytest.raises(store.Conflict):
+        gate.approve(dues, first.edit_id)
+    assert shadow_files() == [f"{first.edit_id}.xlsx"]  # still waiting: the approver can deny it
+    gate.deny(dues, first.edit_id)
+    assert shadow_files() == []

@@ -191,6 +191,18 @@ def shadow_path(workbook_id: str, edit_id: str) -> Path:
     return _dir(workbook_id, "shadow") / f"{edit_id}.xlsx"
 
 
+def discard(workbook_id: str, edit_id: str, keep_shadow: bool = False) -> None:
+    """Delete an edit's shadow copy and its candidates (<edit>.pass.xlsx, <edit>.approved.xlsx). The shadow is
+    kept while held groups wait for the approver: approve copies the held cells from it."""
+    folder = config.store_dir() / workbook_id / "shadow"  # not _dir(): never create folders for an unknown id
+    if not folder.is_dir():
+        return
+    shadow_file = folder / f"{edit_id}.xlsx"
+    for path in folder.glob(f"{edit_id}*.xlsx"):  # edit ids are fixed length: no prefix clash
+        if not (keep_shadow and path == shadow_file):
+            path.unlink(missing_ok=True)
+
+
 def shadow(workbook_id: str, edit_id: str, base: Path, ops: list[EditOp]) -> Path:
     """The base file with the proposed ops applied, as a separate file. The base is not touched."""
     wb = load_workbook(base)  # formulas, not saved values
