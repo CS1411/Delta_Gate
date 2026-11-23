@@ -22,3 +22,7 @@ dev = ["pytest", "hypothesis"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+filterwarnings = [  # pycel 1.0b30 on Python 3.12: thousands of these per run
+    "ignore:ast.Str is deprecated:DeprecationWarning",
+    "ignore:Attribute s is deprecated:DeprecationWarning",
+]

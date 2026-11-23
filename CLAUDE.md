@@ -106,12 +106,19 @@ The MCP server (launched by Claude Desktop) and the FastAPI app are **separate p
     "base":186000,"new":228000,
     "delta_observed":42000,"delta_verified":42000,"delta_unverified":0,
     "attribution":[{"group_id":"g1","solo":38000,"share":38000,"interaction":0}]
+  },{
+    "cell":"Summary!C9","label":"Rounded total",
+    "base":null,"new":null,
+    "delta_observed":null,"delta_verified":0,"delta_unverified":null,
+    "attribution":[]
   }],
   "structural":[{"kind":"typed_over_formula|shortened_range|protected_formula_edit|rows_deleted_in_range|lost_link","cell":"Summary!C4","output":"Summary!C6","message":"Collected no longer depends on Payments!C (Amount paid)"}],
   "unverifiable":[{"cell":"Sheet!B2","reason":"XLOOKUP"}],
   "coverage":1.0
 }
 ```
+
+`base`, `new`, `delta_observed` and `delta_unverified` can be `null`: **null = no saved value, engine must not compute** (e.g. a ROUND output in a file with no saved values). Never show 0 in its place. `delta_verified` is always a number.
 
 **Decision** (returned by `propose_edit` / `get_decision`):
 ```json
