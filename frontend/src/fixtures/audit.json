@@ -23,7 +23,7 @@
         "base_version": "e5ea5f376d408106f165cb72ebe0b70867bc2f7547fcbad5b7f3bca6b32a009d",
         "check_id": "chk_000000400000",
         "commit_ms": 10,
-        "committed_version": "3c52ff6465c8c147a0daf1810414b5369b1160ed86fb232458de2c16479d69f8",
+        "committed_version": "be6ce40c8d77ef43d38915c7cd7f51ac5803e716cde2352478f9ae38eaa1aa83",
         "decision_ms": 10,
         "edit_id": "ed_000000300000",
         "groups": [
@@ -87,7 +87,7 @@
         "workbook_id": "dues"
       },
       "prev_hash": "d536b977ce315ee91623a5bfbf458fcf5387356b761216f51dbf80057a6d2649",
-      "hash": "200991d039aaf4146deb5c6beabc490c28f49c586039181aade7a724b139d808"
+      "hash": "87e823074e9cea84125d329d6197cc14b37488dcde12289f62b1865c7720aee9"
     },
     {
       "seq": 3,
@@ -97,8 +97,8 @@
       "payload": {
         "session_id": "s_A"
       },
-      "prev_hash": "200991d039aaf4146deb5c6beabc490c28f49c586039181aade7a724b139d808",
-      "hash": "cb7b69aacd0091d1926fc42a5e6f6ab628dfa067955c672aed3ba90eeb68f263"
+      "prev_hash": "87e823074e9cea84125d329d6197cc14b37488dcde12289f62b1865c7720aee9",
+      "hash": "7c69bcd480e63d1ae0170f61f0d84961ae06845b3dbee4e0c513f3afea217fdd"
     },
     {
       "seq": 4,
@@ -106,10 +106,10 @@
       "actor": "agent:s_B",
       "action": "propose_edit",
       "payload": {
-        "base_version": "3c52ff6465c8c147a0daf1810414b5369b1160ed86fb232458de2c16479d69f8",
+        "base_version": "be6ce40c8d77ef43d38915c7cd7f51ac5803e716cde2352478f9ae38eaa1aa83",
         "check_id": null,
         "commit_ms": 10,
-        "committed_version": "3d2f5e8c9f647ee6acf5ccb893e529d6d4e0678e3d431a4d614e382071f11df6",
+        "committed_version": "a32d464c5141827d9bc4ecd851e4c5cb7e7a7f7d98454f33fbbe09eeb02ab0cb",
         "decision_ms": 10,
         "edit_id": "ed_000000500000",
         "groups": [
@@ -140,8 +140,8 @@
         "status": "PASS",
         "workbook_id": "dues"
       },
-      "prev_hash": "cb7b69aacd0091d1926fc42a5e6f6ab628dfa067955c672aed3ba90eeb68f263",
-      "hash": "df1ee75ca8bcd7a34160d20260161bdc1ce1d64eb899c870b3458f7c50ab5604"
+      "prev_hash": "7c69bcd480e63d1ae0170f61f0d84961ae06845b3dbee4e0c513f3afea217fdd",
+      "hash": "7441dfbbaaf3a3320fbedba0df055599ac60da6009edb14237d93382014cf6ca"
     },
     {
       "seq": 5,
@@ -149,10 +149,10 @@
       "actor": "agent:s_B",
       "action": "propose_edit",
       "payload": {
-        "base_version": "3d2f5e8c9f647ee6acf5ccb893e529d6d4e0678e3d431a4d614e382071f11df6",
+        "base_version": "a32d464c5141827d9bc4ecd851e4c5cb7e7a7f7d98454f33fbbe09eeb02ab0cb",
         "check_id": null,
         "commit_ms": 10,
-        "committed_version": "fa4f4c8e42327140e491936f109559a8d871e427d44602e512bdb3863aafb112",
+        "committed_version": "bc1606fcb6fdc2b8c3b3662380cf6d2f04c89e86688e1bf743b9ffae92f47087",
         "decision_ms": 10,
         "edit_id": "ed_000000600000",
         "groups": [
@@ -183,8 +183,8 @@
         "status": "PASS",
         "workbook_id": "dues"
       },
-      "prev_hash": "df1ee75ca8bcd7a34160d20260161bdc1ce1d64eb899c870b3458f7c50ab5604",
-      "hash": "f29c30f10f7175a4490f733085d9c7700b8d3bd6b14e9f6d49aa15c8b63278c0"
+      "prev_hash": "7441dfbbaaf3a3320fbedba0df055599ac60da6009edb14237d93382014cf6ca",
+      "hash": "1b61fd5f29f42d6eae6954aea42aadc5ad3df464297d0551e08c7842ac8bfa84"
     },
     {
       "seq": 6,
@@ -192,10 +192,10 @@
       "actor": "agent:s_B",
       "action": "propose_edit",
       "payload": {
-        "base_version": "fa4f4c8e42327140e491936f109559a8d871e427d44602e512bdb3863aafb112",
+        "base_version": "bc1606fcb6fdc2b8c3b3662380cf6d2f04c89e86688e1bf743b9ffae92f47087",
         "check_id": null,
         "commit_ms": 10,
-        "committed_version": "2d33e098d8a731308176249cf0a5fe2af7ffa9fffce3f545d0cabed944b64d96",
+        "committed_version": "1c0283e6cf2de5e40d24f72b32563b5697e4607b85740bf53f7e208077677b8c",
         "decision_ms": 10,
         "edit_id": "ed_000000700000",
         "groups": [
@@ -226,8 +226,8 @@
         "status": "PASS",
         "workbook_id": "dues"
       },
-      "prev_hash": "f29c30f10f7175a4490f733085d9c7700b8d3bd6b14e9f6d49aa15c8b63278c0",
-      "hash": "bb747d336f6d8b5816adc99a1c2f4922e41d05e4f6d4fabcf7dffe168d208958"
+      "prev_hash": "1b61fd5f29f42d6eae6954aea42aadc5ad3df464297d0551e08c7842ac8bfa84",
+      "hash": "f974886a2b412bb73b26101d4d061104ea588a2fad26dfa8fb317be1a90a486d"
     },
     {
       "seq": 7,
@@ -235,10 +235,10 @@
       "actor": "agent:s_B",
       "action": "propose_edit",
       "payload": {
-        "base_version": "2d33e098d8a731308176249cf0a5fe2af7ffa9fffce3f545d0cabed944b64d96",
+        "base_version": "1c0283e6cf2de5e40d24f72b32563b5697e4607b85740bf53f7e208077677b8c",
         "check_id": null,
         "commit_ms": 10,
-        "committed_version": "8e8d486fc883b75a869175585d22fd37fda94a56d6e1bf194245b21cfb540ded",
+        "committed_version": "1596487badc239930463716593f8dbe3e7f64d68c3cb90dd2b3e78de9c902a84",
         "decision_ms": 10,
         "edit_id": "ed_000000800000",
         "groups": [
@@ -269,8 +269,8 @@
         "status": "PASS",
         "workbook_id": "dues"
       },
-      "prev_hash": "bb747d336f6d8b5816adc99a1c2f4922e41d05e4f6d4fabcf7dffe168d208958",
-      "hash": "08eba0df9c3e7e64a6512e1a34a75a1426f8b1d1f9c8013f6a95e340fd578b3a"
+      "prev_hash": "f974886a2b412bb73b26101d4d061104ea588a2fad26dfa8fb317be1a90a486d",
+      "hash": "6b25be32e673c4f2e443ee240671d2ae68877c299f32e40ef5e1e6795bc1696f"
     },
     {
       "seq": 8,
@@ -278,10 +278,10 @@
       "actor": "agent:s_B",
       "action": "propose_edit",
       "payload": {
-        "base_version": "8e8d486fc883b75a869175585d22fd37fda94a56d6e1bf194245b21cfb540ded",
+        "base_version": "1596487badc239930463716593f8dbe3e7f64d68c3cb90dd2b3e78de9c902a84",
         "check_id": null,
         "commit_ms": 10,
-        "committed_version": "4fecdf2d6fca876ed6129ba43a4f1d677469cb912e138cb940123e53370e049b",
+        "committed_version": "bb3d1db8de042fe7b421c0f5f602c2b18b1c4c86c9d804bdb29b97793bbcc508",
         "decision_ms": 10,
         "edit_id": "ed_000000900000",
         "groups": [
@@ -312,8 +312,8 @@
         "status": "PASS",
         "workbook_id": "dues"
       },
-      "prev_hash": "08eba0df9c3e7e64a6512e1a34a75a1426f8b1d1f9c8013f6a95e340fd578b3a",
-      "hash": "d301e78503ceaeacc4dff2e57891c81a5d7bc18603aa9d64b9848ae8fc8e821a"
+      "prev_hash": "6b25be32e673c4f2e443ee240671d2ae68877c299f32e40ef5e1e6795bc1696f",
+      "hash": "5b11455936dd501e52526ca8d063da71c2c7bc60fb1a089535bf40c15abc14cd"
     },
     {
       "seq": 9,
@@ -321,10 +321,10 @@
       "actor": "agent:s_B",
       "action": "propose_edit",
       "payload": {
-        "base_version": "4fecdf2d6fca876ed6129ba43a4f1d677469cb912e138cb940123e53370e049b",
+        "base_version": "bb3d1db8de042fe7b421c0f5f602c2b18b1c4c86c9d804bdb29b97793bbcc508",
         "check_id": null,
         "commit_ms": 10,
-        "committed_version": "e202afc60c1121bdb38e0586f42c9bd45f02d70e782757383bdeb1846b27e73f",
+        "committed_version": "4bba1e9a90c8f1cf771eb8e68f2fe418f4ecc8174e319cd8cf4179ac77964cde",
         "decision_ms": 10,
         "edit_id": "ed_000000a00000",
         "groups": [
@@ -355,8 +355,8 @@
         "status": "PASS",
         "workbook_id": "dues"
       },
-      "prev_hash": "d301e78503ceaeacc4dff2e57891c81a5d7bc18603aa9d64b9848ae8fc8e821a",
-      "hash": "3edbe39660501790d558abd998f44751d84909da711fcb2027f1c57b7e7feeaa"
+      "prev_hash": "5b11455936dd501e52526ca8d063da71c2c7bc60fb1a089535bf40c15abc14cd",
+      "hash": "87ec47f9f076ec470c4adc39b4df4fd223b2f35809acf56de28065892922571d"
     },
     {
       "seq": 10,
@@ -364,10 +364,10 @@
       "actor": "agent:s_B",
       "action": "propose_edit",
       "payload": {
-        "base_version": "e202afc60c1121bdb38e0586f42c9bd45f02d70e782757383bdeb1846b27e73f",
+        "base_version": "4bba1e9a90c8f1cf771eb8e68f2fe418f4ecc8174e319cd8cf4179ac77964cde",
         "check_id": null,
         "commit_ms": 10,
-        "committed_version": "7f2ae8672ca5d051913554f0795b122cbf1b5b277213972a408d02461cc09a29",
+        "committed_version": "57512d46cf8ae3fb72c88417b9213becfd736e947cc3533d5908c9f4b0fa09e8",
         "decision_ms": 10,
         "edit_id": "ed_000000b00000",
         "groups": [
@@ -398,8 +398,8 @@
         "status": "PASS",
         "workbook_id": "dues"
       },
-      "prev_hash": "3edbe39660501790d558abd998f44751d84909da711fcb2027f1c57b7e7feeaa",
-      "hash": "f55572dc58e183f27cf01dae6a0c6a1d535cc3df4231c64f69643baee7818a93"
+      "prev_hash": "87ec47f9f076ec470c4adc39b4df4fd223b2f35809acf56de28065892922571d",
+      "hash": "6c478f9a7a90adae348152270c708574548f2bc68e7948a605e437d33f440d7a"
     },
     {
       "seq": 11,
@@ -407,10 +407,10 @@
       "actor": "agent:s_B",
       "action": "propose_edit",
       "payload": {
-        "base_version": "7f2ae8672ca5d051913554f0795b122cbf1b5b277213972a408d02461cc09a29",
+        "base_version": "57512d46cf8ae3fb72c88417b9213becfd736e947cc3533d5908c9f4b0fa09e8",
         "check_id": null,
         "commit_ms": 10,
-        "committed_version": "e5407bea060af1bc6c1881fec965dc392db431695a13292a0f0ed3a1856ad3ca",
+        "committed_version": "a43bedd4d4861fa8d4f3d97f3dfe7270d60299369b1c3c9c1e7b671e20b28774",
         "decision_ms": 10,
         "edit_id": "ed_000000c00000",
         "groups": [
@@ -441,8 +441,8 @@
         "status": "PASS",
         "workbook_id": "dues"
       },
-      "prev_hash": "f55572dc58e183f27cf01dae6a0c6a1d535cc3df4231c64f69643baee7818a93",
-      "hash": "6042fb01e5decf5007c2083c2a322eb81d631ef414fe48ef615c660f74c1f230"
+      "prev_hash": "6c478f9a7a90adae348152270c708574548f2bc68e7948a605e437d33f440d7a",
+      "hash": "14076a62a189188a1b7ef38c997b3e76737308aebd0c1a79ec2f6bd29b88d694"
     },
     {
       "seq": 12,
@@ -450,7 +450,7 @@
       "actor": "agent:s_B",
       "action": "propose_edit",
       "payload": {
-        "base_version": "e5407bea060af1bc6c1881fec965dc392db431695a13292a0f0ed3a1856ad3ca",
+        "base_version": "a43bedd4d4861fa8d4f3d97f3dfe7270d60299369b1c3c9c1e7b671e20b28774",
         "check_id": "chk_000000e00000",
         "commit_ms": 10,
         "committed_version": null,
@@ -486,8 +486,8 @@
         "status": "HELD",
         "workbook_id": "dues"
       },
-      "prev_hash": "6042fb01e5decf5007c2083c2a322eb81d631ef414fe48ef615c660f74c1f230",
-      "hash": "2ee001f5b61c293f2188509f28ae5c9e82496b41bd985cfe5c2d840ca61cdc4a"
+      "prev_hash": "14076a62a189188a1b7ef38c997b3e76737308aebd0c1a79ec2f6bd29b88d694",
+      "hash": "a22f7686c69bba5f51511d6dbd04d992aface4ca94614372deaa156b90f0cf8a"
     },
     {
       "seq": 13,
@@ -495,7 +495,7 @@
       "actor": "agent:s_B",
       "action": "propose_edit",
       "payload": {
-        "base_version": "e5407bea060af1bc6c1881fec965dc392db431695a13292a0f0ed3a1856ad3ca",
+        "base_version": "a43bedd4d4861fa8d4f3d97f3dfe7270d60299369b1c3c9c1e7b671e20b28774",
         "check_id": "chk_000001000000",
         "commit_ms": 10,
         "committed_version": null,
@@ -531,8 +531,8 @@
         "status": "HELD",
         "workbook_id": "dues"
       },
-      "prev_hash": "2ee001f5b61c293f2188509f28ae5c9e82496b41bd985cfe5c2d840ca61cdc4a",
-      "hash": "d6ba9fa71d30284ef088bc6acc8686f9de088e58b7da65be8102a0815ed534b1"
+      "prev_hash": "a22f7686c69bba5f51511d6dbd04d992aface4ca94614372deaa156b90f0cf8a",
+      "hash": "7298b2c5f0a724243a070bf8be6234cf2397d4f64172586fef6acf2bd2163627"
     },
     {
       "seq": 14,
@@ -542,22 +542,22 @@
       "payload": {
         "session_id": "s_B"
       },
-      "prev_hash": "d6ba9fa71d30284ef088bc6acc8686f9de088e58b7da65be8102a0815ed534b1",
-      "hash": "69e58082c99661ec91c312b533873fbb59dff4a682d7f0702926c5cc13310a28"
+      "prev_hash": "7298b2c5f0a724243a070bf8be6234cf2397d4f64172586fef6acf2bd2163627",
+      "hash": "f374f0c0e487cd6a2c8a4ac538819acf8d009fa36bfcd72f7cb49a19c7952693"
     }
   ],
   "checkpoints": [
     {
       "seq": 3,
-      "head_hash": "cb7b69aacd0091d1926fc42a5e6f6ab628dfa067955c672aed3ba90eeb68f263",
+      "head_hash": "7c69bcd480e63d1ae0170f61f0d84961ae06845b3dbee4e0c513f3afea217fdd",
       "ts": "2026-11-23T10:00:07.000+00:00",
-      "signature": "eeae7038c14da1d59cda7eb7216e6ae777d20b01ae9281e7577fbe58f8ff162e75a126568b1a92f839041eec7326e7146c4a869c32c3508d23365d3659f81f0e"
+      "signature": "caff297017d03d44533f7403e5b9bf7fda61caf1477726e8263e35f70aa7c93396e401c292149f4b6963ea925eee00fd9d1dd81656d8ea2eecdadb8be2eb4300"
     },
     {
       "seq": 14,
-      "head_hash": "69e58082c99661ec91c312b533873fbb59dff4a682d7f0702926c5cc13310a28",
+      "head_hash": "f374f0c0e487cd6a2c8a4ac538819acf8d009fa36bfcd72f7cb49a19c7952693",
       "ts": "2026-11-23T10:00:37.000+00:00",
-      "signature": "d60bc101f0e40a823ab2379c2fb1873d2d496d3c91a8394586f71a037a5306593a0a5b71a951da1b79c87e30da8abeec5f572666c5eeccd026b23c537af3f70b"
+      "signature": "dd3ea54e828a8952261f5f559e91810dc83ed0b73664fb6cb6746dc85dbc14b5d52c12ba2e6991fe66c1b83132a667866270d27c2864a2224c71eeb4a0006208"
     }
   ]
 }

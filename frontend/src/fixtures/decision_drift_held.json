@@ -1,0 +1,86 @@
+{
+  "edit_id": "ed_a93e8206038e",
+  "session_id": "s_B",
+  "status": "HELD",
+  "groups": [
+    {
+      "group_id": "g1",
+      "status": "HELD",
+      "reasons": [
+        "Session drift would reach \u20b927,000, over the budget of \u20b925,000"
+      ],
+      "impacts": [
+        {
+          "cell": "Summary!C6",
+          "delta": -3000.0
+        },
+        {
+          "cell": "Summary!C4",
+          "delta": 3000.0
+        }
+      ]
+    }
+  ],
+  "committed_version": null,
+  "check": {
+    "check_id": "chk_de7f1fb06e0f",
+    "mode": "gate",
+    "base_version": "79a2ad18b95102ac97de0e9375ca8e423c423602f65e95a91158ba76d0407696",
+    "new_version": "8c1c3e8f39156eaa348d233c50e2f3fccb69e46f28d4d4da81a613c215ee8eb7",
+    "verification": {
+      "saved_by": "none",
+      "formula_cells": 307,
+      "matched": 0,
+      "mismatched": []
+    },
+    "groups": [
+      {
+        "group_id": "g1",
+        "label": "Value changed: Payments!C49",
+        "type": "data",
+        "cells": [
+          "Payments!C49"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "cell": "Summary!C6",
+        "label": "Total pending dues",
+        "base": 254500.0,
+        "new": 251500.0,
+        "delta_observed": -3000.0,
+        "delta_verified": -3000.0,
+        "delta_unverified": 0.0,
+        "attribution": [
+          {
+            "group_id": "g1",
+            "solo": -3000.0,
+            "share": -3000.0,
+            "interaction": 0.0
+          }
+        ]
+      },
+      {
+        "cell": "Summary!C4",
+        "label": "Collected",
+        "base": 131500.0,
+        "new": 134500.0,
+        "delta_observed": 3000.0,
+        "delta_verified": 3000.0,
+        "delta_unverified": 0.0,
+        "attribution": [
+          {
+            "group_id": "g1",
+            "solo": 3000.0,
+            "share": 3000.0,
+            "interaction": 0.0
+          }
+        ]
+      }
+    ],
+    "structural": [],
+    "unverifiable": [],
+    "coverage": 1.0
+  }
+}
