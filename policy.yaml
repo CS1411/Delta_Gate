@@ -1,0 +1,6 @@
+watched_outputs:
+  - {cell: "Summary!C6", label: "Total pending dues"}
+  - {cell: "Summary!C4", label: "Collected"}
+impact_limit_abs: 10000      # per output, per group
+drift_budget: 25000          # per session, sum of |Δ| over PASSed groups
+protected: ["LateFees!F3", "Summary!C4", "Summary!C6"]
