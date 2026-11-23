@@ -1,0 +1,567 @@
+{
+  "edit_id": "ed_000001100000",
+  "session_id": "s_C",
+  "status": "HELD",
+  "groups": [
+    {
+      "group_id": "g1",
+      "status": "CANT_VERIFY_HELD",
+      "reasons": [
+        "Can't verify: LateFees!C2 (XLOOKUP)"
+      ],
+      "impacts": []
+    }
+  ],
+  "committed_version": null,
+  "check": {
+    "check_id": "chk_000001200000",
+    "mode": "gate",
+    "base_version": "855e4c7894a1716a08d4ec0687d0c67aff5d78e12927f5c45d94a6637f316a4e",
+    "new_version": "c845c2d7316814b2b04aefd5c2c9b53ded156cc6a5f8d88079997808bc793d4b",
+    "verification": {
+      "saved_by": "Microsoft Excel",
+      "formula_cells": 306,
+      "matched": 182,
+      "mismatched": []
+    },
+    "groups": [
+      {
+        "group_id": "g1",
+        "label": "Value changed: Payments!C5",
+        "type": "data",
+        "cells": [
+          "Payments!C5"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "cell": "Summary!C6",
+        "label": "Total pending dues",
+        "base": 328000.0,
+        "new": null,
+        "delta_observed": null,
+        "delta_verified": 0.0,
+        "delta_unverified": null,
+        "attribution": []
+      },
+      {
+        "cell": "Summary!C4",
+        "label": "Collected",
+        "base": 100000.0,
+        "new": 100000.0,
+        "delta_observed": 0.0,
+        "delta_verified": 0.0,
+        "delta_unverified": 0.0,
+        "attribution": [
+          {
+            "group_id": "g1",
+            "solo": 0.0,
+            "share": 0.0,
+            "interaction": 0.0
+          }
+        ]
+      }
+    ],
+    "structural": [],
+    "unverifiable": [
+      {
+        "cell": "LateFees!C2",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C3",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C4",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C5",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C6",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C7",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C8",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C9",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C10",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C11",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C12",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C13",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C14",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C15",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C16",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C17",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C18",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C19",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C20",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C21",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C22",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C23",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C24",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C25",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C26",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C27",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C28",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C29",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C30",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C31",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C32",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C33",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C34",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C35",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C36",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C37",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C38",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C39",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C40",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C41",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C42",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C43",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C44",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C45",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C46",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C47",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C48",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C49",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C50",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C51",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C52",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C53",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C54",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C55",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C56",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C57",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C58",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C59",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C60",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!C61",
+        "reason": "XLOOKUP"
+      },
+      {
+        "cell": "LateFees!D2",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!F2",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D3",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!F3",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D4",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D5",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D6",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D7",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D8",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D9",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D10",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D11",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D12",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D13",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D14",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D15",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D16",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D17",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D18",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D19",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D20",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D21",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D22",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D23",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D24",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D25",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D26",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D27",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D28",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D29",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D30",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D31",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D32",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D33",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D34",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D35",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D36",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D37",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D38",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D39",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D40",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D41",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D42",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D43",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D44",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D45",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D46",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D47",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D48",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D49",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D50",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D51",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D52",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D53",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D54",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D55",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D56",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D57",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D58",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D59",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D60",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "LateFees!D61",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "Summary!C5",
+        "reason": "depends on an unverifiable cell"
+      },
+      {
+        "cell": "Summary!C6",
+        "reason": "depends on an unverifiable cell"
+      }
+    ],
+    "coverage": 0.5947712418300654
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "messy_1": {
+    "v2": "messy_1_v2.xlsx",
+    "v3": "messy_1_v3.xlsx",
+    "ops": [
+      {
+        "op": "set_value",
+        "cell": "Ledger!C5",
+        "value": 2000
+      },
+      {
+        "op": "append_row",
+        "sheet": "Ledger",
+        "values": [
+          "Gupta",
+          3000,
+          0
+        ]
+      }
+    ]
+  },
+  "messy_2": {
+    "v2": "messy_2_v2.xlsx",
+    "v3": "messy_2_v3.xlsx",
+    "ops": [
+      {
+        "op": "set_value",
+        "cell": "Flats!C3",
+        "value": 4000
+      },
+      {
+        "op": "set_value",
+        "cell": "Payments!B4",
+        "value": 2500
+      }
+    ]
+  },
+  "messy_3": {
+    "v2": "messy_3_v2.xlsm",
+    "v3": "messy_3_v3.xlsm",
+    "ops": [
+      {
+        "op": "set_value",
+        "cell": "Data!B3",
+        "value": 2000
+      }
+    ]
+  }
+}

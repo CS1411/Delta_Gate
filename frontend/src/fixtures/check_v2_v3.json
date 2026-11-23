@@ -101,25 +101,57 @@
       "kind": "protected_formula_edit",
       "cell": "LateFees!F3",
       "output": "Summary!C6",
-      "message": "Protected cell LateFees!F3 was edited directly (formula changed)"
+      "message": "Protected cell LateFees!F3 was edited directly (formula changed)",
+      "region": null,
+      "path_before": null,
+      "kept": null
     },
     {
       "kind": "typed_over_formula",
       "cell": "Summary!C4",
       "output": "Summary!C4",
-      "message": "Summary!C4 held the formula =SUM(Payments!C2:C61) and now holds a typed value"
+      "message": "Summary!C4 held the formula =SUM(Payments!C2:C61) and now holds a typed value",
+      "region": null,
+      "path_before": null,
+      "kept": null
     },
     {
       "kind": "protected_formula_edit",
       "cell": "Summary!C4",
       "output": "Summary!C4",
-      "message": "Protected cell Summary!C4 was edited directly (formula replaced by a value)"
+      "message": "Protected cell Summary!C4 was edited directly (formula replaced by a value)",
+      "region": null,
+      "path_before": null,
+      "kept": null
     },
     {
       "kind": "lost_link",
       "cell": "Summary!C4",
       "output": "Summary!C4",
-      "message": "Collected no longer depends on Payments!C (Amount paid)"
+      "message": "Collected no longer depends on Payments!C (Amount paid)",
+      "region": {
+        "sheet": "Payments",
+        "column": "C",
+        "header": "Amount paid"
+      },
+      "path_before": [
+        "Payments!C",
+        "Summary!C4"
+      ],
+      "kept": [
+        {
+          "output": "Summary!C6",
+          "path": [
+            "Payments!C",
+            "Payments!D",
+            "LateFees!C",
+            "LateFees!D",
+            "LateFees!F",
+            "Summary!C",
+            "Summary!C6"
+          ]
+        }
+      ]
     }
   ],
   "unverifiable": [],

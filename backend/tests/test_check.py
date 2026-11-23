@@ -175,3 +175,15 @@ def test_full_check_under_10_seconds(new, policy):
     seconds = time.perf_counter() - start
     print(f"\nfull Check dues_v2.xlsx -> {new.name}: {seconds:.2f} s")
     assert seconds < 10
+
+
+def test_lost_link_carries_region_path_and_kept_outputs(check_v3):
+    (lost,) = [f for f in check_v3.structural if f.kind == "lost_link"]
+    assert (lost.region.sheet, lost.region.column, lost.region.header) == ("Payments", "C", "Amount paid")
+    assert lost.path_before == ["Payments!C", "Summary!C4"]
+    (kept,) = lost.kept  # C6 still reaches Payments!C, so it is kept, not lost
+    assert kept.output == "Summary!C6"
+    assert kept.path[0] == "Payments!C" and kept.path[-1] == "Summary!C6"
+    assert kept.path.index("Payments!D") < kept.path.index("LateFees!C")
+    others = [f for f in check_v3.structural if f.kind != "lost_link"]
+    assert others and all(f.region is None and f.path_before is None and f.kept is None for f in others)

@@ -131,6 +131,16 @@ def saved_by(app: str, has_cached: bool) -> str:
     return "none"
 
 
+def banner(saved_by: str) -> str:
+    """The verification banner for a saved_by label. Names the app that saved the values, never claims Excel
+    otherwise; pending (LibreOffice still running) and none both say the values cannot be checked."""
+    if saved_by == "Microsoft Excel":
+        return "Verified against Excel's saved values"
+    if saved_by == "LibreOffice":
+        return "Verified against LibreOffice's saved values"
+    return "Not verifiable against saved values"
+
+
 def parse(path: Path | str) -> Book:
     path = Path(path)
     with zipfile.ZipFile(path) as z:
