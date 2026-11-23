@@ -33,7 +33,7 @@ It has three modes:
 - **Backend:**
   - Python 3.12 + **uv**;
   - `fastapi`, `uvicorn`;
-  - `mcp[cli]` (official SDK, `from mcp.server.fastmcp import FastMCP`, stdio transport);
+  - `mcp[cli]` 2.x (official SDK, `from mcp.server.mcpserver import MCPServer`, stdio transport; `FastMCP` is its 1.x name and no longer imports);
   - `openpyxl`, `networkx`, `pycel` (primary engine), `formulas` (fallback engine);
   - `cryptography` (Ed25519), `pydantic` v2;
   - `sqlite3` (stdlib, WAL mode);
@@ -52,7 +52,8 @@ delta-gate/
     make_golden.py                # builds the demo workbooks with openpyxl
     recalc.sh                     # LibreOffice headless round-trip to add cached values
     excel_resave.ps1              # Excel COM: CalculateFull, error scan, save (run after recalc.sh)
-    dues_v2.xlsx  dues_v3_REAL.xlsx  judge_xlookup.xlsx  drift_steps.json
+    make_truefalse.py             # TRUE / FALSE golden workbook (kept apart: never rewrites the dues files)
+    dues_v2.xlsx  dues_v3_REAL.xlsx  judge_xlookup.xlsx  truefalse.xlsx  drift_steps.json
   backend/
     pyproject.toml
     deltagate/
@@ -77,7 +78,7 @@ delta-gate/
         audit.py                  # hash chain + Ed25519 checkpoints + verify
       db.py                       # SQLite schema + queries
       api.py                      # FastAPI app (approver/UI surface)
-      mcp_server.py               # FastMCP stdio server (agent surface)
+      mcp_server.py               # MCPServer stdio server (agent surface)
       cli.py                      # `python -m deltagate.cli check A.xlsx B.xlsx`
     tests/
   frontend/
@@ -124,9 +125,11 @@ The MCP server (launched by Claude Desktop) and the FastAPI app are **separate p
 ```json
 {"edit_id":"ed_…","session_id":"s_…","status":"PASS|HELD|PARTIAL|DENIED|APPROVED|ROLLED_BACK",
  "groups":[{"group_id":"g1","status":"PASS|HELD|CANT_VERIFY_HELD","reasons":["Protected formula LateFees!F3"],"impacts":[{"cell":"Summary!C6","delta":4000}]}],
- "committed_version":"<sha256|null>","check":{…CheckResult…}}
+ "committed_version":"<sha256|null>","check":{…CheckResult…}|null}
 ```
 Decisions are made **per change group**: PASS groups are committed and HELD groups go to the approvals inbox. The result is `PARTIAL` when both happen.
+
+`check` is the full Check (exact Shapley) and is built **only when a group is held**; it is `null` when every group passes. Group decisions come from **solo effects** (2 evaluations per group) plus one joint evaluation of all PASS groups ("Combined effect of passing groups exceeds limit"). `impacts` are those solo effects, and are empty for `CANT_VERIFY_HELD`.
 
 **policy.yaml (demo):**
 ```yaml
@@ -140,11 +143,11 @@ protected: ["LateFees!F3", "Summary!C4", "Summary!C6"]
 **What "protected" means:** a *direct* edit to a protected cell (value or formula) is HELD. When a protected cell's value moves because its inputs changed, that's governed by `impact_limit_abs` and `drift_budget`, not by protection.
 
 **SQLite tables:**
-- `workbooks`;
-- `versions(id, workbook_id, sha256, path, parent_id, source[managed|unmanaged], created_at)`;
+- `workbooks(id, name, current_version_id, created_at)`;
+- `versions(id, workbook_id, sha256, path, parent_id, source[managed|unmanaged], saved_by[Microsoft Excel|LibreOffice|pending|none], created_at)`;
 - `checks(id, json)`;
 - `sessions(id, drift)`;
-- `edits(id, session_id, ops_json, status, decision_json, created_at)`;
+- `edits(id, session_id, workbook_id, ops_json, status, decision_json, created_at)`;
 - `audit_log(seq, ts, actor, action, payload_json, prev_hash, hash)`;
 - `checkpoints(seq, head_hash, ts, signature)`.
 
@@ -156,7 +159,7 @@ protected: ["LateFees!F3", "Summary!C4", "Summary!C6"]
   - Appended rows count as a data group. If a referencing range doesn't cover the new row, that's a finding, not a crash.
 - **Saved values:** load once with `data_only=True` (cached values) and once with formulas. Verification recomputes **base** with the engine and compares to the cached values (rel tol 1e-9). Mismatching cells and their dependents become unverifiable.
 - **Allowlist (from our pycel 1.0b30 test, `spikes/pycel_function_check.py`):**
-  - ✅ SUM MIN MAX AVERAGE COUNT IF AND OR NOT ABS INT MOD SUMIF SUMIFS COUNTIF SUMPRODUCT IFERROR VLOOKUP INDEX MATCH LEN ROUNDUP.
+  - ✅ SUM MIN MAX AVERAGE COUNT IF AND OR NOT ABS INT MOD SUMIF SUMIFS COUNTIF SUMPRODUCT IFERROR VLOOKUP INDEX MATCH LEN ROUNDUP, and TRUE / FALSE (literals and `TRUE()` / `FALSE()`; golden test `golden/truefalse.xlsx`, Excel-saved, all 24 cells match).
   - ⚠️ ROUND is unverifiable until an Excel-compatible override passes the golden test (`ROUND(7.5*1.234,2)` must give 9.26).
   - ❌ COUNTA and XLOOKUP are unverifiable (XLOOKUP may use the `formulas` fallback only after a golden test).
   - 🚫 Always unverifiable: NOW TODAY RAND OFFSET INDIRECT, macros (`.xlsm`/vbaProject), external links, pivots, dynamic arrays, LET.
@@ -183,6 +186,7 @@ protected: ["LateFees!F3", "Summary!C4", "Summary!C6"]
 - **Act 2 gate script** (`golden/drift_steps.json` + a pytest; runs from v2, simulating what Claude Desktop will do):
   - **Session A:** one `propose_edit` holding 3 payment rows of ₹2,500 each (one data group, |Δ| ₹7,500 ≤ 10,000) plus the `LateFees!F3` formula edit. The payments **PASS** and are committed; F3 is **HELD** (protected) → status `PARTIAL`.
   - **Session B** (fresh drift): 10 separate `propose_edit` calls of ₹3,000 each. The first 8 PASS (drift ₹24,000); the 9th would reach ₹27,000 > ₹25,000, so it's **HELD** by the drift budget.
+- **Server commits:** a version the server commits is written by openpyxl and committed at once (`saved_by = pending`). A background LibreOffice run then adds a sidecar `versions/<sha>.lo.xlsx` with saved values (`saved_by = LibreOffice`; `none` on failure or a 30 s timeout). The committed file and its hash never change, and it is never labelled Excel.
 - **Cached values:** generate the files with openpyxl, run `golden/recalc.sh` (LibreOffice) so they contain cached values, then run `golden/excel_resave.ps1` (real Excel over COM) so the banner can honestly say Excel. The committed files are the Excel-saved ones.
 
 ## 8. How to work
@@ -213,6 +217,7 @@ protected: ["LateFees!F3", "Summary!C4", "Summary!C6"]
 cd backend && uv sync && uv run pytest -q
 uv run python -m deltagate.cli check ../golden/dues_v2.xlsx ../golden/dues_v3_REAL.xlsx
 uv run uvicorn deltagate.api:app --reload --port 8000
+uv run python -m deltagate.cli register ../golden/dues_v2.xlsx --id dues   # take a workbook into store/
 uv run mcp dev deltagate/mcp_server.py          # MCP inspector
 cd frontend && npm i && npm run dev
 ```

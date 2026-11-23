@@ -2,10 +2,15 @@
 # Excel's own and docProps/app.xml says "Microsoft Excel".
 # Usage (Windows, Excel installed):  powershell -File golden\excel_resave.ps1
 # Run golden/recalc.sh first; run this last. Exit code 1 if any formula cell shows an error.
+# Other golden files:  powershell -File golden\excel_resave.ps1 -Files truefalse.xlsx -Sheets Cases
+param(
+    [string[]]$Files = @('dues_v2.xlsx', 'dues_v3_REAL.xlsx', 'judge_xlookup.xlsx'),
+    [string[]]$Sheets = @('LateFees', 'Summary')
+)
 $ErrorActionPreference = 'Stop'
 
-$files = 'dues_v2.xlsx', 'dues_v3_REAL.xlsx', 'judge_xlookup.xlsx' | ForEach-Object { Join-Path $PSScriptRoot $_ }
-$checkedSheets = 'LateFees', 'Summary'
+$files = $Files | ForEach-Object { Join-Path $PSScriptRoot $_ }
+$checkedSheets = $Sheets
 # Excel hands error cells to COM as Int32 codes; real numbers arrive as Double.
 $errorNames = @{ -2146826288 = '#NULL!'; -2146826281 = '#DIV/0!'; -2146826273 = '#VALUE!'; -2146826265 = '#REF!'
                  -2146826259 = '#NAME?'; -2146826252 = '#NUM!'; -2146826246 = '#N/A' }
@@ -22,12 +27,12 @@ try {
     $books = $app.Workbooks
     foreach ($path in $files) {
         $wb = $books.Open($path)
-        $sheets = $wb.Worksheets
+        $worksheets = $wb.Worksheets
         try {
             $app.CalculateFull()
             $checked = 0
             foreach ($name in $checkedSheets) {
-                $ws = $sheets.Item($name)
+                $ws = $worksheets.Item($name)
                 $used = $ws.UsedRange
                 try {
                     # Two bulk reads per sheet instead of one COM object per cell.
@@ -55,7 +60,7 @@ try {
         }
         finally {
             $wb.Close($false)
-            Release $sheets; Release $wb
+            Release $worksheets; Release $wb
         }
     }
 }

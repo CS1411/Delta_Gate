@@ -1,4 +1,5 @@
 """Command line: python -m deltagate.cli check BASE.xlsx NEW.xlsx [--json] [--policy policy.yaml]
+                 python -m deltagate.cli register FILE.xlsx [--id dues]    (take a workbook into the managed store)
 
 Every number printed comes from the engine's CheckResult; this file only formats.
 """
@@ -10,20 +11,8 @@ from pathlib import Path
 
 from deltagate.config import POLICY_PATH, load_policy
 from deltagate.engine.check import check
+from deltagate.gate.policy import inr
 from deltagate.models import CheckResult, Verification
-
-
-def inr(value: float | None, signed: bool = False) -> str:
-    """Indian digit grouping: 286000 -> ₹2,86,000."""
-    if value is None:
-        return "unknown"
-    sign = "-" if value < 0 else "+" if signed and value > 0 else ""
-    whole, paise = divmod(round(abs(value) * 100), 100)
-    digits = str(whole)
-    head, tail = digits[:-3], digits[-3:]
-    while head:
-        head, tail = head[:-2], f"{head[-2:]},{tail}"
-    return f"{sign}₹{tail}" + (f".{paise:02d}" if paise else "")
 
 
 def banner(v: Verification) -> str:
@@ -61,7 +50,11 @@ def summary(r: CheckResult, base: Path, new: Path) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="deltagate")
-    command = parser.add_subparsers(dest="command", required=True).add_parser("check", help="compare two versions")
+    commands = parser.add_subparsers(dest="command", required=True)
+    register = commands.add_parser("register", help="take a workbook into the managed store (operator only)")
+    register.add_argument("file", type=Path)
+    register.add_argument("--id", help="the workbook_id the agent will use (default: from the file name)")
+    command = commands.add_parser("check", help="compare two versions")
     command.add_argument("base", type=Path)
     command.add_argument("new", type=Path)
     command.add_argument("--json", action="store_true", help="print the CheckResult as JSON")
@@ -70,6 +63,16 @@ def main(argv: list[str] | None = None) -> int:
 
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")  # the Windows console default cannot print ₹
+    if args.command == "register":
+        from deltagate import db
+        from deltagate.gate import store
+
+        conn = db.connect()
+        workbook_id = store.register(conn, args.file, args.id)
+        store.drain()
+        conn.close()
+        print(f"Registered {args.file.name} as workbook_id '{workbook_id}'")
+        return 0
     start = time.perf_counter()
     result = check(args.base, args.new, load_policy(args.policy))
     if args.json:

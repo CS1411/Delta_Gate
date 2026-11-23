@@ -1,8 +1,6 @@
 """Phase 1 acceptance: a full Check on the frozen demo workbooks (Prompt 1)."""
 
 import json
-import os
-import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -12,6 +10,7 @@ from openpyxl import load_workbook
 
 from conftest import JUDGE, V2, V3, book, tamper_cached
 from deltagate.cli import main as cli_main
+from deltagate.config import soffice
 from deltagate.engine.check import check
 from deltagate.engine.parse import parse
 from deltagate.engine.proof import proof_workbook
@@ -131,13 +130,6 @@ def test_tampered_saved_value_is_caught(tmp_path, policy):
 
 
 # --- proof workbook ---------------------------------------------------------------------
-
-
-def soffice():
-    candidates = [os.environ.get("SOFFICE"), shutil.which("soffice"),
-                  r"C:\Program Files\LibreOffice\program\soffice.exe",
-                  "/Applications/LibreOffice.app/Contents/MacOS/soffice"]
-    return next((c for c in candidates if c and Path(c).exists()), None)
 
 
 def test_proof_workbook_for_f3(check_v3, tmp_path):

@@ -1,6 +1,6 @@
 # Delta Gate — progress
 
-_Last updated: 23 Nov 2026, end of Phase 1 (reviewed; branch `phase-1-check`)._
+_Last updated: 23 Nov 2026, end of Phase 2 (branch `phase-2-gate`; Claude Desktop connection confirmed)._
 
 ## Done (Phase 0)
 - **Scaffold:** `backend/` (uv, Python 3.12, deps locked in `uv.lock`), `frontend/` (Vite React TS template, builds), `policy.yaml`, `.gitignore`.
@@ -32,11 +32,47 @@ _Last updated: 23 Nov 2026, end of Phase 1 (reviewed; branch `phase-1-check`)._
 3. `recalc.clear_cell` is the only use of `xl._reset`; own test.
 4. `parse.saved_by`: exact `Microsoft Excel`, `LibreOffice/` prefix, else `none`; no saved values → `none`. The proof test also checks a real LibreOffice-saved file is labelled LibreOffice.
 5. `allowlist._function` strips `_xlfn.` / `_xlws.` (also stacked).
-6. `TRUE` / `FALSE` (and `TRUE()` / `FALSE()`) stay **unverifiable**: no golden test has been run for them yet.
+6. `TRUE` / `FALSE` (and `TRUE()` / `FALSE()`) stayed unverifiable through Phase 1. **Phase 2 step 0 ran the golden test; they are now supported.**
 7. `recalc.evaluate` turns numpy scalars into Python numbers.
 
+## Done (Phase 2): gate, managed store, audit log, MCP server
+- **Step 0, TRUE / FALSE golden test:** `golden/make_truefalse.py` → `golden/truefalse.xlsx`, saved by Excel 16 (`excel_resave.ps1 -Files truefalse.xlsx -Sheets Cases`). 24 formula cells: `VLOOKUP` exact (found / not found / `FALSE()`), `VLOOKUP` approximate (`TRUE`, `TRUE()`, 4th argument omitted), `IF`, `AND`, `OR`, `NOT` with literals and with `TRUE()` / `FALSE()`, booleans fed into `IF`, a `SUM` downstream. **All 24 match Excel's saved values**, approximate match included, so `TRUE` and `FALSE` are on the allowlist (literal and function spelling) and no `VLOOKUP` carve-out was needed.
+- **Engine:** `check.py` is now `analyse()` → `delta()` / `cant_verify()` → `result()`; `check()` is `result(analyse())`. `recalc.coalitions(..., only=, models=)` evaluates chosen coalitions and keeps one compiled model per formula-group subset in a caller-owned cache.
+- **`db.py`:** schema from the build rules, WAL, `tx()` = `BEGIN IMMEDIATE`, re-entrant.
+- **`gate/audit.py`:** hash chain, Ed25519 checkpoint every 50 entries and at session end, `verify()`.
+- **`gate/store.py`:** `register`, `current` (unmanaged-change detection + automatic Check), `shadow`, `commit`, `rollback`, the LibreOffice sidecar worker.
+- **`gate/policy.py`:** `decide()`, pure. **`gate/gate.py`:** `propose_edit`, `get_decision`, `held`, `approve`, `deny`, `rollback`, `end_session`.
+- **`mcp_server.py`:** `MCPServer` (mcp 2.3.0), stdio, exactly `read_range`, `impact_preview`, `explain_delta`, `propose_edit`, `get_decision`.
+- **CLI:** `python -m deltagate.cli register FILE.xlsx [--id dues]`.
+- `golden/drift_steps.json`: the Act 2 script. `spikes/soffice_timing.py`.
+- `uv run pytest -q`: **95 passed** (62 before the Phase 2 modules + 33 new), no skips on this machine.
+
+**Acceptance (pytest unless marked manual):**
+| Item | Result |
+|---|---|
+| Act 2, Session A | one `propose_edit` (3 payments of ₹2,500 + `LateFees!F3 = =F2*0.04`) → `PARTIAL`; payments PASS and committed (C6 2,86,000 → 2,78,500, C4 → 1,07,500, drift 7,500); F3 HELD: "Protected cell LateFees!F3 was edited directly (formula changed)", solo +₹4,000 |
+| Act 2, Session B | ten edits of ₹3,000: 8 PASS (drift 24,000), 9th and 10th HELD: "Session drift would reach ₹27,000, over the budget of ₹25,000". Final C6 2,54,500, C4 1,31,500 |
+| XLOOKUP | an edit that feeds an XLOOKUP cell (`Payments!C5` on the judge file) and a direct edit of one → `CANT_VERIFY_HELD`, no impact number, nothing committed |
+| Joint check | two groups of +₹9,000 each (an `Expenses!B2` value and an appended row) → both HELD, "Combined effect of passing groups exceeds limit" (+₹18,000), drift untouched |
+| Audit | edited row → `verify()` fails at that entry; edited signature fails; log cut back past a checkpoint fails; untouched passes |
+| Unmanaged change | `current.xlsx` overwritten with v3 → next read: version `source = unmanaged`, a Check (+₹42,000) stored and returned, audit entry; later edits build on it |
+| Approve / deny / rollback | approve commits the held F3 (C6 +4,000) → `APPROVED`; deny → `DENIED`, file untouched; rollback restores the previous managed version as a new version, edit → `ROLLED_BACK`; approve is refused if the held cell changed meanwhile |
+| MCP | `list_tools()` is exactly the five; approve / deny / rollback are not importable from `mcp_server`; a child process over real stdio lists the tools, returns `PARTIAL` for Session A, rejects a formula sent as a value, and leaves a signed checkpoint on exit |
+| Gate decision time | 11 Act 2 edits (1 in Session A + 10 in Session B): **p50 ≈ 0.55 s, p95 ≈ 1.1 s, max ≈ 1.1 s** (limit 3 s). Check + commit after the decision: p50 ≈ 0.15 s. Printed by `test_act_2_script`, and on the server's stderr for every edit |
+| **Claude Desktop (real connection)** | **Confirmed 23 Nov 2026, 15:01**, Claude Desktop 6.28899.6.0 (Microsoft Store install), mcp 2.3.0 / `MCPServer`. `main.log`: "delta-gate negotiated protocol version: 2025-11-25", "Connected to delta-gate (5 tools)", no error lines. The five tools surfaced by Desktop are `read_range`, `impact_preview`, `explain_delta`, `propose_edit`, `get_decision`; a live `read_range("dues", "Summary!B6:C6")` through Desktop returned 2,86,000, `saved_by` Microsoft Excel. The `mcp<2` / `FastMCP` fallback was not needed |
+| **Manual, open** | `uv run mcp dev deltagate/mcp_server.py` (inspector) was not run. The 3-line Act 2 test typed into a Desktop chat (expected `PARTIAL`) is still to be done by hand; the same edit passes over real stdio in `tests/test_mcp.py` |
+
+**LibreOffice round trip (review change 1): measured, then moved off the commit path.**
+`spikes/soffice_timing.py`, dues_v2 written by openpyxl, own LibreOffice profile, this laptop:
+| Run | Time |
+|---|---|
+| first run (creates the profile) | 8.86 s |
+| 5 warm runs | 1.95, 1.80, 1.78, 1.79, 1.80 s → **p50 1.80 s, p95 1.95 s** |
+
+p95 > 1.5 s, so **sidecar mode** was built: a commit writes the openpyxl file at once (`versions.saved_by = pending`) and a single background worker writes `versions/<sha>.lo.xlsx`. `current.xlsx` and its hash never change. The sidecar is accepted only if LibreOffice's copy has saved values and the same cells (same constants, a formula wherever there was one); then `saved_by = LibreOffice` and a Check with that version as base verifies against the sidecar's values (tested: 307 / 307 match, banner says LibreOffice). Failure, a 30 s timeout (process tree killed) or no LibreOffice → `none` ("Not verifiable against saved values"). A Check that meets a base still `pending` reports `none`. A server commit is never labelled Excel.
+
 ## How a Check decides what is verified (read before Phase 2)
-- **Unverifiable roots:** formula not on the allowlist (reason = the function name), TRUE/FALSE literal, `#REF!`-style error, named range / table / external reference, array formula, a workbook with macros or pivot tables (every formula), a base cell whose engine value differs from its saved value, an engine error.
+- **Unverifiable roots:** formula not on the allowlist (reason = the function name), `#REF!`-style error, named range / table / external reference, array formula, a workbook with macros or pivot tables (every formula), a base cell whose engine value differs from its saved value, an engine error.
 - **Tainted** = roots + everything downstream, taken on the union of the base and new graphs (every coalition's dependencies are a subset of that union).
 - **Pinning:** when a watched output is tainted but not a root, every tainted cell upstream of it is held at its **saved base value** in all coalitions. So `delta_verified` is what moves through verified cells only, `delta_unverified = delta_observed − delta_verified`, and a group whose effect on that output runs only through pinned cells is left out of its attribution. If a pinned cell has no saved base value, or the output is itself a root, nothing is verified for that output (`delta_verified = 0`, no attribution).
 - **`base` / `new` / `delta_observed`** come from the files' saved values; the engine value is used only when the file has none and the output is not tainted.
@@ -86,7 +122,7 @@ The §6 strategy holds. Compile time dominates, so the number of formula groups 
 
 ## File-format findings
 - **`docProps/app.xml` Application strings seen:** openpyxl 3.1.5 writes `Microsoft Excel Compatible / Openpyxl 3.1.5`; LibreOffice writes `LibreOffice/26.8.3.1$Windows_X86_64 LibreOffice_project/…`. `parse.py` must match **exactly** `Microsoft Excel` for Excel and the `LibreOffice` prefix for LibreOffice. A substring match would label openpyxl-written files as Excel and break the honest-label rule. No cached values → `none`, whatever the app name says.
-- **LibreOffice rewrites the literal `FALSE` as `FALSE()`** on save (seen in `VLOOKUP(…,5,FALSE)`). pycel evaluates it correctly. The golden files now use `0` as the exact-match flag so they are stable across apps. Decision: `TRUE` / `FALSE` join the allowlist only after a golden test (Phase 1 requirement 6); until then a LibreOffice-saved file with a boolean literal is unverifiable at those cells.
+- **LibreOffice rewrites the literal `FALSE` as `FALSE()`** on save (seen in `VLOOKUP(…,5,FALSE)`). pycel evaluates it correctly. The golden files now use `0` as the exact-match flag so they are stable across apps. `TRUE` / `FALSE` joined the allowlist in Phase 2 after the golden test (`golden/truefalse.xlsx`), in both spellings.
 - **XLOOKUP is stored as `_xlfn.XLOOKUP`.** Allowlist detection must strip the `_xlfn.` / `_xlws.` prefixes. LibreOffice 26.8 computes it (judge file has all 306 cached values).
 - LibreOffice headless **does** compute values for openpyxl-written files (no cached values going in, all present coming out).
 
@@ -117,7 +153,7 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 7. Coerce numpy scalars from pycel (e.g. SUMPRODUCT) to Python numbers.
 
 ## In progress
-Nothing. Phase 1 is reviewed (decisions marked below); Phase 2 has not started.
+Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phase-2-gate` goes to `main` by pull request. Phase 3 has not started.
 
 ## Decisions (with why)
 - **Base value ₹2,86,000 → ₹3,28,000**, not the earlier example ₹1,86,000 → ₹2,28,000. Overdue total is fixed at ₹2,00,000 and is part of pending dues, so pending cannot be below ₹2,04,000 unless flats carry advance credits. Δ is unchanged (+₹42,000). The JSON example in the contracts section is illustrative only and was left as is.
@@ -142,18 +178,42 @@ Nothing. Phase 1 is reviewed (decisions marked below); Phase 2 has not started.
 - **Header row = row 1** for key-column detection and lost-link region names.
 - **pycel's logger is silenced** in `recalc.py` (it prints a traceback for every `#DIV/0!`); two pycel `DeprecationWarning`s are filtered in `pyproject.toml`.
 
+**Phase 2 decisions**
+- **mcp 2.3.0, `MCPServer`.** The locked SDK is 2.x, where `mcp.server.fastmcp` raises on import (`FastMCP` was renamed `mcp.server.mcpserver.MCPServer`; same `@server.tool()`). Kept, on condition that Claude Desktop connects (see In progress).
+- **Gate decisions use solo effects** (`delta(a, [g])`: `F(∅)` and `F({g})`, 2 evaluations per group), then **one joint evaluation of all PASS groups**. The full Shapley Check is built only when a group is held, from the same cached models.
+- **Contract changes (`models.py`, `db.py`; build rules §5 updated):** `Decision.check` is `CheckResult | null` (null when every group passes; `explain_delta` gives the full Check on demand). `versions.saved_by` (`Microsoft Excel | LibreOffice | pending | none`). `edits.workbook_id`. `workbooks(id, name, current_version_id, created_at)`.
+- **Drift per group = the largest |solo Δ| over the watched outputs**, one number per session. A ₹3,000 payment moves C4 by +3,000 and C6 by −3,000 and counts as 3,000, which is what the demo script needs (8 × 3,000 = 24,000). Held groups and approvals do not use the budget.
+- **Can't verify (gate):** a group is `CANT_VERIFY_HELD` if any cell it edits, or anything downstream of one, is unverifiable. So any group that can reach a tainted watched output is held, and solo effects are only ever computed on verifiable outputs.
+- **Structural rule:** a finding holds the group whose cells include `finding.cell`; a finding on no group's cell holds every group. The protected rule is the `protected_formula_edit` finding.
+- **Partial commit is by cells:** the PASS groups' cells are copied from the shadow onto the base (`proof.proof_workbook`); approval copies the held cells onto the current version. Committed files carry `fullCalcOnLoad`, so Excel recalculates them on open.
+- **Approval guard:** refused (`Conflict`) if a held cell's content changed since the proposal. The impact is not recomputed at approval time.
+- **Rollback** = restore the managed version before the current one, as a new version row; the edit that produced the version left behind becomes `ROLLED_BACK`.
+- **Ops are validated at the boundary:** one cell as `Sheet!A1`, the sheet must exist, `set_formula` must start with `=`, a value (also inside `append_row`) must not.
+- **`read_range`** returns the saved value of a formula; where the version has none (yet), the engine's value for cells it may compute, else null.
+- **The agent learns workbook ids from the error for an unknown id** (it lists the registered ones); there is no sixth tool.
+- **Session end** = the MCP server process exiting: each session it served gets a `session_end` entry and a checkpoint.
+- **Runtime paths** come from `DELTAGATE_HOME` (default: repo root → `data/`, `store/`); `DELTAGATE_SOFFICE=off` disables LibreOffice. `config.soffice()` replaced the copy in the tests.
+- **`inr()` moved** from `cli.py` to `gate/policy.py` (the gate's reasons need it; the CLI imports it).
+- **`excel_resave.ps1` takes `-Files` and `-Sheets`** (defaults unchanged).
+- **`scripts/demo_reset.ps1`:** one command back to the demo start state (empties `store/` and `data/` except the LibreOffice profile, registers `dues_v2.xlsx` as `dues`). It ran cleanly with Desktop's servers connected: they open the database per call and hold nothing open in between.
+- **Claude Desktop on this machine:** config at `%APPDATA%\Claude\claude_desktop_config.json` (backup `…json.bak`), `command` = the absolute path of `uv.exe`. Logs are in `%LOCALAPPDATA%\Claude\Logs`; the connection lines are in `main.log`, and `mcp-server-delta-gate.log` is created but stays empty in this build. Desktop starts **two** server processes for one config entry (chat and the local bridge); both share the SQLite database, which is what WAL mode is for.
+
 ## Known issues
 - **uv on this machine:** `uv sync` failed with "Missing expected target directory for Python minor version link". Workaround: `uv venv --python %APPDATA%\uv\python\cpython-3.12.16-windows-x86_64-none\python.exe`, then `uv sync`. May not affect other machines.
 - Re-running `make_golden.py` strips cached values and un-freezes the golden files; `recalc.sh` and then `excel_resave.ps1` must follow.
 - `excel_resave.ps1` needs Windows with Excel installed. Without it the files stop at the LibreOffice step and the banner must say LibreOffice.
 - The four business documents at the repo root are deliberately untracked.
-- `golden/drift_steps.json` is Phase 2.
-- **Phase 2 must decide this:** a version the server commits is written by openpyxl, so it has **no saved values**. After the first gated commit the base banner becomes "Not verifiable against saved values", and partial verification on files with unverifiable cells (pinning) stops working because there are no saved base values to pin at. Option: round-trip each committed version through LibreOffice headless (as the proof test does) and label it LibreOffice.
 - **Formula groups cost a compile each way:** 2^k compiles for k formula groups (~0.25 s each). 3 → 2 s, 5 → 8 s. The classifier does not yet merge formula groups to stay under a budget.
 - **Rows inserted or deleted mid-sheet** are one structural group applied cell by cell. If the tool that produced the file did not rewrite dependent formulas (openpyxl `delete_rows`), outputs come back "can't verify" rather than a number. Fail closed, but no attribution.
 - **Reverse direction:** restoring a formula over a typed value (v3 → v2) reports a `lost_link` on Summary!C6 for region Summary!C, because the typed constant was an input and no longer is. True, but noisy.
-- **TRUE / FALSE literals are common in real workbooks** (`VLOOKUP(…, FALSE)`). Until the golden test is done those cells are unverifiable; do it before the judge's-own-file drill (Phase 4).
 - No alignment across renamed sheets; a renamed sheet reads as one deleted and one added.
+- **Committed files are written by openpyxl.** Charts, images, pivot caches and other things openpyxl does not model are lost on the first gated commit. The demo workbooks have none.
+- **A version is `pending` for about 2 s after a commit** (8–9 s the first time, while LibreOffice creates its profile under `data/libreoffice_profile`). A Check in that window says "Not verifiable against saved values", and on a file with unverifiable cells there are no saved values to pin at yet, so those outputs are held rather than partly verified.
+- **The sidecar is discarded if LibreOffice drops or changes any cell** (label `none`). Seen to pass on the demo files; not tried on messy real workbooks.
+- **Module state outside `config.py` / `db.py`:** `store.py` holds the single LibreOffice worker and its job list; `mcp_server.py` holds the set of sessions it served. Both are process-local.
+- **Approver actions have no interface yet** (functions and tests only); REST comes in Phase 3.
+- **Old shadow and candidate files are never cleaned up** (`store/<id>/shadow/`).
+- `uv run mcp dev` needs Node (`npx`) for the inspector; `mcp_server.py` puts `backend/` on `sys.path` when it is loaded by file path.
 
 ## Cut list status
-Nothing cut from the cut order. Phase 1 left out only the `formulas` fallback wiring (see Phase 1 decisions).
+Nothing cut from the cut order (Ed25519, drift and rollback are all in). Still left out: the `formulas` fallback wiring (see Phase 1 decisions).

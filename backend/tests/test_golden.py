@@ -48,3 +48,24 @@ def test_planted_changes():
     assert load_workbook(GOLDEN / "dues_v3_REAL.xlsx")["Expenses"]["B12"].value == 38000
     assert load_workbook(GOLDEN / "dues_v2.xlsx")["Expenses"]["B12"].value is None
     assert sum("XLOOKUP" in f for f in judge.values()) == 60 and not any("XLOOKUP" in f for f in v3.values())
+
+
+# --- TRUE / FALSE golden file (Phase 2, step 0) ---------------------------------------------------
+
+
+def test_truefalse_golden_matches_excel():
+    """TRUE / FALSE are on the allowlist only because every one of these cells matches Excel's saved value."""
+    from deltagate.engine import allowlist, recalc
+    from deltagate.engine.parse import Formula, parse
+    from deltagate.engine.verify import close
+
+    book = parse(GOLDEN / "truefalse.xlsx")
+    assert book.saved_by == "Microsoft Excel"
+    cells = [a for a, content in book.cells.items() if isinstance(content, Formula)]
+    assert len(cells) == 24 and all(book.cached[a] is not None for a in cells)
+    assert book.cached["Cases!F2"] == 300 and book.cached["Cases!F8"] is True and book.cached["Cases!F25"] == 101
+
+    engine = recalc.recompute(book.path, cells)
+    wrong = {a: (book.cells[a], engine[a], book.cached[a]) for a in cells if not close(engine[a], book.cached[a])}
+    assert not wrong, wrong
+    assert [a for a in cells if allowlist.unverifiable_reason(book.cells[a])] == []

@@ -1,11 +1,11 @@
 """Pydantic contracts (build rules, section 5). The single source of types shared by engine, gate, API and MCP.
 
-Phase 1 holds CheckResult and Policy. Edit ops and Decision arrive with the gate in Phase 2.
+CheckResult and Policy (Phase 1); edit ops and Decision (Phase 2, the gate).
 """
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 SavedBy = Literal["Microsoft Excel", "LibreOffice", "none"]
 GroupType = Literal["data", "logic", "structural"]
@@ -82,3 +82,70 @@ class CheckResult(BaseModel):
     structural: list[StructuralFinding]
     unverifiable: list[Unverifiable]
     coverage: float  # share of formula cells the engine can compute and that match the saved values
+
+
+# --- the gate (Phase 2) -------------------------------------------------------------------------
+
+Scalar = str | int | float | bool | None
+
+
+def _not_a_formula(value):
+    """A value op must not smuggle a formula in: openpyxl would store '=...' text as one."""
+    if isinstance(value, str) and value.startswith("="):
+        raise ValueError("a value must not start with '='; use set_formula for formulas")
+    return value
+
+
+class SetValue(BaseModel):
+    op: Literal["set_value"]
+    cell: str
+    value: Scalar
+    _check = field_validator("value")(_not_a_formula)
+
+
+class SetFormula(BaseModel):
+    op: Literal["set_formula"]
+    cell: str
+    formula: str
+
+    @field_validator("formula")
+    @classmethod
+    def _is_formula(cls, formula):
+        if not formula.startswith("=") or len(formula) < 2:
+            raise ValueError("a formula must start with '='")
+        return formula
+
+
+class AppendRow(BaseModel):
+    op: Literal["append_row"]
+    sheet: str
+    values: list[Scalar] = Field(min_length=1)
+
+    @field_validator("values")
+    @classmethod
+    def _no_formulas(cls, values):
+        return [_not_a_formula(v) for v in values]
+
+
+EditOp = Annotated[SetValue | SetFormula | AppendRow, Field(discriminator="op")]
+
+
+class Impact(BaseModel):
+    cell: str
+    delta: float
+
+
+class GroupDecision(BaseModel):
+    group_id: str
+    status: Literal["PASS", "HELD", "CANT_VERIFY_HELD"]
+    reasons: list[str]
+    impacts: list[Impact]  # the group's solo effect per watched output; empty when it cannot be verified
+
+
+class Decision(BaseModel):
+    edit_id: str
+    session_id: str
+    status: Literal["PASS", "HELD", "PARTIAL", "DENIED", "APPROVED", "ROLLED_BACK"]
+    groups: list[GroupDecision]
+    committed_version: str | None
+    check: CheckResult | None  # the full Check (exact Shapley), built when a group is held; None when all pass
