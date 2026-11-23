@@ -265,6 +265,18 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 - **One wording for the banner:** `parse.banner(saved_by)`: "Verified against Excel's saved values" / "Verified against LibreOffice's saved values" / "Not verifiable against saved values" (`pending` and `none`). The CLI uses it (plus the match counts), and the MCP server now returns `banner` next to `saved_by` in `read_range` and in `explain_delta`, so the agent can quote it as is.
 - Tests: cleanup after PASS, PARTIAL → approve, HELD → deny, a failed proposal, a refused approval, an unknown id; the banner for all four labels and in both MCP tools.
 
+## Done (P1): Act 2 end-to-end check, and a signed checkpoint after every approver action
+- **Act 2 checked end to end** (24 Nov, 02:40): the agent went over the real MCP server (this session's delta-gate tools; same code and database as Claude Desktop), with the UI from `p1-shell` against the live API.
+  - `impact_preview` on F3 → protected, reaches Total pending dues.
+  - Session A `propose_edit` → **PARTIAL**: payments committed (C6 −₹7,500, C4 +₹7,500), F3 HELD as protected (+₹4,000).
+  - The HELD card appeared in the Approvals tab within the 2 s poll.
+  - The header switched to "Verified against LibreOffice's saved values" once the sidecar finished.
+  - **Deny** in the UI → the card disappeared, and the agent's `get_decision` reads DENIED. No shadow files left.
+  - Verify log ✅ (register → propose_edit by `agent:…` → deny by `approver`).
+- **Gap it found:** 0 checkpoints. A checkpoint was signed only every 50 entries or when the MCP server process exits, and during the demo Claude Desktop keeps it running, so the Audit tab never showed the "new checkpoint" the Act 2 script promises.
+- **Fix:** `gate.approve`, `gate.deny` and `gate.rollback` now sign a checkpoint on their own entry, inside the same transaction. Every 50 entries and session end still apply. Test: `test_every_approver_action_signs_a_checkpoint` (deny, approve, rollback → the signed head is the latest entry each time; verify ok with 3 checkpoints).
+- **Demo checklist item (for the runbook):** restart Claude Desktop after pulling `main`. A running MCP server keeps the code it started with: this session's server still had no `banner` in `read_range` (pre-#15).
+
 ## Done (P1, SPLIT v3): page shell and the Check tab container (branch `p1-shell`)
 - **Shell (`frontend/src/App.tsx`):**
   - Three tabs: Check, Approvals, Audit. The active tab is kept in the URL hash (`#check`, `#approvals`, `#audit`), so the runbook can link straight to one.
