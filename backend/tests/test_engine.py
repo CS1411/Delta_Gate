@@ -96,8 +96,8 @@ def test_allowlist_strips_xlfn_prefixes():
     ("=COUNTA(A1:A9)", "COUNTA"),
     ("=A1*NOW()", "NOW"),
     ("=SUM(OFFSET(A1,0,0,3,1))", "OFFSET"),
-    ("=VLOOKUP(A1,B1:C5,2,FALSE)", "TRUE/FALSE literal"),  # requirement 6: no golden test yet
-    ("=VLOOKUP(A1,B1:C5,2,FALSE())", "FALSE"),  # LibreOffice's spelling
+    ("=VLOOKUP(A1,B1:C5,2,FALSE)", None),  # golden/truefalse.xlsx matches Excel (test_golden.py)
+    ("=IF(AND(A1>0,TRUE()),FALSE(),TRUE)", None),  # LibreOffice's spelling
     ("=[1]Sheet1!A1*2", "external link"),
     ("=Rate*2", "unsupported reference Rate"),  # named ranges are out of scope
     ("=A1+#REF!", "#REF!"),
