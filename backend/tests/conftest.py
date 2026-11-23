@@ -33,6 +33,18 @@ def check_judge(policy):
     return check(V2, JUDGE, policy)
 
 
+@pytest.fixture
+def home(tmp_path, monkeypatch):
+    """A fresh runtime home (data/ + store/) with LibreOffice off, and a connection to its database."""
+    from deltagate import db
+
+    monkeypatch.setenv("DELTAGATE_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("DELTAGATE_SOFFICE", "off")
+    conn = db.connect()
+    yield conn
+    conn.close()
+
+
 def book(path: Path, sheets: dict[str, dict[str, object]]) -> Path:
     """Write a workbook from {sheet: {cell: content}}. openpyxl-written, so it has no cached values."""
     wb = Workbook()
