@@ -1,17 +1,24 @@
-import StructuralPanel from './components/StructuralPanel'
-import checkV2V3 from './fixtures/check_v2_v3.json'
+import { useState } from 'react'
 import Approvals from './tabs/Approvals'
-import type { CheckResult } from './types'
+import Audit from './tabs/Audit'
 
-// Placeholder until P4's three-tab shell lands: the Check tab's structural panel, then the Approvals tab.
+// Placeholder until P4's three-tab shell lands (it replaces this file): a plain switch between P2's tabs.
+const TABS = { Approvals, Audit } as const
+
 export default function App() {
+  const [tab, setTab] = useState<keyof typeof TABS>('Approvals')
+  const Tab = TABS[tab]
   return (
     <>
-      <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
-        <h2 className="text-3xl font-bold">Structural findings</h2>
-        <StructuralPanel check={checkV2V3 as CheckResult} />
-      </div>
-      <Approvals />
+      <nav className="flex gap-2 border-b border-slate-200 bg-white px-4 py-3">
+        {(Object.keys(TABS) as (keyof typeof TABS)[]).map((name) => (
+          <button key={name} type="button" onClick={() => setTab(name)} aria-current={tab === name}
+            className={`rounded-lg px-5 py-2 text-lg font-semibold ${tab === name ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'}`}>
+            {name}
+          </button>
+        ))}
+      </nav>
+      <Tab />
     </>
   )
 }
