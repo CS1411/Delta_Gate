@@ -13,6 +13,7 @@ from openpyxl.formula.translate import Translator
 from openpyxl.utils import get_column_letter
 
 from deltagate.engine.align import Alignment, align_rows, key_column
+from deltagate.engine.graph import references
 from deltagate.engine.parse import Book, Formula, addr, same, split
 from deltagate.engine.recalc import needs_recompile
 from deltagate.engine.shapley import MAX_GROUPS
@@ -109,11 +110,16 @@ _NOUN = {"data": ("Value changed", "values changed"), "logic": ("Formula changed
 
 def _label(key: tuple, cells: dict, base: Book) -> str:
     n, kind = len(cells), key[-1]
+    changes = "change" if n == 1 else "changes"
     if len(key) == 1:
-        return f"{n} {kind} changes"
+        return f"{n} {kind} {changes}"
     if len(key) == 2:
-        return f"{n} {kind} changes in {key[0]}"
+        return f"{n} {kind} {changes} in {key[0]}"
     sheet, marker, _ = key
+    if marker.startswith("→"):
+        return f"Sheet {sheet} renamed to {marker[1:]}"
+    if marker == "new sheet":
+        return f"New sheet {sheet}"
     rows = len({split(a)[1] for a in cells})
     if marker == "~":
         return f"Rows inserted, deleted or moved in {sheet}"
@@ -128,9 +134,41 @@ def _label(key: tuple, cells: dict, base: Book) -> str:
     return f"{n} {_NOUN[kind][1]} in {sheet}!{marker}" + (f" ({header})" if header else "")
 
 
+def renamed_sheets(base: Book, new: Book) -> dict[str, str]:
+    """{old name: new name} for sheets whose only change is the name: same constants, formulas in the same places.
+
+    ponytail: exact content match only; a sheet renamed and edited in one go still reads as deleted + added.
+    """
+    def content(book: Book, sheet: str) -> dict:
+        return {split(a)[1:]: "\0formula" if isinstance(v, Formula) else v
+                for a, v in book.cells.items() if split(a)[0] == sheet}
+
+    came = {s: content(new, s) for s in new.sheets if s not in base.sheets}
+    out: dict[str, str] = {}
+    for sheet in (s for s in base.sheets if s not in new.sheets):
+        before = content(base, sheet)
+        match = next((s for s, c in came.items() if c == before and s not in out.values()), None)
+        if match:
+            out[sheet] = match
+    return out
+
+
 def classify(base: Book, new: Book) -> tuple[list[ChangeGroup], list[Change], dict[str, Alignment]]:
     raw, changes, aligns = diff(base, new)
     keys = {a: _key(a, b, n, aligns) for a, (b, n) in raw.items()}
+    # A sheet the base does not have (renamed or new) is one structural group, and every changed formula that
+    # refers to it joins that group: applied without the sheet, such a formula would point at nothing.
+    renames = renamed_sheets(base, new)
+    old_name = {new_name: old for old, new_name in renames.items()}
+    sheet_key = {s: (old_name[s], "→" + s, "structural") if s in old_name else (s, "new sheet", "structural")
+                 for s in new.sheets if s not in base.sheets}
+    sheet_key |= {old: sheet_key[s] for old, s in renames.items()}
+    for a, (_, n) in raw.items():
+        sheet = split(a)[0]
+        uses = [r.sheet for r in references(n, sheet)] if isinstance(n, Formula) else []
+        target = sheet if sheet in sheet_key else next((s for s in uses if s in sheet_key and s not in base.sheets), None)
+        if target:
+            keys[a] = sheet_key[target]
 
     def bucket(level_of) -> dict[tuple, dict]:
         buckets: dict[tuple, dict] = {}
