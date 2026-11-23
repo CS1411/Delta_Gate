@@ -13,8 +13,13 @@ from openpyxl.formula.translate import Translator
 from openpyxl.utils import get_column_letter
 
 from deltagate.engine.align import Alignment, align_rows, key_column
+from deltagate.engine.graph import references
 from deltagate.engine.parse import Book, Formula, addr, same, split
+from deltagate.engine.recalc import needs_recompile
 from deltagate.engine.shapley import MAX_GROUPS
+
+MAX_FORMULA_GROUPS = 3  # one compiled model per subset of formula groups: 2^3 = 8 compiles at most
+_LEVELS = (lambda k: k, lambda k: (k[0], k[2]), lambda k: (k[2],))  # finest first; the last gives <= 3 groups
 
 
 @dataclass
@@ -105,11 +110,16 @@ _NOUN = {"data": ("Value changed", "values changed"), "logic": ("Formula changed
 
 def _label(key: tuple, cells: dict, base: Book) -> str:
     n, kind = len(cells), key[-1]
+    changes = "change" if n == 1 else "changes"
     if len(key) == 1:
-        return f"{n} {kind} changes"
+        return f"{n} {kind} {changes}"
     if len(key) == 2:
-        return f"{n} {kind} changes in {key[0]}"
+        return f"{n} {kind} {changes} in {key[0]}"
     sheet, marker, _ = key
+    if marker.startswith("→"):
+        return f"Sheet {sheet} renamed to {marker[1:]}"
+    if marker == "new sheet":
+        return f"New sheet {sheet}"
     rows = len({split(a)[1] for a in cells})
     if marker == "~":
         return f"Rows inserted, deleted or moved in {sheet}"
@@ -124,16 +134,58 @@ def _label(key: tuple, cells: dict, base: Book) -> str:
     return f"{n} {_NOUN[kind][1]} in {sheet}!{marker}" + (f" ({header})" if header else "")
 
 
+def renamed_sheets(base: Book, new: Book) -> dict[str, str]:
+    """{old name: new name} for sheets whose only change is the name: same constants, formulas in the same places.
+
+    ponytail: exact content match only; a sheet renamed and edited in one go still reads as deleted + added.
+    """
+    def content(book: Book, sheet: str) -> dict:
+        return {split(a)[1:]: "\0formula" if isinstance(v, Formula) else v
+                for a, v in book.cells.items() if split(a)[0] == sheet}
+
+    came = {s: content(new, s) for s in new.sheets if s not in base.sheets}
+    out: dict[str, str] = {}
+    for sheet in (s for s in base.sheets if s not in new.sheets):
+        before = content(base, sheet)
+        match = next((s for s, c in came.items() if c == before and s not in out.values()), None)
+        if match:
+            out[sheet] = match
+    return out
+
+
 def classify(base: Book, new: Book) -> tuple[list[ChangeGroup], list[Change], dict[str, Alignment]]:
     raw, changes, aligns = diff(base, new)
     keys = {a: _key(a, b, n, aligns) for a, (b, n) in raw.items()}
-    # Too many groups for exact Shapley: merge by sheet + type, then by type alone (never more than 3).
-    for coarser in (lambda k: k, lambda k: (k[0], k[2]), lambda k: (k[2],)):
+    # A sheet the base does not have (renamed or new) is one structural group, and every changed formula that
+    # refers to it joins that group: applied without the sheet, such a formula would point at nothing.
+    renames = renamed_sheets(base, new)
+    old_name = {new_name: old for old, new_name in renames.items()}
+    sheet_key = {s: (old_name[s], "→" + s, "structural") if s in old_name else (s, "new sheet", "structural")
+                 for s in new.sheets if s not in base.sheets}
+    sheet_key |= {old: sheet_key[s] for old, s in renames.items()}
+    for a, (_, n) in raw.items():
+        sheet = split(a)[0]
+        uses = [r.sheet for r in references(n, sheet)] if isinstance(n, Formula) else []
+        target = sheet if sheet in sheet_key else next((s for s in uses if s in sheet_key and s not in base.sheets), None)
+        if target:
+            keys[a] = sheet_key[target]
+
+    def bucket(level_of) -> dict[tuple, dict]:
         buckets: dict[tuple, dict] = {}
         for a, pair in raw.items():
-            buckets.setdefault(coarser(keys[a]), {})[a] = pair
-        if len(buckets) <= MAX_GROUPS:
+            buckets.setdefault(_LEVELS[level_of(a)](keys[a]), {})[a] = pair
+        return buckets
+
+    # Too many groups for exact Shapley: merge by sheet + type, then by type alone (never more than 3).
+    level = next(i for i in range(len(_LEVELS)) if len(bucket(lambda a: i)) <= MAX_GROUPS or i == len(_LEVELS) - 1)
+    buckets = bucket(lambda a: level)
+    # Too many formula groups for the compile budget: coarsen only those, so value groups keep their detail.
+    # Keys at different levels have different lengths, so merged formula groups never swallow a value group.
+    formula = {a for cells in buckets.values() if needs_recompile(cells) for a in cells}
+    for coarse in range(level + 1, len(_LEVELS)):
+        if sum(map(needs_recompile, buckets.values())) <= MAX_FORMULA_GROUPS:
             break
+        buckets = bucket(lambda a: coarse if a in formula else level)
     groups = [ChangeGroup(f"g{i}", _label(key, cells, base), key[-1], cells)
               for i, (key, cells) in enumerate(buckets.items(), start=1)]
     return groups, changes, aligns

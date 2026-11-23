@@ -1,0 +1,86 @@
+{
+  "edit_id": "ed_000000d00000",
+  "session_id": "s_B",
+  "status": "HELD",
+  "groups": [
+    {
+      "group_id": "g1",
+      "status": "HELD",
+      "reasons": [
+        "Session drift would reach ₹27,000, over the budget of ₹25,000"
+      ],
+      "impacts": [
+        {
+          "cell": "Summary!C6",
+          "delta": -3000.0
+        },
+        {
+          "cell": "Summary!C4",
+          "delta": 3000.0
+        }
+      ]
+    }
+  ],
+  "committed_version": null,
+  "check": {
+    "check_id": "chk_000000e00000",
+    "mode": "gate",
+    "base_version": "e5407bea060af1bc6c1881fec965dc392db431695a13292a0f0ed3a1856ad3ca",
+    "new_version": "734d1f1430132efd50293eef14c9533635760cec0eed8d3c15fb865418dafc2c",
+    "verification": {
+      "saved_by": "none",
+      "formula_cells": 307,
+      "matched": 0,
+      "mismatched": []
+    },
+    "groups": [
+      {
+        "group_id": "g1",
+        "label": "Value changed: Payments!C49",
+        "type": "data",
+        "cells": [
+          "Payments!C49"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "cell": "Summary!C6",
+        "label": "Total pending dues",
+        "base": 254500.0,
+        "new": 251500.0,
+        "delta_observed": -3000.0,
+        "delta_verified": -3000.0,
+        "delta_unverified": 0.0,
+        "attribution": [
+          {
+            "group_id": "g1",
+            "solo": -3000.0,
+            "share": -3000.0,
+            "interaction": 0.0
+          }
+        ]
+      },
+      {
+        "cell": "Summary!C4",
+        "label": "Collected",
+        "base": 131500.0,
+        "new": 134500.0,
+        "delta_observed": 3000.0,
+        "delta_verified": 3000.0,
+        "delta_unverified": 0.0,
+        "attribution": [
+          {
+            "group_id": "g1",
+            "solo": 3000.0,
+            "share": 3000.0,
+            "interaction": 0.0
+          }
+        ]
+      }
+    ],
+    "structural": [],
+    "unverifiable": [],
+    "coverage": 1.0
+  }
+}

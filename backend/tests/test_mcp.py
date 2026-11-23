@@ -35,6 +35,7 @@ def test_exactly_five_tools_and_no_approver_tools():
 def test_read_range(dues):
     got = mcp_server.read_range("dues", "Summary!B4:C6")
     assert got["version"] == store.sha256(V2) and got["saved_by"] == "Microsoft Excel" and got["unmanaged_change"] is None
+    assert got["banner"] == "Verified against Excel's saved values"
     cells = {c["cell"]: c for c in got["cells"]}
     assert cells[C4] == {"cell": C4, "formula": "=SUM(Payments!C2:C61)", "value": 100000}
     assert cells[C6]["value"] == 286000 and cells["Summary!B6"] == {"cell": "Summary!B6", "value": "Total pending dues"}
@@ -49,6 +50,7 @@ def test_read_range_after_a_commit_uses_the_engine(dues):
     mcp_server.propose_edit("dues", [{"op": "set_value", "cell": "Payments!C5", "value": 2500}], "s_1")
     got = mcp_server.read_range("dues", "Summary!C6")
     assert got["saved_by"] == "none" and got["cells"] == [{"cell": C6, "formula": "=C2+C3+C5-C4", "value": 283500}]
+    assert got["banner"] == "Not verifiable against saved values"
     assert "engine" in got["values"]
 
 
@@ -72,6 +74,7 @@ def test_propose_get_decision_and_explain_delta(dues):
     explained = mcp_server.explain_delta(store.sha256(V2), decision["committed_version"])
     c6 = next(o for o in explained["outputs"] if o["cell"] == C6)
     assert (c6["base"], c6["delta_verified"]) == (286000, -2500) and explained["verification"]["saved_by"] == "Microsoft Excel"
+    assert explained["banner"] == "Verified against Excel's saved values"
     with pytest.raises(KeyError):
         mcp_server.explain_delta("0" * 64, decision["committed_version"])
 
@@ -124,3 +127,15 @@ def test_over_real_stdio(dues, tmp_path):
     # the server process has exited: its session got a signed checkpoint on the way out
     actions = [r["action"] for r in dues.execute("SELECT action FROM audit_log ORDER BY seq")]
     assert actions == ["register", "propose_edit", "session_end"] and audit.verify(dues)["checkpoints"] == 1
+
+
+@pytest.mark.parametrize("saved_by, wording", [
+    ("Microsoft Excel", "Verified against Excel's saved values"),
+    ("LibreOffice", "Verified against LibreOffice's saved values"),
+    ("pending", "Not verifiable against saved values"),
+    ("none", "Not verifiable against saved values"),
+])
+def test_banner_names_the_app_that_saved_the_values(saved_by, wording):
+    from deltagate.engine.parse import banner
+
+    assert banner(saved_by) == wording
