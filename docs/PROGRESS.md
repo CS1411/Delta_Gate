@@ -85,6 +85,28 @@ p95 > 1.5 s, so **sidecar mode** was built: a commit writes the openpyxl file at
 - **How they are compared:** `tests/test_fixtures.py` compares field by field with every sha256 and signature normalised to a placeholder (runs everywhere), plus a test that the normaliser still rejects a changed money value, label or status. The exact byte check is opt-in, `DG_FIXTURE_EXACT=1`, and is expected to pass only on the machine that generated the fixtures: a `.xlsx` is a zip, so its bytes are not reproducible across platforms, and the version hashes, audit chain and signatures all derive from them. `.gitattributes` pins `frontend/src/fixtures/*.json` to LF.
 - Regenerate whenever `models.py`, the engine or the gate changes; the test fails until you do.
 
+## Done (P1 tasks 3-5): REST API groups 2-4 (`deltagate/api.py`, branch `p1-api-rest`)
+- **Group 2, checks:**
+  - `POST /api/checks` (multipart `base` + `new`) → `CheckResult`.
+  - `GET /api/checks/{id}`.
+  - `POST /api/checks/{id}/proof/{group_id}` → the proof workbook as a download (base + that group only, `fullCalcOnLoad`).
+  - Uploaded files are kept in `data/checks/<check_id>/` (never `store/`), so proof and export work later.
+  - A file that is not a workbook → **422** "… is not a readable workbook"; over 25 MB → **413**; an engine failure → **422** with the exception name, never a stack trace.
+  - Proof for a Check whose files the API did not keep (gate / `explain_delta` Checks) → **404** "has no files kept".
+- **Group 3, audit and export:**
+  - `GET /api/audit` → `AuditLog`.
+  - `GET /api/audit/verify` → `{ok, entries, checkpoints, error}`; a tampered row gives `ok: false`, "entry 2 does not match its hash".
+  - `GET /api/exports/{check_id}.csv`: one row per fact. The `record` column is `output`, `attribution`, `structural` or `unverifiable`.
+  - Numbers are unformatted engine values; **null is written as `unknown`, never 0**; UTF-8 with BOM so Excel opens it cleanly.
+- **Group 4, Session Audit:**
+  - `POST /api/session-audit/snapshot` (`file`) → `{snapshot_id, sha256}`.
+  - `POST /api/session-audit/complete` (`snapshot_id` + `file`) → `CheckResult` with `mode = session_audit`, stored like any Check (readable, provable, exportable).
+  - Unknown or malformed snapshot id → **404**.
+- **Safety:** ids that arrive in a URL (`chk_<12 hex>`, `sa_<12 hex>`) are matched against their exact pattern before any disk access.
+- **Tests:** `tests/test_api_checks.py` (11), over HTTP on the real engine: v2 + v3 → +42,000 = 38,000 + 4,000; the proof has F3 = `=F2*0.04` and C4 still a formula; verify flips on a tampered row; CSV shares add up, judge 38,000 verified + 4,000 unverified, null → "unknown"; Session Audit v2 → v3 with the lost link on C4.
+- **Branch base:** `p1-api` (#7, group 1) with `p3-hardening` (#6, the Session Audit engine) merged in. Merge after both.
+- **Dependency note:** uploads need `python-multipart`. It is installed (locked as a dependency of another package) but not listed in `pyproject.toml`.
+
 ## Known issue: `test_proof_workbook_for_f3` fails when two LibreOffice runs overlap
 - **Test:** `tests/test_check.py::test_proof_workbook_for_f3`. **Failure line:** `subprocess.CalledProcessError: Command '[…/soffice, --headless, --calc, --convert-to, xlsx, …]' returned non-zero exit status 1`.
 - **Rate:** 0 failures in 5 unloaded full runs (`DG_FIXTURE_EXACT=1 pytest -q -rf`); 3 failure reports in 10 loaded runs (5 iterations, each with a second full pytest in parallel; the per-run log names got crossed, so I can't say which of the two runs in an iteration failed). One unlabelled `1 failed, 111 passed` earlier, probably the same test. It is the only test that failed.
