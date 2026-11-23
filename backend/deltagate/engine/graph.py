@@ -7,6 +7,7 @@ import networkx as nx
 from openpyxl.utils import get_column_letter
 
 from deltagate.engine.parse import Book, Formula, Ref, addr, parse_ref, split, tokens
+from deltagate.models import Policy
 
 _MAX_AREA = 1_000_000
 
@@ -72,3 +73,18 @@ def input_regions(g: nx.DiGraph, book: Book, output: str) -> dict[tuple, tuple[s
         header = book.header(sheet, col)
         regions[(sheet, header or column)] = (sheet, column, header)
     return regions
+
+
+def impact(g: nx.DiGraph, book: Book, cell: str, policy: Policy) -> dict:
+    """What an edit to `cell` can reach: for the agent's impact_preview, before it proposes anything."""
+    direct = {d for s in (g.successors(cell) if cell in g else ())
+              for d in ([s] if is_cell(s) else g.successors(s))}  # a range node stands for the formulas using it
+    reached = {n for n in descendants(g, cell) if is_cell(n)}
+    content = book.cells.get(cell)
+    return {
+        "cell": cell, "content": content, "is_formula": isinstance(content, Formula),
+        "protected": cell in policy.protected,
+        "direct_dependents": sorted(direct, key=split)[:50], "dependents": len(reached),
+        "watched_outputs": [{"cell": w.cell, "label": w.label} for w in policy.watched_outputs
+                            if w.cell == cell or w.cell in reached],
+    }

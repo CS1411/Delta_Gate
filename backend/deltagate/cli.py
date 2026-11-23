@@ -1,4 +1,5 @@
 """Command line: python -m deltagate.cli check BASE.xlsx NEW.xlsx [--json] [--policy policy.yaml]
+                 python -m deltagate.cli register FILE.xlsx [--id dues]    (take a workbook into the managed store)
 
 Every number printed comes from the engine's CheckResult; this file only formats.
 """
@@ -49,7 +50,11 @@ def summary(r: CheckResult, base: Path, new: Path) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="deltagate")
-    command = parser.add_subparsers(dest="command", required=True).add_parser("check", help="compare two versions")
+    commands = parser.add_subparsers(dest="command", required=True)
+    register = commands.add_parser("register", help="take a workbook into the managed store (operator only)")
+    register.add_argument("file", type=Path)
+    register.add_argument("--id", help="the workbook_id the agent will use (default: from the file name)")
+    command = commands.add_parser("check", help="compare two versions")
     command.add_argument("base", type=Path)
     command.add_argument("new", type=Path)
     command.add_argument("--json", action="store_true", help="print the CheckResult as JSON")
@@ -58,6 +63,16 @@ def main(argv: list[str] | None = None) -> int:
 
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")  # the Windows console default cannot print ₹
+    if args.command == "register":
+        from deltagate import db
+        from deltagate.gate import store
+
+        conn = db.connect()
+        workbook_id = store.register(conn, args.file, args.id)
+        store.drain()
+        conn.close()
+        print(f"Registered {args.file.name} as workbook_id '{workbook_id}'")
+        return 0
     start = time.perf_counter()
     result = check(args.base, args.new, load_policy(args.policy))
     if args.json:
