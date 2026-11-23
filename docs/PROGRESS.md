@@ -284,6 +284,11 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
   - the proof download (200, xlsx) and the CSV (200);
   - the Approvals and Audit tabs, and phone width.
 
+## Done (P3): Waterfall chart, CheckResultView fixes, and runbook UI clicks (branch `p3-waterfall`)
+- **`frontend/src/tabs/Check/Waterfall.tsx`:** ECharts waterfall (`echarts` + `echarts-for-react`) for the selected watched output: `Base` → non-zero group shares (+ `Unverified` when `delta_unverified` is non-zero) → `New`; bars sum exactly to Δ, zero-share groups stay out, `null` base/new shows an honest unavailable card, and clicking a group bar selects/highlights the group in `GroupsTable`.
+- **`frontend/src/tabs/Check/CheckResultView.tsx` & `index.tsx`:** wired `Waterfall` as `waterfallSlot`, made `StructuralPanel` the default (deleted `StructuralSummary`), and fixed `CauseTokens` separators so negative shares render as ` − ₹7,500` instead of `+ −₹7,500`.
+- **`docs/DEMO_RUNBOOK.md`:** added `#check` / `#approvals` / `#audit` navigation and exact UI button clicks from `App.tsx`, `Check`, `Approvals`, and `Audit`.
+
 ## In progress
 Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phase-2-gate` goes to `main` by pull request. Phase 3 has not started.
 
