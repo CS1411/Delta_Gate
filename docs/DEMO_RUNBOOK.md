@@ -8,7 +8,7 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
 
 ## 1. Pre-Demo Checklist (10 minutes before going live)
 
-1. **Close Claude Desktop** (or ensure its `delta-gate` MCP connection is not mid-write) before resetting state.
+1. **Pull `main` and restart Claude Desktop** (quit Claude Desktop completely before resetting state — a running MCP server process keeps the old Python code in memory until restarted).
 2. **Reset to the clean demo start state** (`dues_v2.xlsx` registered as `dues`, empty `store/` and `data/deltagate.db`, keeping `data/libreoffice_profile`):
    ```powershell
    powershell -File scripts\demo_reset.ps1
@@ -30,7 +30,7 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
    npm run dev
    ```
    Open the browser tab to `http://localhost:5173/#check` (`#check`, `#approvals`, and `#audit` open each tab directly).
-6. **Open Claude Desktop** and verify the MCP connector indicator shows **`Connected to delta-gate (5 tools)`**:
+6. **Reopen / restart Claude Desktop** (always restart after pulling `main` so the MCP server loads the latest code) and verify the MCP connector indicator shows **`Connected to delta-gate (5 tools)`**:
    - `read_range`, `impact_preview`, `explain_delta`, `propose_edit`, `get_decision`
    - Never any `approve`, `deny`, or `rollback` tool.
 7. **Stage the 3 golden files** in an easy-to-reach folder (`golden/`):
