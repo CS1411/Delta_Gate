@@ -124,12 +124,16 @@ def analyse(base_path: Path | str, new_path: Path | str, policy: Policy,
                 runs.append(Run([w], pins, {}))
 
     for run in runs:
+        # What reaches each output without passing a pinned cell: a group that only gets there through one
+        # moves nothing the engine computes, so it is left out (its effect is in delta_unverified), not a 0.
+        unpinned = nx.restricted_view(gu, list(run.pins), []) if run.pins else gu
+        reach = {w: graph.ancestors(unpinned, w) | {w} for w in run.outputs}
         for g in groups:
             live = {c: pair for c, pair in g.cells.items() if c not in run.pins}
             for w in run.outputs:
-                if any(c in upstream[w] for c in g.cells) and not any(c in upstream[w] for c in live):
+                if any(c in upstream[w] for c in g.cells) and not any(c in reach[w] for c in live):
                     excluded[w].add(g.group_id)  # everything it does to w runs through unverifiable cells
-            if any(c in upstream[w] for c in live for w in run.outputs):
+            if any(c in reach[w] for c in live for w in run.outputs):
                 run.groups[g.group_id] = live
 
     return Analysis(
