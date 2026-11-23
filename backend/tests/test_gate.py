@@ -380,3 +380,26 @@ def test_a_refused_approval_keeps_the_shadow_for_deny(dues):
     assert shadow_files() == [f"{first.edit_id}.xlsx"]  # still waiting: the approver can deny it
     gate.deny(dues, first.edit_id)
     assert shadow_files() == []
+
+
+def test_every_approver_action_signs_a_checkpoint(dues):
+    """Approve, deny and rollback each end with a signed checkpoint on their own entry, so the Audit tab shows
+    one during the live demo (the MCP server, which signs at session end, keeps running)."""
+    def signed_head():
+        return dues.execute("SELECT MAX(seq) FROM checkpoints").fetchone()[0]
+
+    def head():
+        return dues.execute("SELECT MAX(seq) FROM audit_log").fetchone()[0]
+
+    first = gate.propose_edit(dues, "dues", PAYMENTS_AND_F3, "s_A")
+    assert signed_head() is None  # proposing is not an approver action
+    gate.deny(dues, first.edit_id)
+    assert signed_head() == head()
+
+    second = gate.propose_edit(dues, "dues", [{"op": "set_formula", "cell": F3, "formula": "=F2*0.03"}], "s_B")
+    gate.approve(dues, second.edit_id)
+    assert signed_head() == head()
+
+    gate.rollback(dues, "dues")
+    assert signed_head() == head()
+    assert audit.verify(dues) == {"ok": True, "entries": head(), "checkpoints": 3, "error": None}

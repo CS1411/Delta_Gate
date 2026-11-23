@@ -135,6 +135,7 @@ def approve(conn: sqlite3.Connection, edit_id: str) -> Decision:
         _save(conn, decision)
         audit.append(conn, "approver", "approve", {"edit_id": edit_id, "workbook_id": workbook_id, "groups": sorted(waiting),
                                                    "committed_version": decision.committed_version})
+        audit.checkpoint(conn)  # every approver action is signed at once, not only at session end
     store.discard(workbook_id, edit_id)
     return decision
 
@@ -147,6 +148,7 @@ def deny(conn: sqlite3.Connection, edit_id: str) -> Decision:
         _save(conn, decision)
         audit.append(conn, "approver", "deny", {"edit_id": edit_id, "workbook_id": edit["workbook_id"],
                                                 "groups": [g.group_id for g in decision.groups if g.status != "PASS"]})
+        audit.checkpoint(conn)
     store.discard(edit["workbook_id"], edit_id)
     return decision
 
@@ -164,6 +166,7 @@ def rollback(conn: sqlite3.Connection, workbook_id: str) -> sqlite3.Row:
             _save(conn, decision)
         audit.append(conn, "approver", "rollback", {"workbook_id": workbook_id, "from_version": left["sha256"],
                                                     "to_version": restored["sha256"], "edit_id": undone["id"] if undone else None})
+        audit.checkpoint(conn)
     return restored
 
 
