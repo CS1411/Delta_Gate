@@ -1,0 +1,23 @@
+# runtime state (server-written)
+data/
+store/
+*.pem
+
+# python
+.venv/
+__pycache__/
+.pytest_cache/
+.hypothesis/
+
+# node
+node_modules/
+dist/
+
+# local duplicates of the starter pack
+delta-gate-starter/
+delta-gate-starter.zip
+
+# scratch
+spikes/*.xlsx
+golden/.recalc_tmp/
+~$*.xlsx
