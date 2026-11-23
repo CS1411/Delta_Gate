@@ -42,6 +42,9 @@ def home(tmp_path, monkeypatch):
     monkeypatch.setenv("DELTAGATE_SOFFICE", "off")
     conn = db.connect()
     yield conn
+    from deltagate.gate import store
+
+    store.drain()  # no LibreOffice run may outlive the test's folder
     conn.close()
 
 

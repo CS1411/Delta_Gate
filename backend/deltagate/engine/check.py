@@ -159,7 +159,7 @@ def delta(a: Analysis, group_ids) -> dict[str, float | None]:
     Outputs that are not verifiable are left out; cant_verify() is true for every group that can reach one.
     """
     run = a.runs[0]
-    coalition, nothing = frozenset(group_ids) & run.groups.keys(), frozenset()
+    coalition, nothing = frozenset(g for g in group_ids if g in run.groups), frozenset()
     _evaluate(a, run, [nothing, coalition])
     out = {}
     for w in run.outputs:

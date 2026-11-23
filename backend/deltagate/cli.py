@@ -10,20 +10,8 @@ from pathlib import Path
 
 from deltagate.config import POLICY_PATH, load_policy
 from deltagate.engine.check import check
+from deltagate.gate.policy import inr
 from deltagate.models import CheckResult, Verification
-
-
-def inr(value: float | None, signed: bool = False) -> str:
-    """Indian digit grouping: 286000 -> ₹2,86,000."""
-    if value is None:
-        return "unknown"
-    sign = "-" if value < 0 else "+" if signed and value > 0 else ""
-    whole, paise = divmod(round(abs(value) * 100), 100)
-    digits = str(whole)
-    head, tail = digits[:-3], digits[-3:]
-    while head:
-        head, tail = head[:-2], f"{head[-2:]},{tail}"
-    return f"{sign}₹{tail}" + (f".{paise:02d}" if paise else "")
 
 
 def banner(v: Verification) -> str:

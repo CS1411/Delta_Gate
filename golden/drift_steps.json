@@ -1,0 +1,37 @@
+{
+  "about": "Act 2 gate script, run from dues_v2.xlsx. Each step is one propose_edit call. Payments rows 5, 9, 13, ... are flats billed 3,000, not yet due, nothing paid: a payment of x moves Collected by +x and Total pending dues by -x.",
+  "workbook": "dues_v2.xlsx",
+  "sessions": [
+    {
+      "session_id": "s_A",
+      "steps": [
+        {
+          "ops": [
+            {"op": "set_value", "cell": "Payments!C5", "value": 2500},
+            {"op": "set_value", "cell": "Payments!C9", "value": 2500},
+            {"op": "set_value", "cell": "Payments!C13", "value": 2500},
+            {"op": "set_formula", "cell": "LateFees!F3", "formula": "=F2*0.04"}
+          ],
+          "expect": {"status": "PARTIAL", "groups": {"Payments!C5": "PASS", "LateFees!F3": "HELD"}}
+        }
+      ],
+      "drift": 7500
+    },
+    {
+      "session_id": "s_B",
+      "steps": [
+        {"ops": [{"op": "set_value", "cell": "Payments!C17", "value": 3000}], "expect": {"status": "PASS"}},
+        {"ops": [{"op": "set_value", "cell": "Payments!C21", "value": 3000}], "expect": {"status": "PASS"}},
+        {"ops": [{"op": "set_value", "cell": "Payments!C25", "value": 3000}], "expect": {"status": "PASS"}},
+        {"ops": [{"op": "set_value", "cell": "Payments!C29", "value": 3000}], "expect": {"status": "PASS"}},
+        {"ops": [{"op": "set_value", "cell": "Payments!C33", "value": 3000}], "expect": {"status": "PASS"}},
+        {"ops": [{"op": "set_value", "cell": "Payments!C37", "value": 3000}], "expect": {"status": "PASS"}},
+        {"ops": [{"op": "set_value", "cell": "Payments!C41", "value": 3000}], "expect": {"status": "PASS"}},
+        {"ops": [{"op": "set_value", "cell": "Payments!C45", "value": 3000}], "expect": {"status": "PASS"}},
+        {"ops": [{"op": "set_value", "cell": "Payments!C49", "value": 3000}], "expect": {"status": "HELD"}},
+        {"ops": [{"op": "set_value", "cell": "Payments!C53", "value": 3000}], "expect": {"status": "HELD"}}
+      ],
+      "drift": 24000
+    }
+  ]
+}
