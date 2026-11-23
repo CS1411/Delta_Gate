@@ -5,6 +5,11 @@
 Every file is model_dump_json(indent=2) of a pydantic model; nothing is written by hand. The run is
 deterministic (fixed ids, clock and signing key, throwaway runtime home), so re-running changes nothing
 unless the engine, the gate or models.py changed. tests/test_fixtures.py enforces that.
+
+How the fixtures are checked: field by field, with every sha256 and Ed25519 signature normalised. The exact byte
+check is opt-in (DG_FIXTURE_EXACT=1) and is expected to pass only on the machine that generated the files: a
+.xlsx is a zip, so its bytes (zlib build, Python version, entry order) differ across platforms, and the version
+hashes, the audit chain and the signatures all derive from them.
 """
 
 import argparse
