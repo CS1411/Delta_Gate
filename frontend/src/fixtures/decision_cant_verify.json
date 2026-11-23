@@ -1,5 +1,5 @@
 {
-  "edit_id": "ed_ae0b3e73467c",
+  "edit_id": "ed_000001100000",
   "session_id": "s_C",
   "status": "HELD",
   "groups": [
@@ -14,10 +14,10 @@
   ],
   "committed_version": null,
   "check": {
-    "check_id": "chk_53ba8f5daa43",
+    "check_id": "chk_000001200000",
     "mode": "gate",
     "base_version": "855e4c7894a1716a08d4ec0687d0c67aff5d78e12927f5c45d94a6637f316a4e",
-    "new_version": "86cef2552e7d4045d7340e8e983e44127406140efb08fb3fbd308f2dad67d433",
+    "new_version": "c845c2d7316814b2b04aefd5c2c9b53ded156cc6a5f8d88079997808bc793d4b",
     "verification": {
       "saved_by": "Microsoft Excel",
       "formula_cells": 306,
@@ -43,14 +43,7 @@
         "delta_observed": null,
         "delta_verified": 0.0,
         "delta_unverified": null,
-        "attribution": [
-          {
-            "group_id": "g1",
-            "solo": 0.0,
-            "share": 0.0,
-            "interaction": 0.0
-          }
-        ]
+        "attribution": []
       },
       {
         "cell": "Summary!C4",

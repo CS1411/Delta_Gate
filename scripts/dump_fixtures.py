@@ -113,6 +113,14 @@ def build() -> dict[str, str]:
     log = audit.read(conn)
     assert log.checkpoints
     out["audit.json"] = log.model_dump_json(indent=2)
+
+    # The third kind of HELD card: a payment that feeds XLOOKUP cells on the judge file cannot be verified.
+    # Run after the audit dump, so audit.json stays the Act 2 log alone.
+    store.register(conn, GOLDEN / "judge_xlookup.xlsx", "judge")
+    c = gate.propose_edit(conn, "judge", [{"op": "set_value", "cell": "Payments!C5", "value": 2500}], "s_C")
+    assert c.status == "HELD" and [g.status for g in c.groups] == ["CANT_VERIFY_HELD"], c.status
+    out["decision_cant_verify.json"] = c.model_dump_json(indent=2)
+    store.drain()
     conn.close()
     return {name: text + "\n" for name, text in out.items()}
 

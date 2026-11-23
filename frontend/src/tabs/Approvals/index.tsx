@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import cantVerify from '../../fixtures/decision_cant_verify.json'
-import driftHeld from '../../fixtures/decision_drift_held.json'
-import partial from '../../fixtures/decision_partial.json'
+import sessionA from '../../fixtures/decision_session_a.json'
+import sessionB from '../../fixtures/decision_session_b.json'
 import type { Decision } from '../../types'
 import HeldCard from './HeldCard'
 
-// Approvals inbox. For now it shows engine-generated fixtures (scripts/make_fixtures.py);
-// the live version polls GET /api/edits?status=held every 2 s once P1's endpoints are merged.
-const FIXTURES = [partial, driftHeld, cantVerify] as Decision[]
+// Approvals inbox. For now it shows engine-generated fixtures (scripts/dump_fixtures.py): Session A (PARTIAL),
+// Session B's 9th edit (drift budget) and a can't-verify payment. Next: poll GET /api/edits?status=held every 2 s.
+const FIXTURES = [sessionA, sessionB, cantVerify] as Decision[]
 
 export default function Approvals() {
   const [inbox, setInbox] = useState(FIXTURES)
