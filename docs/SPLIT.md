@@ -1,6 +1,6 @@
 # Delta Gate: who does what, 23 Nov → 2 Dec 2026 (v3: Nitika on design only)
 
-**People.** P1 = `<name>` · P2 = Nikita · P3 = Hemanth · P4 = Nitika.
+**People.** P1 = `<name>` · P2 = Nikita · P3 = Hemanth (h0674) · P4 = Nitika.
 **Teams.** **Team A, Backend:** P1, P3. **Team B, Frontend:** P2 (Nikita), with P4 (Nitika) on **visual design only**.
 **State on 24 Nov, 01:45:**
 - On `main`: #6, #7, #11, #12, #15 (tests green).

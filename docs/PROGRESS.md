@@ -117,6 +117,7 @@ p95 > 1.5 s, so **sidecar mode** was built: a commit writes the openpyxl file at
 - **Cause (from the command line, not yet confirmed by a fix):** the test starts `soffice` with the default LibreOffice user profile. A second `soffice` already using that profile (a parallel pytest, a lingering run, the user's own LibreOffice) makes the headless convert exit 1. The store's worker avoids this with its own profile under `data/libreoffice_profile`.
 - **Not the pending-window issue (known issue 4):** this test does not read `saved_by = pending` and does not sleep, so the hypothesis about P3's pending window does not apply.
 - **Proposed fix (not done, P3's test):** pass `-env:UserInstallation=file://<tmp_path>/profile` in that test's `subprocess.run`, as `store.recalculate` does. Until then: do not run two pytest sessions, or LibreOffice, at once on the demo laptop.
+  - **Fixed on `P3-h0e`:** `tests/test_check.py::test_proof_workbook_for_f3` now passes `-env:UserInstallation=<tmp_path/lo_profile>`.
 
 ## Done (P1-2): REST API group 1, approvals (`deltagate/api.py`)
 - `GET /api/edits?status=held` (HELD and PARTIAL edits, `list[Decision]`), `POST /api/edits/{id}/approve`, `POST /api/edits/{id}/deny`, `POST /api/workbooks/{id}/rollback`. One SQLite connection per request.
@@ -129,6 +130,19 @@ p95 > 1.5 s, so **sidecar mode** was built: a commit writes the openpyxl file at
 - Built `frontend/src/tabs/Check/CheckResultView.tsx` and `frontend/src/tabs/Check/GroupsTable.tsx` on `types.ts` + `format.ts` (`inr`, `signedInr`, `savedByBanner`), with no edits to `package.json` or `App.tsx` (`SPLIT.md` v3 §0.3–0.4).
 - **Features:** honest verification banner, coverage badge, `Export CSV` link (`csvHref`), watched output switcher, template headline sentence (zero-share groups excluded from headline and kept in the groups table; null rendered as `"unknown"`, never `0`), `GroupsTable` with `All / Data / Logic / Structural / Unverified` filter, clickable rows highlighting cells, `"Prove it"` button (`onProve`), built-in structural summary / `structuralSlot` (ready to drop in `#9`'s `StructuralPanel`), `waterfallSlot` (ready for `Waterfall.tsx` once P1's shell PR adds `echarts`), and grouped unverifiable panel.
 - **Verified:** SSR-rendered against `check_v2_v3.json`, `check_judge_xlookup.json`, and a null-output `CheckResult`; `npm run build` (`vite` + `tsc -b`) and `npm run lint` (`oxlint`) clean with 0 warnings/errors.
+
+## Done (P3): demo_check.py (Acts 1–3 + HTTP), performance numbers, DEMO_RUNBOOK.md, proof-test fix
+- **`scripts/demo_check.py` + `tests/test_demo_check.py`:** headless end-to-end verification of Acts 1–3 plus REST API verification (`cd backend && uv run python ../scripts/demo_check.py`, with `--isolated`, `--runs N`, `--bench-runs N`, `--skip-warm`, `--no-api`, `--json`).
+  - Asserts `Summary!C6` `2,86,000 → 3,28,000` (`+42,000 = 38,000 + 4,000`), `lost_link` on `Summary!C4` only, proof workbook `fullCalcOnLoad`, Act 2 MCP tool list + `PARTIAL` + REST `GET /api/edits` / `POST /api/edits/{id}/deny` (and 409 double-deny) + `audit.verify` + drift budget on 9th edit (`₹27,000 > ₹25,000`) + REST `POST /api/workbooks/dues/rollback` (`Summary!C6 = ₹2,57,500`), and Act 3 `judge_xlookup` (`38,000 verified + 4,000 unverified`, coverage `0.596`, `CANT_VERIFY_HELD`).
+  - Auto-detects `deltagate.session_audit` and `/api/checks` so Groups 2–4 endpoints (checks, proof download, CSV export, audit verify, Session Audit) run automatically once PR #6 / PR #16 merge.
+- **3 consecutive acceptance runs** (`powershell -File scripts\demo_reset.ps1` followed by `cd backend && uv run python ..\scripts\demo_check.py`): **3 / 3 passed** on this Windows machine.
+- **Performance (5-sample isolated benchmark on `P3-h0e`, this machine):**
+  - Check `dues_v2.xlsx → dues_v3_REAL.xlsx`: **p50 2,162 ms, p95 2,587 ms** (limit 10,000 ms).
+  - Check `dues_v2.xlsx → judge_xlookup.xlsx`: **p50 862 ms, p95 1,258 ms** (limit 10,000 ms).
+  - Gate `propose_edit` decision (11 Act 2 edits): **p50 767 ms, p95 2,119 ms, max 2,119 ms** (limit 3,000 ms; 3× acceptance runs: p95 1,765 / 2,951 / 1,186 ms).
+- **`pending` window & UI label:** `demo_check.py` includes `warm_libreoffice()` to populate `data/libreoffice_profile` before Act 2. Both `pending` and `none` show `"Not verifiable against saved values"` (matches PR #15's `parse.banner`). Note: LibreOffice is not installed on this local machine, so `warm_libreoffice()` and proof recalculation were verified as graceful skips here and must be exercised on the demo laptop.
+- **`docs/DEMO_RUNBOOK.md`:** complete 3-minute demo script (pre-demo checklist, exact engine numbers, Acts 0–3, Claude Desktop prompt, REST routes, live fallback matrix, backup recording slot, Q&A quick reference), with `[Nitika/P4: ...]` / `[Nikita/P2: ...]` UI click placeholders.
+- **`docs/SPLIT.md`:** filled in `P3 = Hemanth (h0674)`.
 
 ## How a Check decides what is verified (read before Phase 2)
 - **Unverifiable roots:** formula not on the allowlist (reason = the function name), `#REF!`-style error, named range / table / external reference, array formula, a workbook with macros or pivot tables (every formula), a base cell whose engine value differs from its saved value, an engine error.
@@ -213,7 +227,12 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 
 ## Done (Phase 3, P2 UI work; branch `p2-approvals`)
 - **HELD card** (`frontend/src/tabs/Approvals/HeldCard.tsx`) on engine fixtures: badge (HELD / HELD · CAN'T VERIFY), group label, type and cells, "Why held" reasons, ₹ solo impact per watched output in Indian format (5xl, readable from 3 m), committed part of a PARTIAL edit, honest saved-values line, Approve / Deny. A `CANT_VERIFY_HELD` group shows "Impact unknown", never ₹0. Checked in the browser at desktop and phone width; Deny removes the card.
+- **Fixtures** for the HELD cards: Session A (PARTIAL), Session B's 9th call (drift HELD) and a payment on the judge file (CANT_VERIFY_HELD), all from `scripts/dump_fixtures.py` (P1 folded the old `make_fixtures.py` into it: `decision_session_a.json`, `decision_session_b.json`, `decision_cant_verify.json`).
+- **Shared frontend pieces** P4's shell should reuse, not duplicate: Tailwind v4 (`@tailwindcss/vite`), `src/types.ts` (copied from `models.py`), `src/format.ts` (`inr`, `signedInr`, `savedByBanner`). `App.tsx` renders the Approvals tab alone until the shell lands.
+
+
 - **Fixtures** from the real gate: `scripts/make_fixtures.py` runs Session A (PARTIAL), Session B's 9th call (drift HELD) and a payment on the judge file (CANT_VERIFY_HELD) in a throwaway home and writes `frontend/src/fixtures/decision_*.json`. P1 adds the CheckResult and audit fixtures to the same script.
+- **Structural-findings panel** (`frontend/src/components/StructuralPanel.tsx`) for P4's Check tab, on `fixtures/check_v2_v3.json`: one card per cell; a `lost_link` is the red headline (the engine's message verbatim, "Collected no longer depends on Payments!C (Amount paid)"), the cell's other findings (`typed_over_formula` at C4) are small grey lines under it, and `protected_formula_edit` rows (F3, C4) are a small grey list at the end. The card shows the watched output's label and change from `outputs` (null -> "unknown"). Summary!C6 gets no lost-link card. No React Flow: the mini-graph needs path data that CheckResult does not carry (lost region, old path, surviving paths); that is a contract PR, not started.
 - **Shared frontend pieces** P4's shell should reuse, not duplicate: Tailwind v4 (`@tailwindcss/vite`), `src/types.ts` (copied from `models.py`), `src/format.ts` (`inr`, `signedInr`, `savedByBanner`). `App.tsx` renders the Approvals tab alone until the shell lands.
 ## Done (Phase 3, P3 engine work; branch `p3-hardening`)
 - **Compile budget:** `classify` caps formula groups at `MAX_FORMULA_GROUPS = 3`, so one Check compiles at most 2^3 = 8 models. Only formula groups are coarsened (sheet + type, then type alone); value groups keep their per-column detail. Test: 5 formula columns -> <= 3 formula groups, shares add up to Δ, < 10 s.

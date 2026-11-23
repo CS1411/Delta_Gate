@@ -144,7 +144,6 @@ frontend/src/
 scripts/
   demo_reset.ps1                                                          ✅
   dump_fixtures.py                                                        🔀 #7
-  make_fixtures.py                                                        🔀 #8 (to be folded into dump_fixtures.py)
   make_messy.py                                                           🔀 #11
   demo_check.py                                                           ⬜
 spikes/                       throwaway experiments (pycel behaviour, timing)
