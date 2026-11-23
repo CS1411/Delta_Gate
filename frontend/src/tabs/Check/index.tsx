@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { ApiError, csvHref, downloadProof, runCheck } from '../../api'
-import StructuralPanel from '../../components/StructuralPanel'
 import judge from '../../fixtures/check_judge_xlookup.json'
 import v2v3 from '../../fixtures/check_v2_v3.json'
 import type { CheckResult } from '../../types'
 import CheckResultView from './CheckResultView'
+import Waterfall from './Waterfall'
 
 // Check tab: upload two versions of a workbook → POST /api/checks → CheckResultView. The two samples are real
 // engine output (the fixtures), so the tab works and can be designed with no backend; they are labelled as
@@ -19,6 +19,8 @@ export default function Check() {
   const [base, setBase] = useState<File | null>(null)
   const [next, setNext] = useState<File | null>(null)
   const [result, setResult] = useState<{ check: CheckResult; live: boolean } | null>(null)
+  const [selectedOutputCell, setSelectedOutputCell] = useState<string | null>(null)
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -90,7 +92,18 @@ export default function Check() {
             check={result.check}
             onProve={result.live ? (groupId) => void prove(groupId) : undefined}
             csvHref={result.live ? csvHref(result.check.check_id) : undefined}
-            structuralSlot={<StructuralPanel check={result.check} />}
+            selectedOutputCell={selectedOutputCell}
+            onSelectOutput={setSelectedOutputCell}
+            selectedGroupId={selectedGroupId}
+            onSelectGroup={setSelectedGroupId}
+            waterfallSlot={
+              <Waterfall
+                check={result.check}
+                outputCell={selectedOutputCell}
+                selectedGroupId={selectedGroupId}
+                onSelectGroup={setSelectedGroupId}
+              />
+            }
           />
         </>
       )}

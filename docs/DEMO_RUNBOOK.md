@@ -8,7 +8,7 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
 
 ## 1. Pre-Demo Checklist (10 minutes before going live)
 
-1. **Close Claude Desktop** (or ensure its `delta-gate` MCP connection is not mid-write) before resetting state.
+1. **Pull `main` and restart Claude Desktop** (quit Claude Desktop completely before resetting state — a running MCP server process keeps the old Python code in memory until restarted).
 2. **Reset to the clean demo start state** (`dues_v2.xlsx` registered as `dues`, empty `store/` and `data/deltagate.db`, keeping `data/libreoffice_profile`):
    ```powershell
    powershell -File scripts\demo_reset.ps1
@@ -29,9 +29,8 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
    ```powershell
    npm run dev
    ```
-   Open the browser tab to the Vite URL (e.g. `http://localhost:5173`).
-   - `[Nitika/P4: confirm exact Vite URL / port and initial landing tab]`
-6. **Open Claude Desktop** and verify the MCP connector indicator shows **`Connected to delta-gate (5 tools)`**:
+   Open the browser tab to `http://localhost:5173/#check` (`#check`, `#approvals`, and `#audit` open each tab directly).
+6. **Reopen / restart Claude Desktop** (always restart after pulling `main` so the MCP server loads the latest code) and verify the MCP connector indicator shows **`Connected to delta-gate (5 tools)`**:
    - `read_range`, `impact_preview`, `explain_delta`, `propose_edit`, `get_decision`
    - Never any `approve`, `deny`, or `rollback` tool.
 7. **Stage the 3 golden files** in an easy-to-reach folder (`golden/`):
@@ -70,12 +69,13 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
 ### Act 1 — Check: Exact Attribution & Broken Link (60 s)
 
 - **Do:**
-  1. `[Nitika/P4: exact clicks to open Check tab and upload golden/dues_v2.xlsx as Base and golden/dues_v3_REAL.xlsx as New (POST /api/checks)]`
+  1. Open `http://localhost:5173/#check`.
+  2. Under **Base version**, select `golden/dues_v2.xlsx`; under **New version**, select `golden/dues_v3_REAL.xlsx`; click **Run Check** *(no-backend fallback: click **Sample: dues v2 → v3**)*.
 - **Point to on screen:**
-  1. **Verification banner:** `"Verified against Excel's saved values"` (`307 / 307`).
+  1. **Verification banner:** `"Verified against Excel's saved values: 307 / 307 formula cells match"`.
   2. **Headline + ECharts waterfall:** `Summary!C6` moved **₹2,86,000 → ₹3,28,000 (+₹42,000)**, split into **₹38,000** (New row in Expenses: Lift repair, `data`) + **₹4,000** (`LateFees!F3`, `logic`). Interaction is ₹0, so the bars add up exactly to Δ.
-  3. **Click the ₹4,000 bar / filter to `logic`:** highlights `LateFees!F3`. `[Nitika/P4: confirm click/filter selector]`
-  4. **Click "Prove it"** (`POST /api/checks/{id}/proof/{group_id}`) on the `LateFees!F3` group, download and open the proof workbook in Excel.
+  3. **Click the +₹4,000 waterfall bar (or click the `Logic` filter pill in `Change groups`):** highlights and expands `LateFees!F3`.
+  4. **Click `Prove it`** (`POST /api/checks/{id}/proof/{group_id}`) on the `Formula changed: LateFees!F3` row, open the downloaded proof workbook in Excel (and optionally point to **Export CSV** in the banner).
      - Show `LateFees!F3` is `=F2*0.04` while `Expenses!B12` is still empty and `Summary!C4` still has its formula.
      - Excel recalculates `Summary!C6` to **₹2,90,000** (**+₹4,000** solo effect — computed by Excel itself, not our engine).
   5. **Point to the red Structural Alert on `Summary!C4` (Collected):**
@@ -98,9 +98,9 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
      > `In workbook dues (session s_A), record ₹2,500 payments in Payments!C5, Payments!C9, and Payments!C13, and update LateFees!F3 to =F2*0.04. Call impact_preview first, then propose_edit.`
   3. Watch Claude Desktop call **`impact_preview`** (`LateFees!F3` is marked `protected: true` and reaches `Summary!C6`), then **`propose_edit`**.
   4. Show Claude's response: **`PARTIAL`** — the 3 payments (**-₹7,500** on `Summary!C6`, **+₹7,500** on `Summary!C4`) **PASS** and are committed; `LateFees!F3` (+₹4,000, protected cell) is **HELD**.
-  5. Switch back to the **Approvals** tab (polls `GET /api/edits?status=held` every 2 s; card appears automatically). `[Nitika/P4 & Nikita/P2: confirm Approvals tab click/card button labels]`
-  6. Point out the HELD card (reasons + ₹ impact + waterfall), then click **Deny** (`POST /api/edits/{id}/deny`).
-  7. Switch to the **Audit** tab (`GET /api/audit`) `[Nitika/P4 & Nikita/P2: confirm Audit tab & Verify log button]` and click **Verify log** (`GET /api/audit/verify`) → **✅**.
+  5. Switch to the **Approvals** tab (`http://localhost:5173/#approvals`; polls `GET /api/edits?status=held` every 2 s — the `s_A` HELD card appears automatically).
+  6. Point out the HELD card (reasons + ₹ impact), then click **Deny** (`POST /api/edits/{id}/deny`).
+  7. Switch to the **Audit** tab (`http://localhost:5173/#audit`, `GET /api/audit`) and click **Verify log** (`GET /api/audit/verify`) → **✅ Chain verified**.
 - **Say:**
   > "The agent never holds the pen — `propose_edit` is its only write path, while `approve`, `deny`, and `rollback` exist only on the human approver's REST surface. The safe ₹7,500 payments landed; the protected formula edit was held, denied, and sealed in the signed hash-chain audit log."
 
@@ -120,7 +120,8 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
 ### Act 3 — Fail Closed & Session Audit (30 s)
 
 - **Do:**
-  1. `[Nitika/P4: upload golden/dues_v2.xlsx + golden/judge_xlookup.xlsx on Check tab]`
+  1. Open `http://localhost:5173/#check`.
+  2. Under **Base version**, select `golden/dues_v2.xlsx`; under **New version**, select `golden/judge_xlookup.xlsx`; click **Run Check** *(no-backend fallback: click **Sample: judge file (XLOOKUP)**)*.
 - **Point to on screen:**
   1. `Summary!C6`: **+₹42,000 observed = ₹38,000 verified + ₹4,000 unverified**; **coverage 0.596**; `unverifiable` table lists **60 `XLOOKUP` cells** in `LateFees!C2:C61`.
   2. If a gated edit touches those cells, it returns **`CANT_VERIFY_HELD`** with empty impacts (never a guessed number).
@@ -142,7 +143,7 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
 
 ### Playing the Backup Recording
 
-- **Location:** `[Nitika/P4: add exact filename and folder on the demo laptop Desktop and USB stick]`
+- **Location:** `[Hemanth/P3 on 30 Nov: add recording filename on demo laptop Desktop + USB stick]`
 - **Quick switch:** Keep the video player open and paused at `00:00` in a separate workspace / window behind the browser (`Alt+Tab` to switch immediately if live infra stalls for > 10 s).
 
 ---

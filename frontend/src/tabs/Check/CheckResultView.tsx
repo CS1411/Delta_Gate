@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
+import StructuralPanel from '../../components/StructuralPanel'
 import { inr, savedByBanner, signedInr } from '../../format'
-import type { CheckResult, Group, Output, StructuralFinding } from '../../types'
+import type { CheckResult, Group, Output } from '../../types'
 import GroupsTable from './GroupsTable'
 
 // Check tab results view: verification banner, template headline, watched output selector, groups table
@@ -13,6 +14,10 @@ export interface CheckResultViewProps {
   csvHref?: string
   waterfallSlot?: ReactNode
   structuralSlot?: ReactNode
+  selectedOutputCell?: string | null
+  onSelectOutput?: (cell: string) => void
+  selectedGroupId?: string | null
+  onSelectGroup?: (groupId: string | null) => void
 }
 
 const fmtValue = (n: number | null) => (n === null ? 'unknown' : inr(n))
@@ -24,9 +29,18 @@ export default function CheckResultView({
   csvHref,
   waterfallSlot,
   structuralSlot,
+  selectedOutputCell: controlledOutput,
+  onSelectOutput,
+  selectedGroupId: controlledGroup,
+  onSelectGroup,
 }: CheckResultViewProps) {
-  const [selectedOutputCell, setSelectedOutputCell] = useState<string | null>(null)
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
+  const [internalOutputCell, setInternalOutputCell] = useState<string | null>(null)
+  const [internalGroupId, setInternalGroupId] = useState<string | null>(null)
+
+  const selectedOutputCell = controlledOutput !== undefined ? controlledOutput : internalOutputCell
+  const setSelectedOutputCell = onSelectOutput ?? setInternalOutputCell
+  const selectedGroupId = controlledGroup !== undefined ? controlledGroup : internalGroupId
+  const setSelectedGroupId = onSelectGroup ?? setInternalGroupId
 
   const selectedOutput: Output | undefined =
     check.outputs.find((o) => o.cell === selectedOutputCell) ?? check.outputs[0]
@@ -114,7 +128,7 @@ export default function CheckResultView({
 
       {waterfallSlot}
 
-      {structuralSlot ?? (check.structural.length > 0 && <StructuralSummary findings={check.structural} />)}
+      {structuralSlot ?? <StructuralPanel check={check} />}
 
       <GroupsTable
         groups={check.groups}
@@ -232,9 +246,10 @@ function CauseTokens({
       {causes.map((a, index) => {
         const group = groupById.get(a.group_id)
         const selected = selectedGroupId === a.group_id
+        const amount = index === 0 ? signedInr(a.share) : inr(Math.abs(a.share))
         return (
           <span key={a.group_id}>
-            {index > 0 && <span className="text-slate-400"> + </span>}
+            {index > 0 && <span className="text-slate-400">{a.share < 0 ? ' − ' : ' + '}</span>}
             <button
               type="button"
               onClick={() => onSelectGroup(selected ? null : a.group_id)}
@@ -242,7 +257,7 @@ function CauseTokens({
                 selected ? 'bg-sky-100 text-sky-950' : 'hover:bg-slate-200'
               }`}
             >
-              <span className="font-bold">{signedInr(a.share)}</span>
+              <span className="font-bold">{amount}</span>
               <span className="text-xl font-medium text-slate-700">
                 {group?.label ?? a.group_id} ({group?.type ?? 'change'})
               </span>
@@ -251,45 +266,6 @@ function CauseTokens({
         )
       })}
     </>
-  )
-}
-
-function StructuralSummary({ findings }: { findings: StructuralFinding[] }) {
-  const lostLinks = findings.filter((f) => f.kind === 'lost_link')
-  const other = findings.filter((f) => f.kind !== 'lost_link' && f.kind !== 'protected_formula_edit')
-  const protectedEdits = findings.filter((f) => f.kind === 'protected_formula_edit')
-
-  return (
-    <section aria-label="Structural findings" className="space-y-4">
-      {lostLinks.map((f, i) => (
-        <article key={`ll-${i}`} className="rounded-2xl border-l-8 border-red-600 bg-white px-8 py-6 shadow-md">
-          <p className="text-lg font-bold uppercase tracking-wide text-red-700">
-            ⚠ Lost link · <span className="font-mono normal-case">{f.cell}</span>
-          </p>
-          <h3 className="mt-2 text-3xl font-bold text-red-700">{f.message}</h3>
-        </article>
-      ))}
-      {other.length > 0 && (
-        <div className="rounded-2xl border-l-8 border-amber-500 bg-white px-6 py-4 shadow-sm">
-          <ul className="space-y-1 text-base text-slate-700">
-            {other.map((f, i) => (
-              <li key={i}>
-                <span className="font-mono font-semibold">{f.cell}</span>: {f.message}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {protectedEdits.length > 0 && (
-        <ul className="px-2 text-sm text-slate-500">
-          {protectedEdits.map((f, i) => (
-            <li key={i}>
-              Protected cell edited (<span className="font-mono">{f.cell}</span>): {f.message}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
   )
 }
 
