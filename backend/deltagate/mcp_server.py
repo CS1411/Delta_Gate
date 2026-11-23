@@ -20,7 +20,7 @@ from mcp.server.mcpserver import MCPServer
 from deltagate import config, db
 from deltagate.engine import check as engine
 from deltagate.engine import graph, recalc
-from deltagate.engine.parse import Formula, parse, parse_ref, split
+from deltagate.engine.parse import Formula, banner, parse, parse_ref, split
 from deltagate.gate import gate, store
 from deltagate.models import CheckResult, EditOp
 
@@ -97,7 +97,7 @@ def read_range(workbook_id: str, range: str) -> dict:
             else:
                 cells.append({"cell": c, "value": content})
         label = "LibreOffice" if side else version["saved_by"]
-        return {"workbook_id": workbook_id, "version": version["sha256"], "saved_by": label,
+        return {"workbook_id": workbook_id, "version": version["sha256"], "saved_by": label, "banner": banner(label),
                 "values": "saved in the file" if not missing else
                           "computed by Delta Gate's engine where the file has no saved value; null = cannot be verified",
                 "cells": cells, "unmanaged_change": _unmanaged(found, version)}
@@ -132,7 +132,7 @@ def explain_delta(base_version: str, new_version: str) -> dict:
         base, new = store.by_sha(conn, base_version), store.by_sha(conn, new_version)
         found = engine.check(store.path_of(base), store.path_of(new), config.load_policy(), "check", store.saved_source(base))
         conn.execute("INSERT INTO checks (id, json) VALUES (?, ?)", (found.check_id, found.model_dump_json()))
-        return found.model_dump(mode="json")
+        return found.model_dump(mode="json") | {"banner": banner(found.verification.saved_by)}
     finally:
         conn.close()
 

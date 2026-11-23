@@ -184,15 +184,43 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 - **HELD card** (`frontend/src/tabs/Approvals/HeldCard.tsx`) on engine fixtures: badge (HELD / HELD · CAN'T VERIFY), group label, type and cells, "Why held" reasons, ₹ solo impact per watched output in Indian format (5xl, readable from 3 m), committed part of a PARTIAL edit, honest saved-values line, Approve / Deny. A `CANT_VERIFY_HELD` group shows "Impact unknown", never ₹0. Checked in the browser at desktop and phone width; Deny removes the card.
 - **Fixtures** from the real gate: `scripts/make_fixtures.py` runs Session A (PARTIAL), Session B's 9th call (drift HELD) and a payment on the judge file (CANT_VERIFY_HELD) in a throwaway home and writes `frontend/src/fixtures/decision_*.json`. P1 adds the CheckResult and audit fixtures to the same script.
 - **Shared frontend pieces** P4's shell should reuse, not duplicate: Tailwind v4 (`@tailwindcss/vite`), `src/types.ts` (copied from `models.py`), `src/format.ts` (`inr`, `signedInr`, `savedByBanner`). `App.tsx` renders the Approvals tab alone until the shell lands.
+## Done (Phase 3, P3 engine work; branch `p3-hardening`)
+- **Compile budget:** `classify` caps formula groups at `MAX_FORMULA_GROUPS = 3`, so one Check compiles at most 2^3 = 8 models. Only formula groups are coarsened (sheet + type, then type alone); value groups keep their per-column detail. Test: 5 formula columns -> <= 3 formula groups, shares add up to Δ, < 10 s.
+- **Session Audit engine path:** `deltagate/session_audit.py`. `snapshot(file)` keeps an exact byte copy in `data/session_audits/sa_<12 hex>.xlsx` (saved values and `saved_by` kept); `complete(id, after, policy)` is a Check with `mode = "session_audit"`. Ids are checked against `sa_[0-9a-f]{12}` before touching the disk (they arrive over HTTP). Test: snapshot v2, complete with v3 -> C6 2,86,000 -> 3,28,000 (+42,000 = 38,000 + 4,000), lost link on C4. P1 wires `POST /api/session-audit/snapshot` and `/complete` to these two functions.
 
 ## Phase 3 requirements (UI)
 - **One card per cell for structural findings.** On v2 → v3, `Summary!C4` gets three findings: `typed_over_formula`, `protected_formula_edit` and `lost_link`. The Check tab groups findings by `cell` into one card, with the lost-link message ("Collected no longer depends on Payments!C (Amount paid)") as the headline and the other two as lines under it, so Act 1 shows one warning for that cell, not three. `LateFees!F3` (`protected_formula_edit`) stays its own card.
+
+## Done (Phase 3, P2: judge's-own-file drill; branch `p2-messy-drill`)
+- **Messy workbooks:** `scripts/make_messy.py` builds three v2/v3 pairs in `golden/` with openpyxl, applies the ops in `golden/messy_ops.json` the way the gate's shadow copy does, then runs LibreOffice headless so both files carry saved values (`saved_by` LibreOffice, never Excel).
+  - `messy_1`: merged header cells, blank rows between data, no key column (repeated names). v3: one payment edit + a row appended past the summed range.
+  - `messy_2`: XLOOKUP, SORT (dynamic-array function) and a user-defined name (`LateRate`) in the output chain. v3: billed and paid edits, and the Expenses sheet renamed to Costs (not expressible as gate ops: Check only).
+  - `messy_3`: `.xlsm` with a VBA project part (an inert marker, added after LibreOffice), a hidden sheet, text-formatted numbers, an empty sheet.
+- **`tests/test_messy.py` (21 tests + 1 strict xfail):** Check in-process and through the CLI (plain and `--json`; exit 0, no traceback), and the v3 ops through the gate. Every watched output is reported; null stays null; verified + unverified = observed; every reason is plain text; a macro file is never run (child processes and `os.startfile` are refused during the macro test) and never written.
+  - `messy_1`: exact (+₹500 / −₹500, coverage 100%); `shortened_range` on Ledger!C13; gate PARTIAL (payment PASS, uncovered row HELD).
+  - `messy_2`: C6 −₹1,460 = ₹1,000 verified + −₹2,460 unverified; C4 +₹2,500 all unverified; reasons XLOOKUP, SORT, "unsupported reference LateRate"; gate holds both edits `CANT_VERIFY_HELD`.
+  - `messy_3`: coverage 0, every formula "macros (VBA)", verified ₹0 with the whole change unverified; gate `CANT_VERIFY_HELD`.
+- **What broke and was fixed (P2 files):**
+  - `classify.py` / `structural.py`: a renamed sheet read as all its rows deleted + a new sheet, which raised a false `rows_deleted_in_range` and a false `lost_link` ("Total pending dues no longer depends on Expenses!B (Amount)"). `classify.renamed_sheets` now detects a sheet whose only change is its name (exact content match); its cells form one structural group, "Sheet Expenses renamed to Costs", and structural checks map regions through the rename. A sheet renamed *and* edited in one go still reads as deleted + added.
+  - `classify.py`: group labels said "1 data changes"; now "1 data change".
+- **Handed to P3, then fixed (branch `p3-engine-fixes`):**
+  - `check.py`: a group whose whole effect on an output runs through an unverifiable (pinned) cell was a null player with share ₹0 (messy_2: the payment through XLOOKUP read "₹0" on C4 and C6). `analyse()` now tests reach on the graph with the pinned cells removed, so such a group is left out of that output's attribution and its effect stays in `delta_unverified`.
+  - A sheet the base does not have (renamed or new) made any coalition holding the formulas that use it, but not its cells, evaluate a reference to a missing sheet (`FormulaEvalError`); a pure rename failed closed instead of Δ 0. Root cause was the grouping, not `recalc.py`: `classify` now puts a renamed or new sheet and every changed formula that refers to it in one structural group ("Sheet Data renamed to Costs", "New sheet Extra"), so no coalition points at a sheet it does not create. Pure rename: Δ 0 exact; new sheet + formula using it: Δ exact.
+  - Left as is: a new sheet that no changed formula uses stays a value group that `set_cell` skips (nothing reads it, so nothing moves).
+
+## Done (P1 task 7): shadow cleanup and the MCP banner (branch `p1-shadow-cleanup`)
+- **`store.discard(workbook_id, edit_id, keep_shadow=False)`** deletes an edit's shadow copy and its candidates (`<edit>.pass.xlsx`, `<edit>.approved.xlsx`); it never creates folders, so an unknown workbook id leaves nothing behind. Called by the gate:
+  - `propose_edit` PASS → everything deleted; HELD / PARTIAL → only the shadow kept (approve copies the held cells from it); any exception before the edit is recorded → everything deleted.
+  - `approve` and `deny` → everything deleted after the transaction. A refused approval (`Conflict`) keeps the shadow, so the approver can still deny.
+- **One wording for the banner:** `parse.banner(saved_by)`: "Verified against Excel's saved values" / "Verified against LibreOffice's saved values" / "Not verifiable against saved values" (`pending` and `none`). The CLI uses it (plus the match counts), and the MCP server now returns `banner` next to `saved_by` in `read_range` and in `explain_delta`, so the agent can quote it as is.
+- Tests: cleanup after PASS, PARTIAL → approve, HELD → deny, a failed proposal, a refused approval, an unknown id; the banner for all four labels and in both MCP tools.
 
 ## In progress
 Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phase-2-gate` goes to `main` by pull request. Phase 3 has not started.
 
 ## Decisions (with why)
 - **Contract change (branch `p3-lostlink-data`): lost-link path data on `StructuralFinding`.** Three optional fields, filled only for `lost_link`, `None` otherwise: `region` `{sheet, column, header}`, `path_before` (column-level nodes from the region to the output in the base file, e.g. `["Payments!C", "Summary!C4"]`) and `kept` (`[{output, path}]` for other watched outputs that still reach the region in the new file; on v2 → v3, Summary!C6 via `Payments!D`, `LateFees!C`, `LateFees!D`, `LateFees!F`, `Summary!C`). Built from the networkx graphs (`graph.column_path`: shortest path from any input cell of the region, range nodes skipped, consecutive cells of one column collapsed), never from message text. Why: the lost-link mini-graph needs them and parsing messages would be a workaround. Needs approval from P1, P2 and P4 (SPLIT.md §8). Fixtures regenerated; `types.ts` mirrors the fields.
+- **Session Audit snapshots live in `data/`, not `store/`.** They are not managed versions, and `store/` is written only by `gate/store.py`. No database row: the snapshot id is the file name and the Check carries its SHA-256 as `base_version`.
 - **Base value ₹2,86,000 → ₹3,28,000**, not the earlier example ₹1,86,000 → ₹2,28,000. Overdue total is fixed at ₹2,00,000 and is part of pending dues, so pending cannot be below ₹2,04,000 unless flats carry advance credits. Δ is unchanged (+₹42,000). The CheckResult example in CLAUDE.md §5 now uses these values (286000 → 328000) and puts the lost link on output `Summary!C4`, as the engine reports it.
 - **Lost link fires on watched output `Summary!C4`** ("Collected no longer depends on Payments!C"), not on C6. C6 still reaches Payments!C through `LateFees!C → Payments!D`, so no lost link on C6 is the correct result. Build rules §7 and Prompt 1 acceptance were updated.
 - **Bounded ranges only** in the golden files (`$A$2:$A$61` etc.); a test rejects whole-column references.
@@ -240,16 +268,15 @@ Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phas
 - Re-running `make_golden.py` strips cached values and un-freezes the golden files; `recalc.sh` and then `excel_resave.ps1` must follow.
 - `excel_resave.ps1` needs Windows with Excel installed. Without it the files stop at the LibreOffice step and the banner must say LibreOffice.
 - The four business documents at the repo root are deliberately untracked.
-- **Formula groups cost a compile each way:** 2^k compiles for k formula groups (~0.25 s each). 3 → 2 s, 5 → 8 s. The classifier does not yet merge formula groups to stay under a budget.
+- **Formula groups cost a compile each way:** 2^k compiles for k formula groups (~0.25 s each). Capped at k = 3 (8 compiles, ~2 s). The price: with more than 3 formula groups, formula edits on one sheet (or of one type) share a group and a share, and the gate holds or passes them together.
 - **Rows inserted or deleted mid-sheet** are one structural group applied cell by cell. If the tool that produced the file did not rewrite dependent formulas (openpyxl `delete_rows`), outputs come back "can't verify" rather than a number. Fail closed, but no attribution.
 - **Reverse direction:** restoring a formula over a typed value (v3 → v2) reports a `lost_link` on Summary!C6 for region Summary!C, because the typed constant was an input and no longer is. True, but noisy.
-- No alignment across renamed sheets; a renamed sheet reads as one deleted and one added.
+- **Renamed sheets** are detected only on an exact content match (`classify.renamed_sheets`); a sheet renamed and edited in one go still reads as one deleted and one added.
 - **Committed files are written by openpyxl.** Charts, images, pivot caches and other things openpyxl does not model are lost on the first gated commit. The demo workbooks have none.
 - **A version is `pending` for about 2 s after a commit** (8–9 s the first time, while LibreOffice creates its profile under `data/libreoffice_profile`). A Check in that window says "Not verifiable against saved values", and on a file with unverifiable cells there are no saved values to pin at yet, so those outputs are held rather than partly verified.
 - **The sidecar is discarded if LibreOffice drops or changes any cell** (label `none`). Seen to pass on the demo files; not tried on messy real workbooks.
 - **Module state outside `config.py` / `db.py`:** `store.py` holds the single LibreOffice worker and its job list; `mcp_server.py` holds the set of sessions it served. Both are process-local.
 - **Approver actions have no interface yet** (functions and tests only); REST comes in Phase 3.
-- **Old shadow and candidate files are never cleaned up** (`store/<id>/shadow/`).
 - `uv run mcp dev` needs Node (`npx`) for the inspector; `mcp_server.py` puts `backend/` on `sys.path` when it is loaded by file path.
 
 ## Cut list status

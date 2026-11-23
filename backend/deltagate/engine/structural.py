@@ -12,7 +12,7 @@ import networkx as nx
 
 from deltagate.engine import graph
 from deltagate.engine.align import Alignment
-from deltagate.engine.classify import Change
+from deltagate.engine.classify import Change, renamed_sheets
 from deltagate.engine.parse import Book, Formula, addr, split
 from deltagate.models import KeptPath, Policy, Region, StructuralFinding
 
@@ -71,8 +71,9 @@ def findings(base: Book, new: Book, gb: nx.DiGraph, gn: nx.DiGraph, changes: lis
             add("protected_formula_edit", ch.base_cell or ch.new_cell,
                 f"Protected cell {ch.base_cell or ch.new_cell} was edited directly ({what})")
 
+    renames = renamed_sheets(base, new)  # a renamed sheet's rows were not deleted and its regions are not lost
     for sheet, al in aligns.items():
-        if al.deleted:
+        if al.deleted and sheet not in renames:
             hit = [name for name, r in gb.graph["ranges"].items()
                    if r.sheet == sheet and any(r.r1 <= row <= r.r2 for row in al.deleted)]
             if hit:
@@ -99,7 +100,9 @@ def findings(base: Book, new: Book, gb: nx.DiGraph, gn: nx.DiGraph, changes: lis
 
     after = {w: graph.input_regions(gn, new, w) for w in watched}
     for w in policy.watched_outputs:
-        before = graph.input_regions(gb, base, w.cell)
+        # Keys are mapped through renames, so a renamed sheet's region is not lost. Values keep the base sheet name,
+        # so path_before is walked on the base graph with the name that graph knows.
+        before = {(renames.get(s, s), h): v for (s, h), v in graph.input_regions(gb, base, w.cell).items()}
         for key in sorted(before.keys() - after[w.cell].keys(), key=str):
             sheet, column, header = before[key]
             kept = [KeptPath(output=o, path=graph.column_path(gn, new, *after[o][key][:2], o))
