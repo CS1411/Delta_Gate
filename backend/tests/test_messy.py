@@ -211,3 +211,15 @@ def test_messy_3_text_numbers_are_skipped_by_sum_in_the_saved_values():
     """The file's own saved values (LibreOffice) skip text-formatted numbers in SUM, as Excel does: only 2,500 counts."""
     book3 = parse(pair("messy_3")[0])
     assert book3.cells["Data!B2"] == "1500" and book3.cached["Summary!C4"] == 2500
+
+
+def test_lost_link_on_a_renamed_sheet_keeps_its_base_path(tmp_path, policy):
+    """Data is renamed to Costs and Collected (C4) is typed over. The lost region is named and walked with the base
+    sheet name; Total pending dues (C6) still reaches the same column under the new name."""
+    data = {"A1": "Item", "B1": "Amount", "A2": "x", "B2": 100}
+    a = book(tmp_path / "a.xlsx", {"Data": data, "Summary": {"C4": "=Data!B2", "C6": "=Data!B2*2"}})
+    b = book(tmp_path / "b.xlsx", {"Costs": data, "Summary": {"C4": 100, "C6": "=Costs!B2*2"}})
+    (lost,) = [f for f in check(a, b, policy).structural if f.kind == "lost_link"]
+    assert (lost.cell, lost.region.sheet, lost.region.column, lost.region.header) == (C4, "Data", "B", "Amount")
+    assert lost.path_before == ["Data!B", C4]
+    assert [(k.output, k.path) for k in lost.kept] == [(C6, ["Costs!B", C6])]
