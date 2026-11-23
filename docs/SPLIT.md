@@ -1,6 +1,6 @@
 # Delta Gate: who does what, 23 Nov → 2 Dec 2026 (v2: two teams)
 
-**Teams.** **Team A, Backend:** P1 = `<name>`, P3 = `<name>`. **Team B, Frontend + demo:** P2 = `<name>`, P4 = `<name>` (fill in the names).
+**Teams.** **Team A, Backend:** P1 = `<name>`, P3 = `Hemanth (h0674)`. **Team B, Frontend + demo:** P2 = `<name>`, P4 = `<name>` (fill in the names).
 **State on 23 Nov, evening:** Phases 0–2 are on `main`. Seven PRs are open (#6–#12), and a trial merge of all seven into `main` passes: 139 passed, 5 skipped, `npm run build` clean. Not started yet: `api.py`, the page shell, the Check tab, the PPT.
 
 Sources: `CLAUDE.md` (build rules, wins on conflict), `docs/PROGRESS.md` (what is built, known issues), `docs/PROMPTS.md` (Prompts 3 and 4), `docs/delta-gate-final.md` (§10 demo, §11 plan, §12 Q&A).

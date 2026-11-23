@@ -91,6 +91,7 @@ p95 > 1.5 s, so **sidecar mode** was built: a commit writes the openpyxl file at
 - **Cause (from the command line, not yet confirmed by a fix):** the test starts `soffice` with the default LibreOffice user profile. A second `soffice` already using that profile (a parallel pytest, a lingering run, the user's own LibreOffice) makes the headless convert exit 1. The store's worker avoids this with its own profile under `data/libreoffice_profile`.
 - **Not the pending-window issue (known issue 4):** this test does not read `saved_by = pending` and does not sleep, so the hypothesis about P3's pending window does not apply.
 - **Proposed fix (not done, P3's test):** pass `-env:UserInstallation=file://<tmp_path>/profile` in that test's `subprocess.run`, as `store.recalculate` does. Until then: do not run two pytest sessions, or LibreOffice, at once on the demo laptop.
+  - **Fixed on `P3-h0e`:** `tests/test_check.py::test_proof_workbook_for_f3` now passes `-env:UserInstallation=<tmp_path/lo_profile>`.
 
 ## Done (P1-2): REST API group 1, approvals (`deltagate/api.py`)
 - `GET /api/edits?status=held` (HELD and PARTIAL edits, `list[Decision]`), `POST /api/edits/{id}/approve`, `POST /api/edits/{id}/deny`, `POST /api/workbooks/{id}/rollback`. One SQLite connection per request.
@@ -98,6 +99,19 @@ p95 > 1.5 s, so **sidecar mode** was built: a commit writes the openpyxl file at
 - **New payload, flagged:** rollback needs a body and no model existed, so `RollbackResult` (`workbook_id, sha256, saved_by, source, created_at`: the restored `versions` row) is defined in `api.py`, not `models.py`. P2 and P4 should confirm it before the UI uses it; if it should be a contract it moves to `models.py`.
 - `tests/test_api.py` (11 tests, over the FastAPI test client on a real gate): Session A held edit approved, and separately denied; double action → 409 with the message; stale held cell → 409; unknown → 404; rollback marks the edit `ROLLED_BACK`; approve / deny / rollback are not MCP tools and not importable from `mcp_server`.
 - Not started: checks, proof, audit, export and session-audit endpoints.
+
+## Done (P3): demo_check.py (Acts 1–3 + HTTP), performance numbers, DEMO_RUNBOOK.md, proof-test fix
+- **`scripts/demo_check.py` + `tests/test_demo_check.py`:** headless end-to-end verification of Acts 1–3 plus REST API verification (`cd backend && uv run python ../scripts/demo_check.py`, with `--isolated`, `--runs N`, `--bench-runs N`, `--skip-warm`, `--no-api`, `--json`).
+  - Asserts `Summary!C6` `2,86,000 → 3,28,000` (`+42,000 = 38,000 + 4,000`), `lost_link` on `Summary!C4` only, proof workbook `fullCalcOnLoad`, Act 2 MCP tool list + `PARTIAL` + REST `GET /api/edits` / `POST /api/edits/{id}/deny` (and 409 double-deny) + `audit.verify` + drift budget on 9th edit (`₹27,000 > ₹25,000`) + REST `POST /api/workbooks/dues/rollback` (`Summary!C6 = ₹2,57,500`), and Act 3 `judge_xlookup` (`38,000 verified + 4,000 unverified`, coverage `0.596`, `CANT_VERIFY_HELD`).
+  - Auto-detects `deltagate.session_audit` and `/api/checks` so Groups 2–4 endpoints (checks, proof download, CSV export, audit verify, Session Audit) run automatically once PR #6 / PR #16 merge.
+- **3 consecutive acceptance runs** (`powershell -File scripts\demo_reset.ps1` followed by `cd backend && uv run python ..\scripts\demo_check.py`): **3 / 3 passed** on this Windows machine.
+- **Performance (5-sample isolated benchmark on `P3-h0e`, this machine):**
+  - Check `dues_v2.xlsx → dues_v3_REAL.xlsx`: **p50 2,162 ms, p95 2,587 ms** (limit 10,000 ms).
+  - Check `dues_v2.xlsx → judge_xlookup.xlsx`: **p50 862 ms, p95 1,258 ms** (limit 10,000 ms).
+  - Gate `propose_edit` decision (11 Act 2 edits): **p50 767 ms, p95 2,119 ms, max 2,119 ms** (limit 3,000 ms; 3× acceptance runs: p95 1,765 / 2,951 / 1,186 ms).
+- **`pending` window & UI label:** `demo_check.py` includes `warm_libreoffice()` to populate `data/libreoffice_profile` before Act 2. Both `pending` and `none` show `"Not verifiable against saved values"` (matches PR #15's `parse.banner`). Note: LibreOffice is not installed on this local machine, so `warm_libreoffice()` and proof recalculation were verified as graceful skips here and must be exercised on the demo laptop.
+- **`docs/DEMO_RUNBOOK.md`:** complete 3-minute demo script (pre-demo checklist, exact engine numbers, Acts 0–3, Claude Desktop prompt, REST routes, live fallback matrix, backup recording slot, Q&A quick reference), with `[Nitika/P4: ...]` / `[Nikita/P2: ...]` UI click placeholders.
+- **`docs/SPLIT.md`:** filled in `P3 = Hemanth (h0674)`.
 
 ## How a Check decides what is verified (read before Phase 2)
 - **Unverifiable roots:** formula not on the allowlist (reason = the function name), `#REF!`-style error, named range / table / external reference, array formula, a workbook with macros or pivot tables (every formula), a base cell whose engine value differs from its saved value, an engine error.
