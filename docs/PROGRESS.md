@@ -1,6 +1,6 @@
 # Delta Gate — progress
 
-_Last updated: 23 Nov 2026, end of the Phase 2 build (branch `phase-2-gate`; waiting for the Claude Desktop connection test)._
+_Last updated: 23 Nov 2026, end of Phase 2 (branch `phase-2-gate`; Claude Desktop connection confirmed)._
 
 ## Done (Phase 0)
 - **Scaffold:** `backend/` (uv, Python 3.12, deps locked in `uv.lock`), `frontend/` (Vite React TS template, builds), `policy.yaml`, `.gitignore`.
@@ -59,7 +59,8 @@ _Last updated: 23 Nov 2026, end of the Phase 2 build (branch `phase-2-gate`; wai
 | Approve / deny / rollback | approve commits the held F3 (C6 +4,000) → `APPROVED`; deny → `DENIED`, file untouched; rollback restores the previous managed version as a new version, edit → `ROLLED_BACK`; approve is refused if the held cell changed meanwhile |
 | MCP | `list_tools()` is exactly the five; approve / deny / rollback are not importable from `mcp_server`; a child process over real stdio lists the tools, returns `PARTIAL` for Session A, rejects a formula sent as a value, and leaves a signed checkpoint on exit |
 | Gate decision time | 11 Act 2 edits (1 in Session A + 10 in Session B): **p50 ≈ 0.55 s, p95 ≈ 1.1 s, max ≈ 1.1 s** (limit 3 s). Check + commit after the decision: p50 ≈ 0.15 s. Printed by `test_act_2_script`, and on the server's stderr for every edit |
-| **Manual, open** | `uv run mcp dev deltagate/mcp_server.py` (inspector) and **a real Claude Desktop connection**: not confirmed yet. Fallback if Desktop cannot connect: pin `mcp<2`, switch to `FastMCP` |
+| **Claude Desktop (real connection)** | **Confirmed 23 Nov 2026, 15:01**, Claude Desktop 6.28899.6.0 (Microsoft Store install), mcp 2.3.0 / `MCPServer`. `main.log`: "delta-gate negotiated protocol version: 2025-11-25", "Connected to delta-gate (5 tools)", no error lines. The five tools surfaced by Desktop are `read_range`, `impact_preview`, `explain_delta`, `propose_edit`, `get_decision`; a live `read_range("dues", "Summary!B6:C6")` through Desktop returned 2,86,000, `saved_by` Microsoft Excel. The `mcp<2` / `FastMCP` fallback was not needed |
+| **Manual, open** | `uv run mcp dev deltagate/mcp_server.py` (inspector) was not run. The 3-line Act 2 test typed into a Desktop chat (expected `PARTIAL`) is still to be done by hand; the same edit passes over real stdio in `tests/test_mcp.py` |
 
 **LibreOffice round trip (review change 1): measured, then moved off the commit path.**
 `spikes/soffice_timing.py`, dues_v2 written by openpyxl, own LibreOffice profile, this laptop:
@@ -152,7 +153,7 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 7. Coerce numpy scalars from pycel (e.g. SUMPRODUCT) to Python numbers.
 
 ## In progress
-Phase 2 is built and committed on `phase-2-gate`. **Open: the user's Claude Desktop connection test** (snippet and 3-line test handed over). Not pushed, no pull request yet.
+Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phase-2-gate` goes to `main` by pull request. Phase 3 has not started.
 
 ## Decisions (with why)
 - **Base value ₹2,86,000 → ₹3,28,000**, not the earlier example ₹1,86,000 → ₹2,28,000. Overdue total is fixed at ₹2,00,000 and is part of pending dues, so pending cannot be below ₹2,04,000 unless flats carry advance credits. Δ is unchanged (+₹42,000). The JSON example in the contracts section is illustrative only and was left as is.
@@ -194,6 +195,8 @@ Phase 2 is built and committed on `phase-2-gate`. **Open: the user's Claude Desk
 - **Runtime paths** come from `DELTAGATE_HOME` (default: repo root → `data/`, `store/`); `DELTAGATE_SOFFICE=off` disables LibreOffice. `config.soffice()` replaced the copy in the tests.
 - **`inr()` moved** from `cli.py` to `gate/policy.py` (the gate's reasons need it; the CLI imports it).
 - **`excel_resave.ps1` takes `-Files` and `-Sheets`** (defaults unchanged).
+- **`scripts/demo_reset.ps1`:** one command back to the demo start state (empties `store/` and `data/` except the LibreOffice profile, registers `dues_v2.xlsx` as `dues`). It ran cleanly with Desktop's servers connected: they open the database per call and hold nothing open in between.
+- **Claude Desktop on this machine:** config at `%APPDATA%\Claude\claude_desktop_config.json` (backup `…json.bak`), `command` = the absolute path of `uv.exe`. Logs are in `%LOCALAPPDATA%\Claude\Logs`; the connection lines are in `main.log`, and `mcp-server-delta-gate.log` is created but stays empty in this build. Desktop starts **two** server processes for one config entry (chat and the local bridge); both share the SQLite database, which is what WAL mode is for.
 
 ## Known issues
 - **uv on this machine:** `uv sync` failed with "Missing expected target directory for Python minor version link". Workaround: `uv venv --python %APPDATA%\uv\python\cpython-3.12.16-windows-x86_64-none\python.exe`, then `uv sync`. May not affect other machines.
