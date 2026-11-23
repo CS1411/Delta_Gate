@@ -180,6 +180,10 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 6. **`TRUE` / `FALSE` go on the allowlist only after a golden test** (LibreOffice writes them as `TRUE()` / `FALSE()`). Until then they are unverifiable.
 7. Coerce numpy scalars from pycel (e.g. SUMPRODUCT) to Python numbers.
 
+## Done (Phase 3, P3 engine work; branch `p3-hardening`)
+- **Compile budget:** `classify` caps formula groups at `MAX_FORMULA_GROUPS = 3`, so one Check compiles at most 2^3 = 8 models. Only formula groups are coarsened (sheet + type, then type alone); value groups keep their per-column detail. Test: 5 formula columns -> <= 3 formula groups, shares add up to Δ, < 10 s.
+- **Session Audit engine path:** `deltagate/session_audit.py`. `snapshot(file)` keeps an exact byte copy in `data/session_audits/sa_<12 hex>.xlsx` (saved values and `saved_by` kept); `complete(id, after, policy)` is a Check with `mode = "session_audit"`. Ids are checked against `sa_[0-9a-f]{12}` before touching the disk (they arrive over HTTP). Test: snapshot v2, complete with v3 -> C6 2,86,000 -> 3,28,000 (+42,000 = 38,000 + 4,000), lost link on C4. P1 wires `POST /api/session-audit/snapshot` and `/complete` to these two functions.
+
 ## Phase 3 requirements (UI)
 - **One card per cell for structural findings.** On v2 → v3, `Summary!C4` gets three findings: `typed_over_formula`, `protected_formula_edit` and `lost_link`. The Check tab groups findings by `cell` into one card, with the lost-link message ("Collected no longer depends on Payments!C (Amount paid)") as the headline and the other two as lines under it, so Act 1 shows one warning for that cell, not three. `LateFees!F3` (`protected_formula_edit`) stays its own card.
 
@@ -187,6 +191,7 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phase-2-gate` goes to `main` by pull request. Phase 3 has not started.
 
 ## Decisions (with why)
+- **Session Audit snapshots live in `data/`, not `store/`.** They are not managed versions, and `store/` is written only by `gate/store.py`. No database row: the snapshot id is the file name and the Check carries its SHA-256 as `base_version`.
 - **Base value ₹2,86,000 → ₹3,28,000**, not the earlier example ₹1,86,000 → ₹2,28,000. Overdue total is fixed at ₹2,00,000 and is part of pending dues, so pending cannot be below ₹2,04,000 unless flats carry advance credits. Δ is unchanged (+₹42,000). The CheckResult example in CLAUDE.md §5 now uses these values (286000 → 328000) and puts the lost link on output `Summary!C4`, as the engine reports it.
 - **Lost link fires on watched output `Summary!C4`** ("Collected no longer depends on Payments!C"), not on C6. C6 still reaches Payments!C through `LateFees!C → Payments!D`, so no lost link on C6 is the correct result. Build rules §7 and Prompt 1 acceptance were updated.
 - **Bounded ranges only** in the golden files (`$A$2:$A$61` etc.); a test rejects whole-column references.
@@ -234,7 +239,7 @@ Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phas
 - Re-running `make_golden.py` strips cached values and un-freezes the golden files; `recalc.sh` and then `excel_resave.ps1` must follow.
 - `excel_resave.ps1` needs Windows with Excel installed. Without it the files stop at the LibreOffice step and the banner must say LibreOffice.
 - The four business documents at the repo root are deliberately untracked.
-- **Formula groups cost a compile each way:** 2^k compiles for k formula groups (~0.25 s each). 3 → 2 s, 5 → 8 s. The classifier does not yet merge formula groups to stay under a budget.
+- **Formula groups cost a compile each way:** 2^k compiles for k formula groups (~0.25 s each). Capped at k = 3 (8 compiles, ~2 s). The price: with more than 3 formula groups, formula edits on one sheet (or of one type) share a group and a share, and the gate holds or passes them together.
 - **Rows inserted or deleted mid-sheet** are one structural group applied cell by cell. If the tool that produced the file did not rewrite dependent formulas (openpyxl `delete_rows`), outputs come back "can't verify" rather than a number. Fail closed, but no attribution.
 - **Reverse direction:** restoring a formula over a typed value (v3 → v2) reports a `lost_link` on Summary!C6 for region Summary!C, because the typed constant was an input and no longer is. True, but noisy.
 - No alignment across renamed sheets; a renamed sheet reads as one deleted and one added.
