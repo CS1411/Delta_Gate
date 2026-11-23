@@ -1,0 +1,127 @@
+{
+  "check_id": "chk_000000100000",
+  "mode": "check",
+  "base_version": "e5ea5f376d408106f165cb72ebe0b70867bc2f7547fcbad5b7f3bca6b32a009d",
+  "new_version": "5efda43b595f0b9acb035795eeeea90eaa011613e3eeef82b86a60266198e342",
+  "verification": {
+    "saved_by": "Microsoft Excel",
+    "formula_cells": 307,
+    "matched": 307,
+    "mismatched": []
+  },
+  "groups": [
+    {
+      "group_id": "g1",
+      "label": "New row in Expenses: Lift repair",
+      "type": "data",
+      "cells": [
+        "Expenses!A12",
+        "Expenses!B12"
+      ]
+    },
+    {
+      "group_id": "g2",
+      "label": "Formula changed: LateFees!F3",
+      "type": "logic",
+      "cells": [
+        "LateFees!F3"
+      ]
+    },
+    {
+      "group_id": "g3",
+      "label": "Formula replaced by a value: Summary!C4",
+      "type": "structural",
+      "cells": [
+        "Summary!C4"
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "cell": "Summary!C6",
+      "label": "Total pending dues",
+      "base": 286000.0,
+      "new": 328000.0,
+      "delta_observed": 42000.0,
+      "delta_verified": 42000.0,
+      "delta_unverified": 0.0,
+      "attribution": [
+        {
+          "group_id": "g1",
+          "solo": 38000.0,
+          "share": 38000.0,
+          "interaction": 0.0
+        },
+        {
+          "group_id": "g2",
+          "solo": 4000.0,
+          "share": 4000.0,
+          "interaction": 0.0
+        },
+        {
+          "group_id": "g3",
+          "solo": 0.0,
+          "share": 0.0,
+          "interaction": 0.0
+        }
+      ]
+    },
+    {
+      "cell": "Summary!C4",
+      "label": "Collected",
+      "base": 100000.0,
+      "new": 100000.0,
+      "delta_observed": 0.0,
+      "delta_verified": 0.0,
+      "delta_unverified": 0.0,
+      "attribution": [
+        {
+          "group_id": "g1",
+          "solo": 0.0,
+          "share": 0.0,
+          "interaction": 0.0
+        },
+        {
+          "group_id": "g2",
+          "solo": 0.0,
+          "share": 0.0,
+          "interaction": 0.0
+        },
+        {
+          "group_id": "g3",
+          "solo": 0.0,
+          "share": 0.0,
+          "interaction": 0.0
+        }
+      ]
+    }
+  ],
+  "structural": [
+    {
+      "kind": "protected_formula_edit",
+      "cell": "LateFees!F3",
+      "output": "Summary!C6",
+      "message": "Protected cell LateFees!F3 was edited directly (formula changed)"
+    },
+    {
+      "kind": "typed_over_formula",
+      "cell": "Summary!C4",
+      "output": "Summary!C4",
+      "message": "Summary!C4 held the formula =SUM(Payments!C2:C61) and now holds a typed value"
+    },
+    {
+      "kind": "protected_formula_edit",
+      "cell": "Summary!C4",
+      "output": "Summary!C4",
+      "message": "Protected cell Summary!C4 was edited directly (formula replaced by a value)"
+    },
+    {
+      "kind": "lost_link",
+      "cell": "Summary!C4",
+      "output": "Summary!C4",
+      "message": "Collected no longer depends on Payments!C (Amount paid)"
+    }
+  ],
+  "unverifiable": [],
+  "coverage": 1.0
+}
