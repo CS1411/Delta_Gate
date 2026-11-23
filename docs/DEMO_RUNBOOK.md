@@ -19,6 +19,8 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
    uv run python ..\scripts\demo_check.py --isolated
    ```
    Confirm Acts 1–3 pass and LibreOffice warm-up completes (so `data\libreoffice_profile` is warm and Act 2's first commit sidecar runs in ~1.8 s instead of 8–9 s).
+   - **Important:** if you ran `demo_check.py` *without* `--isolated`, it mutates the live `store/` and `data/deltagate.db` — run `powershell -File scripts\demo_reset.ps1` again before starting the demo.
+   - **Demo laptop check (29 Nov):** re-run `uv run python ..\scripts\demo_check.py --isolated --bench-runs 5` on the demo laptop and confirm Gate decision p95 is comfortably ≤ 3,000 ms on stage hardware.
 4. **Start the backend REST API** (terminal 1, from `backend/`):
    ```powershell
    uv run uvicorn deltagate.api:app --port 8000
@@ -133,7 +135,7 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
 
 | Failure | Immediate Action |
 |---|---|
-| **Claude Desktop hangs, rate-limits, or asks too many clarifying questions** | Run the Act 2 gate flow headlessly from terminal: `cd backend && uv run python ../scripts/demo_check.py --isolated` (or run `demo_reset.ps1` then `demo_check.py`), or switch directly to the backup recording. |
+| **Claude Desktop hangs, rate-limits, or asks too many clarifying questions** | Run the Act 2 gate flow headlessly from terminal: `cd backend && uv run python ../scripts/demo_check.py --isolated` (if run without `--isolated`, run `powershell -File scripts\demo_reset.ps1` again afterwards), or switch directly to the backup recording. |
 | **Frontend (`localhost:5173`) or API (`localhost:8000`) crashes** | Run Act 1 & Act 3 live in terminal with CLI: `cd backend && uv run python -m deltagate.cli check ../golden/dues_v2.xlsx ../golden/dues_v3_REAL.xlsx` and `cd backend && uv run python -m deltagate.cli check ../golden/dues_v2.xlsx ../golden/judge_xlookup.xlsx`. If needed, switch to the backup recording. |
 | **Fresh commit shows `"Not verifiable against saved values"` (`pending` window)** | Do **not** panic — explain honestly: LibreOffice headless is computing the sidecar in the background (~1.8 s after warm-up). Wait 2 s and refresh, or note that an unverified base stays honestly labelled rather than claiming Excel. |
 | **Judge hands over their own messy workbook** | Run it through Check (or `uv run python -m deltagate.cli check base.xlsx new.xlsx`). Accept partial coverage or `saved_by = none` openly — never claim 100% coverage on unsupported functions (`ROUND`, `XLOOKUP`, `INDIRECT`, macros). |

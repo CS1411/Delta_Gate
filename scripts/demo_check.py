@@ -17,6 +17,7 @@ import asyncio
 import importlib.util
 import io
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -39,6 +40,9 @@ from deltagate.engine import graph, recalc  # noqa: E402
 from deltagate.engine.parse import parse  # noqa: E402
 from deltagate.engine.proof import proof_workbook  # noqa: E402
 from deltagate.gate import audit, gate, store  # noqa: E402
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpx2").setLevel(logging.WARNING)
 
 GOLDEN = ROOT / "golden"
 V2 = GOLDEN / "dues_v2.xlsx"
