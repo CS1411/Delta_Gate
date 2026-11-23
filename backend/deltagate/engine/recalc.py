@@ -84,28 +84,34 @@ def needs_recompile(cells: dict[str, tuple[object, object]]) -> bool:
     return any(isinstance(content, Formula) for pair in cells.values() for content in pair)
 
 
-def _subsets(names):
+def subsets(names) -> list[frozenset]:
     return [frozenset(c) for k in range(len(names) + 1) for c in combinations(names, k)]
 
 
-def coalitions(path: Path | str, groups: dict[str, dict], pins: dict[str, object], outputs: list[str]) -> dict:
-    """F(S) for every subset S of the groups: {frozenset(group ids): {output: value}}.
+def coalitions(path: Path | str, groups: dict[str, dict], pins: dict[str, object], outputs: list[str],
+               only: list[frozenset] | None = None, models: dict | None = None) -> dict:
+    """F(S) for the coalitions in `only` (default: every subset of the groups): {S: {output: value}}.
 
     groups: {group id: {address: (base content, new content)}}. pins: cells held at a constant in every
     coalition (the unverifiable ones). One compiled model per subset of formula groups; value groups
-    are toggled on top with set_value.
+    are toggled on top with set_value. `models` is that cache ({formula groups applied: model}): pass
+    the same dict again and nothing is compiled twice (the gate asks for solo effects first, the full
+    Check for every coalition later).
     """
     # ponytail: 2^k compiles for k formula groups (~0.25 s each on the demo file). Fine up to k = 3-4;
     # past that, merge formula groups before calling.
-    formula_groups = [g for g, cells in groups.items() if needs_recompile(cells)]
+    formula_groups = frozenset(g for g, cells in groups.items() if needs_recompile(cells))
     value_groups = [g for g in groups if g not in formula_groups]
+    models = {} if models is None else models
     F = {}
-    for applied in _subsets(formula_groups):
-        edits = {a: new for g in applied for a, (_, new) in groups[g].items()}
-        xl = compile_model(path, edits | pins, outputs)
-        for chosen in _subsets(value_groups):
-            for g in value_groups:
-                for address, (base, new) in groups[g].items():
-                    set_cell(xl, address, new if g in chosen else base)
-            F[applied | chosen] = {o: evaluate(xl, o) for o in outputs}
+    for coalition in subsets(list(groups)) if only is None else only:
+        applied = coalition & formula_groups
+        if applied not in models:
+            edits = {a: new for g in applied for a, (_, new) in groups[g].items()}
+            models[applied] = compile_model(path, edits | pins, outputs)
+        xl = models[applied]
+        for g in value_groups:  # every value group is set each time: a cached model carries no state over
+            for address, (base, new) in groups[g].items():
+                set_cell(xl, address, new if g in coalition else base)
+        F[coalition] = {o: evaluate(xl, o) for o in outputs}
     return F
