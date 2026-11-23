@@ -186,6 +186,7 @@ CSV export → Session Audit screen (explain it verbally) → Ed25519 checkpoint
 - **PRs into `main`. Nobody pushes to `main` directly.**
 - Before every PR: `cd backend && uv run pytest -q` (and `npm run build` if `frontend/` changed). Paste the last line into the PR.
 - One other person approves. For a contract change, see §8.
+- **Doc-only PRs may be self-merged.** Any PR that touches `backend/` or `frontend/` needs one teammate's approval.
 - Merge commit (no squash), no AI attribution lines in commits or PRs.
 - Rebase or merge `main` into your branch at least once a day.
 - `scripts\demo_reset.ps1` before every rehearsal.
