@@ -143,8 +143,9 @@ def test_proof_workbook_for_f3(check_v3, tmp_path):
     if not soffice():
         pytest.skip("LibreOffice not installed: cannot recalculate the proof workbook")
     out = tmp_path / "recalculated"
-    subprocess.run([soffice(), "--headless", "--calc", "--convert-to", "xlsx", "--outdir", str(out), str(proof)],
-                   check=True, capture_output=True, timeout=120)
+    profile = tmp_path / "lo_profile"
+    subprocess.run([soffice(), f"-env:UserInstallation={profile.as_uri()}", "--headless", "--calc", "--convert-to", "xlsx",
+                    "--outdir", str(out), str(proof)], check=True, capture_output=True, timeout=120)
     assert parse(out / "proof.xlsx").saved_by == "LibreOffice"  # honest label: this copy was not saved by Excel
     recalculated = load_workbook(out / "proof.xlsx", data_only=True)["Summary"]["C6"].value
     solo = next(a.solo for a in output(check_v3, C6).attribution if a.group_id == late_fee.group_id)
