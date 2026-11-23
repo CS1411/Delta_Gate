@@ -96,7 +96,7 @@ UI (one page, three tabs):
 1. Check result: upload, verification banner (honest saved_by wording), headline sentence from templates ("+₹42,000 = ₹38,000 new expense row (data) + ₹4,000 late-fee formula (logic)"), ECharts waterfall whose bars sum to Δ, a table of groups with solo / share / interaction, a type filter (data/logic/structural/unverified), clickable rows that highlight the cells, a "Prove it" button, a structural-warnings panel with the lost-link alert, a React Flow mini-graph for the lost link, an unverifiable list, CSV export.
 2. Approvals inbox: held cards (edit, reasons, ₹ impact per output, waterfall), Approve / Deny, Rollback, polling every 2 s.
 3. Audit log: entries, checkpoints, a "Verify log" button with ✅/❌.
-Build the HELD card first. Use Indian number formatting (₹1,86,000). No auth.
+Build the HELD card first. Use Indian number formatting (₹2,86,000). No auth.
 
 Acceptance: I can run the full demo Acts 1–3 from the browser with the API running, and Act 2 with Claude Desktop connected. Screenshot each tab (or describe it if you can't) and list anything not yet working. Update PROGRESS.md and commit.
 ```
