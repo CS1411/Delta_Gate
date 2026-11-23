@@ -14,7 +14,11 @@ from openpyxl.utils import get_column_letter
 
 from deltagate.engine.align import Alignment, align_rows, key_column
 from deltagate.engine.parse import Book, Formula, addr, same, split
+from deltagate.engine.recalc import needs_recompile
 from deltagate.engine.shapley import MAX_GROUPS
+
+MAX_FORMULA_GROUPS = 3  # one compiled model per subset of formula groups: 2^3 = 8 compiles at most
+_LEVELS = (lambda k: k, lambda k: (k[0], k[2]), lambda k: (k[2],))  # finest first; the last gives <= 3 groups
 
 
 @dataclass
@@ -155,13 +159,23 @@ def classify(base: Book, new: Book) -> tuple[list[ChangeGroup], list[Change], di
         sheet = split(a)[0]
         if (old := sheet if sheet in renames else old_name.get(sheet)) is not None:
             keys[a] = (old, "→" + renames[old], "structural")
-    # Too many groups for exact Shapley: merge by sheet + type, then by type alone (never more than 3).
-    for coarser in (lambda k: k, lambda k: (k[0], k[2]), lambda k: (k[2],)):
+
+    def bucket(level_of) -> dict[tuple, dict]:
         buckets: dict[tuple, dict] = {}
         for a, pair in raw.items():
-            buckets.setdefault(coarser(keys[a]), {})[a] = pair
-        if len(buckets) <= MAX_GROUPS:
+            buckets.setdefault(_LEVELS[level_of(a)](keys[a]), {})[a] = pair
+        return buckets
+
+    # Too many groups for exact Shapley: merge by sheet + type, then by type alone (never more than 3).
+    level = next(i for i in range(len(_LEVELS)) if len(bucket(lambda a: i)) <= MAX_GROUPS or i == len(_LEVELS) - 1)
+    buckets = bucket(lambda a: level)
+    # Too many formula groups for the compile budget: coarsen only those, so value groups keep their detail.
+    # Keys at different levels have different lengths, so merged formula groups never swallow a value group.
+    formula = {a for cells in buckets.values() if needs_recompile(cells) for a in cells}
+    for coarse in range(level + 1, len(_LEVELS)):
+        if sum(map(needs_recompile, buckets.values())) <= MAX_FORMULA_GROUPS:
             break
+        buckets = bucket(lambda a: coarse if a in formula else level)
     groups = [ChangeGroup(f"g{i}", _label(key, cells, base), key[-1], cells)
               for i, (key, cells) in enumerate(buckets.items(), start=1)]
     return groups, changes, aligns

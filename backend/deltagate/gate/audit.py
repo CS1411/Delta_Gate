@@ -14,6 +14,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from deltagate import config, db
+from deltagate.models import AuditCheckpoint, AuditEntry, AuditLog
 
 GENESIS = "0" * 64
 CHECKPOINT_EVERY = 50
@@ -91,3 +92,11 @@ def verify(conn: sqlite3.Connection) -> dict:
         except (InvalidSignature, ValueError):
             return report(f"checkpoint {cp['seq']} has a bad signature")
     return report()
+
+
+def read(conn: sqlite3.Connection) -> AuditLog:
+    entries = [AuditEntry(seq=r["seq"], ts=r["ts"], actor=r["actor"], action=r["action"], payload=json.loads(r["payload_json"]),
+                          prev_hash=r["prev_hash"], hash=r["hash"])
+               for r in conn.execute("SELECT * FROM audit_log ORDER BY seq")]
+    checkpoints = [AuditCheckpoint(**dict(r)) for r in conn.execute("SELECT * FROM checkpoints ORDER BY seq")]
+    return AuditLog(entries=entries, checkpoints=checkpoints)

@@ -1,0 +1,130 @@
+{
+  "edit_id": "ed_000000300000",
+  "session_id": "s_A",
+  "status": "PARTIAL",
+  "groups": [
+    {
+      "group_id": "g1",
+      "status": "PASS",
+      "reasons": [],
+      "impacts": [
+        {
+          "cell": "Summary!C6",
+          "delta": -7500.0
+        },
+        {
+          "cell": "Summary!C4",
+          "delta": 7500.0
+        }
+      ]
+    },
+    {
+      "group_id": "g2",
+      "status": "HELD",
+      "reasons": [
+        "Protected cell LateFees!F3 was edited directly (formula changed)"
+      ],
+      "impacts": [
+        {
+          "cell": "Summary!C6",
+          "delta": 4000.0
+        },
+        {
+          "cell": "Summary!C4",
+          "delta": 0.0
+        }
+      ]
+    }
+  ],
+  "committed_version": "3c52ff6465c8c147a0daf1810414b5369b1160ed86fb232458de2c16479d69f8",
+  "check": {
+    "check_id": "chk_000000400000",
+    "mode": "gate",
+    "base_version": "e5ea5f376d408106f165cb72ebe0b70867bc2f7547fcbad5b7f3bca6b32a009d",
+    "new_version": "dfef19d3581caa1035f4717a5bf14240fa54c1e0aa9c7bcb6421389678697941",
+    "verification": {
+      "saved_by": "Microsoft Excel",
+      "formula_cells": 307,
+      "matched": 307,
+      "mismatched": []
+    },
+    "groups": [
+      {
+        "group_id": "g1",
+        "label": "3 values changed in Payments!C (Amount paid)",
+        "type": "data",
+        "cells": [
+          "Payments!C5",
+          "Payments!C9",
+          "Payments!C13"
+        ]
+      },
+      {
+        "group_id": "g2",
+        "label": "Formula changed: LateFees!F3",
+        "type": "logic",
+        "cells": [
+          "LateFees!F3"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "cell": "Summary!C6",
+        "label": "Total pending dues",
+        "base": 286000.0,
+        "new": 282500.0,
+        "delta_observed": -3500.0,
+        "delta_verified": -3500.0,
+        "delta_unverified": 0.0,
+        "attribution": [
+          {
+            "group_id": "g1",
+            "solo": -7500.0,
+            "share": -7500.0,
+            "interaction": 0.0
+          },
+          {
+            "group_id": "g2",
+            "solo": 4000.0,
+            "share": 4000.0,
+            "interaction": 0.0
+          }
+        ]
+      },
+      {
+        "cell": "Summary!C4",
+        "label": "Collected",
+        "base": 100000.0,
+        "new": 107500.0,
+        "delta_observed": 7500.0,
+        "delta_verified": 7500.0,
+        "delta_unverified": 0.0,
+        "attribution": [
+          {
+            "group_id": "g1",
+            "solo": 7500.0,
+            "share": 7500.0,
+            "interaction": 0.0
+          },
+          {
+            "group_id": "g2",
+            "solo": 0.0,
+            "share": 0.0,
+            "interaction": 0.0
+          }
+        ]
+      }
+    ],
+    "structural": [
+      {
+        "kind": "protected_formula_edit",
+        "cell": "LateFees!F3",
+        "output": "Summary!C6",
+        "message": "Protected cell LateFees!F3 was edited directly (formula changed)"
+      }
+    ],
+    "unverifiable": [],
+    "coverage": 1.0
+  }
+}
