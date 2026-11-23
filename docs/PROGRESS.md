@@ -71,6 +71,34 @@ _Last updated: 23 Nov 2026, end of Phase 2 (branch `phase-2-gate`; Claude Deskto
 
 p95 > 1.5 s, so **sidecar mode** was built: a commit writes the openpyxl file at once (`versions.saved_by = pending`) and a single background worker writes `versions/<sha>.lo.xlsx`. `current.xlsx` and its hash never change. The sidecar is accepted only if LibreOffice's copy has saved values and the same cells (same constants, a formula wherever there was one); then `saved_by = LibreOffice` and a Check with that version as base verifies against the sidecar's values (tested: 307 / 307 match, banner says LibreOffice). Failure, a 30 s timeout (process tree killed) or no LibreOffice → `none` ("Not verifiable against saved values"). A Check that meets a base still `pending` reports `none`. A server commit is never labelled Excel.
 
+## Done (P1-1): UI fixtures from real engine output
+`scripts/dump_fixtures.py` (run from `backend/`: `uv run python ../scripts/dump_fixtures.py [--out DIR]`) writes `frontend/src/fixtures/`, each file `model_dump_json(indent=2)` of a pydantic model, nothing hand-written:
+`check_v2_v3.json` (CheckResult), `check_judge_xlookup.json` (CheckResult), `decision_session_a.json` (PARTIAL, F3 held as protected), `decision_session_b.json` (the 9th edit, HELD by the drift budget), `audit.json` (whole chain from the Act 2 run: 14 entries, 2 Ed25519 checkpoints).
+- **Deterministic:** the script runs the real gate on a throwaway `DELTAGATE_HOME` with LibreOffice off, and freezes `uuid4`, `db.now`, the gate's timings, openpyxl's save time, zip entry times and the signing key (a public throwaway seed, fixtures only). Two runs are byte-identical.
+- **`tests/test_fixtures.py`** regenerates all five in a child process (the freezes are process-wide), checks each parses into its model, equals the committed file byte for byte, re-asserts the §7 numbers, and re-walks the audit hash chain and checkpoint signatures from the JSON alone.
+- **New models:** `AuditEntry`, `AuditCheckpoint`, `AuditLog` (in `models.py`, see the contract note below); `audit.read()` stays in `gate/audit.py`. No audit response model existed. `AuditLog` = `{entries, checkpoints}`; an entry is the `audit_log` row with `payload_json` parsed to `payload`. This is the proposed body of `GET /api/audit`; P4 should confirm before building on it.
+- **Lost link, resolved.** The engine emits `lost_link` with `cell = Summary!C4`, `output = Summary!C4`, `message = "Collected no longer depends on Payments!C (Amount paid)"`, and none on `Summary!C6`. That matches §7. The §5 example CheckResult was stale (`output: Summary!C6`, base/new 186,000/228,000); it now reads `Summary!C4` and 286,000/328,000. Engine unchanged.
+- **UI note (Check tab):** a v2 → v3 Check emits **three** structural-type findings on top of the lost link's group: `typed_over_formula` at Summary!C4, `protected_formula_edit` at LateFees!F3 and at Summary!C4, and the `lost_link` (four entries in `structural`). Act 1 therefore shows more than one warning; the **lost link must be the visually dominant one**.
+- **UI note (attribution):** the third group (g3, structural, Summary!C4 typed over) has `share = 0`. Exclude zero-share groups from the headline sentence and from the waterfall bars, but still list them in the groups table.
+- **Contract change:** `AuditEntry`, `AuditCheckpoint`, `AuditLog` moved into `models.py` (serialised JSON unchanged; `audit.json` re-dumped and byte-identical). `GET /api/audit`'s body is a REST payload, so PR #7 needs **P2 and P4 approval** as a contract change.
+- Other §7 values all hold: C6 286,000 → 328,000, Δ 42,000 = 38,000 (data) + 4,000 (logic) + 0 (structural), interaction 0; C4 100,000 in both; `typed_over_formula` at Summary!C4. Not in §7 but visible in the fixture: C6's check also carries `protected_formula_edit` at LateFees!F3 and Summary!C4.
+- **How they are compared:** `tests/test_fixtures.py` compares field by field with every sha256 and signature normalised to a placeholder (runs everywhere), plus a test that the normaliser still rejects a changed money value, label or status. The exact byte check is opt-in, `DG_FIXTURE_EXACT=1`, and is expected to pass only on the machine that generated the fixtures: a `.xlsx` is a zip, so its bytes are not reproducible across platforms, and the version hashes, audit chain and signatures all derive from them. `.gitattributes` pins `frontend/src/fixtures/*.json` to LF.
+- Regenerate whenever `models.py`, the engine or the gate changes; the test fails until you do.
+
+## Known issue: `test_proof_workbook_for_f3` fails when two LibreOffice runs overlap
+- **Test:** `tests/test_check.py::test_proof_workbook_for_f3`. **Failure line:** `subprocess.CalledProcessError: Command '[…/soffice, --headless, --calc, --convert-to, xlsx, …]' returned non-zero exit status 1`.
+- **Rate:** 0 failures in 5 unloaded full runs (`DG_FIXTURE_EXACT=1 pytest -q -rf`); 3 failure reports in 10 loaded runs (5 iterations, each with a second full pytest in parallel; the per-run log names got crossed, so I can't say which of the two runs in an iteration failed). One unlabelled `1 failed, 111 passed` earlier, probably the same test. It is the only test that failed.
+- **Cause (from the command line, not yet confirmed by a fix):** the test starts `soffice` with the default LibreOffice user profile. A second `soffice` already using that profile (a parallel pytest, a lingering run, the user's own LibreOffice) makes the headless convert exit 1. The store's worker avoids this with its own profile under `data/libreoffice_profile`.
+- **Not the pending-window issue (known issue 4):** this test does not read `saved_by = pending` and does not sleep, so the hypothesis about P3's pending window does not apply.
+- **Proposed fix (not done, P3's test):** pass `-env:UserInstallation=file://<tmp_path>/profile` in that test's `subprocess.run`, as `store.recalculate` does. Until then: do not run two pytest sessions, or LibreOffice, at once on the demo laptop.
+
+## Done (P1-2): REST API group 1, approvals (`deltagate/api.py`)
+- `GET /api/edits?status=held` (HELD and PARTIAL edits, `list[Decision]`), `POST /api/edits/{id}/approve`, `POST /api/edits/{id}/deny`, `POST /api/workbooks/{id}/rollback`. One SQLite connection per request.
+- Responses are the pydantic models as they are: no formatting, no computing, null stays null. Errors: `store.Conflict` and `ValueError` from the gate (nothing waiting, nothing to roll back to) → **409** `{"detail": <the gate's message>}`; unknown edit or workbook → **404**.
+- **New payload, flagged:** rollback needs a body and no model existed, so `RollbackResult` (`workbook_id, sha256, saved_by, source, created_at`: the restored `versions` row) is defined in `api.py`, not `models.py`. P2 and P4 should confirm it before the UI uses it; if it should be a contract it moves to `models.py`.
+- `tests/test_api.py` (11 tests, over the FastAPI test client on a real gate): Session A held edit approved, and separately denied; double action → 409 with the message; stale held cell → 409; unknown → 404; rollback marks the edit `ROLLED_BACK`; approve / deny / rollback are not MCP tools and not importable from `mcp_server`.
+- Not started: checks, proof, audit, export and session-audit endpoints.
+
 ## How a Check decides what is verified (read before Phase 2)
 - **Unverifiable roots:** formula not on the allowlist (reason = the function name), `#REF!`-style error, named range / table / external reference, array formula, a workbook with macros or pivot tables (every formula), a base cell whose engine value differs from its saved value, an engine error.
 - **Tainted** = roots + everything downstream, taken on the union of the base and new graphs (every coalition's dependencies are a subset of that union).
@@ -152,8 +180,29 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 6. **`TRUE` / `FALSE` go on the allowlist only after a golden test** (LibreOffice writes them as `TRUE()` / `FALSE()`). Until then they are unverifiable.
 7. Coerce numpy scalars from pycel (e.g. SUMPRODUCT) to Python numbers.
 
+## Done (Phase 3, P3 engine work; branch `p3-hardening`)
+- **Compile budget:** `classify` caps formula groups at `MAX_FORMULA_GROUPS = 3`, so one Check compiles at most 2^3 = 8 models. Only formula groups are coarsened (sheet + type, then type alone); value groups keep their per-column detail. Test: 5 formula columns -> <= 3 formula groups, shares add up to Δ, < 10 s.
+- **Session Audit engine path:** `deltagate/session_audit.py`. `snapshot(file)` keeps an exact byte copy in `data/session_audits/sa_<12 hex>.xlsx` (saved values and `saved_by` kept); `complete(id, after, policy)` is a Check with `mode = "session_audit"`. Ids are checked against `sa_[0-9a-f]{12}` before touching the disk (they arrive over HTTP). Test: snapshot v2, complete with v3 -> C6 2,86,000 -> 3,28,000 (+42,000 = 38,000 + 4,000), lost link on C4. P1 wires `POST /api/session-audit/snapshot` and `/complete` to these two functions.
+
 ## Phase 3 requirements (UI)
 - **One card per cell for structural findings.** On v2 → v3, `Summary!C4` gets three findings: `typed_over_formula`, `protected_formula_edit` and `lost_link`. The Check tab groups findings by `cell` into one card, with the lost-link message ("Collected no longer depends on Payments!C (Amount paid)") as the headline and the other two as lines under it, so Act 1 shows one warning for that cell, not three. `LateFees!F3` (`protected_formula_edit`) stays its own card.
+
+## Done (Phase 3, P2: judge's-own-file drill; branch `p2-messy-drill`)
+- **Messy workbooks:** `scripts/make_messy.py` builds three v2/v3 pairs in `golden/` with openpyxl, applies the ops in `golden/messy_ops.json` the way the gate's shadow copy does, then runs LibreOffice headless so both files carry saved values (`saved_by` LibreOffice, never Excel).
+  - `messy_1`: merged header cells, blank rows between data, no key column (repeated names). v3: one payment edit + a row appended past the summed range.
+  - `messy_2`: XLOOKUP, SORT (dynamic-array function) and a user-defined name (`LateRate`) in the output chain. v3: billed and paid edits, and the Expenses sheet renamed to Costs (not expressible as gate ops: Check only).
+  - `messy_3`: `.xlsm` with a VBA project part (an inert marker, added after LibreOffice), a hidden sheet, text-formatted numbers, an empty sheet.
+- **`tests/test_messy.py` (21 tests + 1 strict xfail):** Check in-process and through the CLI (plain and `--json`; exit 0, no traceback), and the v3 ops through the gate. Every watched output is reported; null stays null; verified + unverified = observed; every reason is plain text; a macro file is never run (child processes and `os.startfile` are refused during the macro test) and never written.
+  - `messy_1`: exact (+₹500 / −₹500, coverage 100%); `shortened_range` on Ledger!C13; gate PARTIAL (payment PASS, uncovered row HELD).
+  - `messy_2`: C6 −₹1,460 = ₹1,000 verified + −₹2,460 unverified; C4 +₹2,500 all unverified; reasons XLOOKUP, SORT, "unsupported reference LateRate"; gate holds both edits `CANT_VERIFY_HELD`.
+  - `messy_3`: coverage 0, every formula "macros (VBA)", verified ₹0 with the whole change unverified; gate `CANT_VERIFY_HELD`.
+- **What broke and was fixed (P2 files):**
+  - `classify.py` / `structural.py`: a renamed sheet read as all its rows deleted + a new sheet, which raised a false `rows_deleted_in_range` and a false `lost_link` ("Total pending dues no longer depends on Expenses!B (Amount)"). `classify.renamed_sheets` now detects a sheet whose only change is its name (exact content match); its cells form one structural group, "Sheet Expenses renamed to Costs", and structural checks map regions through the rename. A sheet renamed *and* edited in one go still reads as deleted + added.
+  - `classify.py`: group labels said "1 data changes"; now "1 data change".
+- **Handed to P3, then fixed (branch `p3-engine-fixes`):**
+  - `check.py`: a group whose whole effect on an output runs through an unverifiable (pinned) cell was a null player with share ₹0 (messy_2: the payment through XLOOKUP read "₹0" on C4 and C6). `analyse()` now tests reach on the graph with the pinned cells removed, so such a group is left out of that output's attribution and its effect stays in `delta_unverified`.
+  - A sheet the base does not have (renamed or new) made any coalition holding the formulas that use it, but not its cells, evaluate a reference to a missing sheet (`FormulaEvalError`); a pure rename failed closed instead of Δ 0. Root cause was the grouping, not `recalc.py`: `classify` now puts a renamed or new sheet and every changed formula that refers to it in one structural group ("Sheet Data renamed to Costs", "New sheet Extra"), so no coalition points at a sheet it does not create. Pure rename: Δ 0 exact; new sheet + formula using it: Δ exact.
+  - Left as is: a new sheet that no changed formula uses stays a value group that `set_cell` skips (nothing reads it, so nothing moves).
 
 ## Done (P1 task 7): shadow cleanup and the MCP banner (branch `p1-shadow-cleanup`)
 - **`store.discard(workbook_id, edit_id, keep_shadow=False)`** deletes an edit's shadow copy and its candidates (`<edit>.pass.xlsx`, `<edit>.approved.xlsx`); it never creates folders, so an unknown workbook id leaves nothing behind. Called by the gate:
@@ -166,6 +215,7 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phase-2-gate` goes to `main` by pull request. Phase 3 has not started.
 
 ## Decisions (with why)
+- **Session Audit snapshots live in `data/`, not `store/`.** They are not managed versions, and `store/` is written only by `gate/store.py`. No database row: the snapshot id is the file name and the Check carries its SHA-256 as `base_version`.
 - **Base value ₹2,86,000 → ₹3,28,000**, not the earlier example ₹1,86,000 → ₹2,28,000. Overdue total is fixed at ₹2,00,000 and is part of pending dues, so pending cannot be below ₹2,04,000 unless flats carry advance credits. Δ is unchanged (+₹42,000). The CheckResult example in CLAUDE.md §5 now uses these values (286000 → 328000) and puts the lost link on output `Summary!C4`, as the engine reports it.
 - **Lost link fires on watched output `Summary!C4`** ("Collected no longer depends on Payments!C"), not on C6. C6 still reaches Payments!C through `LateFees!C → Payments!D`, so no lost link on C6 is the correct result. Build rules §7 and Prompt 1 acceptance were updated.
 - **Bounded ranges only** in the golden files (`$A$2:$A$61` etc.); a test rejects whole-column references.
@@ -213,10 +263,10 @@ Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phas
 - Re-running `make_golden.py` strips cached values and un-freezes the golden files; `recalc.sh` and then `excel_resave.ps1` must follow.
 - `excel_resave.ps1` needs Windows with Excel installed. Without it the files stop at the LibreOffice step and the banner must say LibreOffice.
 - The four business documents at the repo root are deliberately untracked.
-- **Formula groups cost a compile each way:** 2^k compiles for k formula groups (~0.25 s each). 3 → 2 s, 5 → 8 s. The classifier does not yet merge formula groups to stay under a budget.
+- **Formula groups cost a compile each way:** 2^k compiles for k formula groups (~0.25 s each). Capped at k = 3 (8 compiles, ~2 s). The price: with more than 3 formula groups, formula edits on one sheet (or of one type) share a group and a share, and the gate holds or passes them together.
 - **Rows inserted or deleted mid-sheet** are one structural group applied cell by cell. If the tool that produced the file did not rewrite dependent formulas (openpyxl `delete_rows`), outputs come back "can't verify" rather than a number. Fail closed, but no attribution.
 - **Reverse direction:** restoring a formula over a typed value (v3 → v2) reports a `lost_link` on Summary!C6 for region Summary!C, because the typed constant was an input and no longer is. True, but noisy.
-- No alignment across renamed sheets; a renamed sheet reads as one deleted and one added.
+- **Renamed sheets** are detected only on an exact content match (`classify.renamed_sheets`); a sheet renamed and edited in one go still reads as one deleted and one added.
 - **Committed files are written by openpyxl.** Charts, images, pivot caches and other things openpyxl does not model are lost on the first gated commit. The demo workbooks have none.
 - **A version is `pending` for about 2 s after a commit** (8–9 s the first time, while LibreOffice creates its profile under `data/libreoffice_profile`). A Check in that window says "Not verifiable against saved values", and on a file with unverifiable cells there are no saved values to pin at yet, so those outputs are held rather than partly verified.
 - **The sidecar is discarded if LibreOffice drops or changes any cell** (label `none`). Seen to pass on the demo files; not tried on messy real workbooks.
