@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from conftest import ROOT
 from deltagate.gate import audit
-from deltagate.models import CheckResult, Decision
+from deltagate.models import AuditLog, CheckResult, Decision
 
 SCRIPT = ROOT / "scripts" / "dump_fixtures.py"
 COMMITTED = ROOT / "frontend" / "src" / "fixtures"
@@ -20,7 +20,7 @@ MODELS = {
     "check_judge_xlookup.json": CheckResult,
     "decision_session_a.json": Decision,
     "decision_session_b.json": Decision,
-    "audit.json": audit.AuditLog,
+    "audit.json": AuditLog,
 }
 
 

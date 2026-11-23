@@ -13,9 +13,8 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from pydantic import BaseModel
-
 from deltagate import config, db
+from deltagate.models import AuditCheckpoint, AuditEntry, AuditLog
 
 GENESIS = "0" * 64
 CHECKPOINT_EVERY = 50
@@ -93,31 +92,6 @@ def verify(conn: sqlite3.Connection) -> dict:
         except (InvalidSignature, ValueError):
             return report(f"checkpoint {cp['seq']} has a bad signature")
     return report()
-
-
-class AuditEntry(BaseModel):
-    """One audit_log row as the API returns it. `payload` is `payload_json` parsed; canonical() round-trips it,
-    so the hash can still be recomputed from this shape."""
-    seq: int
-    ts: str
-    actor: str
-    action: str
-    payload: dict
-    prev_hash: str
-    hash: str
-
-
-class AuditCheckpoint(BaseModel):
-    seq: int
-    head_hash: str
-    ts: str
-    signature: str  # hex Ed25519 over canonical({seq, head_hash, ts})
-
-
-class AuditLog(BaseModel):
-    """Body of GET /api/audit: the whole chain and its signed checkpoints, oldest first."""
-    entries: list[AuditEntry]
-    checkpoints: list[AuditCheckpoint]
 
 
 def read(conn: sqlite3.Connection) -> AuditLog:
