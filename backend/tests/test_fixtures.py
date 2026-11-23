@@ -1,8 +1,12 @@
 """frontend/src/fixtures/*.json are real engine / gate output (scripts/dump_fixtures.py). These tests stop them rotting:
-each one is regenerated in a temp dir, must parse back into its model, and must equal the committed file byte for byte.
+each one is regenerated in a temp dir, must parse back into its model, and must equal the committed file field by field with hashes and
+signatures normalised (the exact byte check is opt-in: DG_FIXTURE_EXACT=1).
 
 The script freezes uuid / clock / zip times process-wide, so it runs in a child process, never in pytest's."""
 
+import json
+import os
+import re
 import subprocess
 import sys
 
@@ -32,11 +36,74 @@ def regenerated(tmp_path_factory):
     return out
 
 
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
+
+
+def normalise(node):
+    """Field-wise form of a fixture: every sha256 becomes "<sha256>" and every Ed25519 signature "<sig>".
+    Everything else (money, labels, statuses, ids, order) is kept, so only platform-dependent bytes are ignored."""
+    if isinstance(node, dict):
+        return {k: "<sig>" if k == "signature" and isinstance(v, str) else normalise(v) for k, v in node.items()}
+    if isinstance(node, list):
+        return [normalise(v) for v in node]
+    if isinstance(node, str) and SHA256.match(node):
+        return "<sha256>"
+    return node
+
+
+def same(a, b) -> bool:
+    return normalise(a) == normalise(b)
+
+
 @pytest.mark.parametrize("name", MODELS)
-def test_fixture_parses_and_matches_committed_file(name, regenerated):
+def test_fixture_parses_and_matches_committed_file_fieldwise(name, regenerated):
+    """Runs everywhere. A .xlsx is a zip, so version hashes (and the audit chain and signatures built on them)
+    are not reproducible across platforms; everything else must match."""
     fresh = (regenerated / name).read_bytes()
     MODELS[name].model_validate_json(fresh)
-    assert (COMMITTED / name).read_bytes() == fresh, f"{name} is stale: re-run `uv run python ../scripts/dump_fixtures.py`"
+    MODELS[name].model_validate_json((COMMITTED / name).read_bytes())
+    assert same(json.loads(fresh), json.loads((COMMITTED / name).read_bytes())), \
+        f"{name} is stale: re-run `uv run python ../scripts/dump_fixtures.py`"
+
+
+@pytest.mark.skipif(os.environ.get("DG_FIXTURE_EXACT") != "1",
+                    reason="exact byte check is opt-in (DG_FIXTURE_EXACT=1): .xlsx zip bytes, and so the version "
+                           "hashes and audit chain built on them, are not reproducible across platforms")
+@pytest.mark.parametrize("name", MODELS)
+def test_fixture_is_byte_identical(name, regenerated):
+    assert (COMMITTED / name).read_bytes() == (regenerated / name).read_bytes()
+
+
+def _mutated(name, edit):
+    data = json.loads((COMMITTED / name).read_text(encoding="utf-8"))
+    edit(data)
+    return data
+
+
+def test_normaliser_still_catches_real_drift():
+    committed = {n: json.loads((COMMITTED / n).read_text(encoding="utf-8")) for n in MODELS}
+    for n, data in committed.items():
+        assert same(data, json.loads(json.dumps(data)))
+
+    def money(d):
+        next(o for o in d["outputs"] if o["cell"] == "Summary!C6")["delta_observed"] = 42001
+
+    def label(d):
+        d["groups"][0]["label"] = "New row in Expenses: Lift repairs"
+
+    def status(d):
+        d["groups"][0]["status"] = "HELD"
+
+    def hashes_only(d):
+        d["base_version"] = "0" * 64
+
+    check, decision = "check_v2_v3.json", "decision_session_a.json"
+    assert not same(committed[check], _mutated(check, money))
+    assert not same(committed[check], _mutated(check, label))
+    assert not same(committed[decision], _mutated(decision, status))
+    assert same(committed[check], _mutated(check, hashes_only))  # a hash alone is not drift
+    assert not same(committed["audit.json"], _mutated("audit.json", lambda d: d["entries"][0].update(action="x")))
+    assert not same(committed["audit.json"], _mutated("audit.json", lambda d: d["entries"][1]["payload"].update(status="X")))
 
 
 @pytest.fixture(scope="module")
