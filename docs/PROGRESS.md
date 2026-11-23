@@ -4,7 +4,7 @@ _Last updated: 23 Nov 2026, end of Phase 0._
 
 ## Done (Phase 0)
 - **Scaffold:** `backend/` (uv, Python 3.12, deps locked in `uv.lock`), `frontend/` (Vite React TS template, builds), `policy.yaml`, `.gitignore`.
-- **Golden workbooks:** `golden/make_golden.py` builds `dues_v2.xlsx`, `dues_v3_REAL.xlsx`, `judge_xlookup.xlsx`; `golden/recalc.sh` fills cached values with LibreOffice headless.
+- **Golden workbooks:** `golden/make_golden.py` builds `dues_v2.xlsx`, `dues_v3_REAL.xlsx`, `judge_xlookup.xlsx`; `golden/recalc.sh` fills cached values with LibreOffice headless; `golden/excel_resave.ps1` re-saves them in real Excel over COM (CalculateFull, error scan, save, no EXCEL.EXE left behind). **The committed files are the Excel-saved ones.**
 - **Shapley:** `deltagate/engine/shapley.py` (pure, exact, ≤ 8 groups, one oracle call per coalition) + `tests/test_shapley.py` (spec worked example 300 = 207 + 93, solo 204 / 90, interaction +3 / +3; hypothesis: shares sum to Δ, symmetric groups equal; `v(∅) ≠ 0` rejected).
 - **Golden tests:** `tests/test_golden.py` asserts saved values, allowlisted-functions-only, bounded ranges, the three planted changes.
 - **Spikes:** `spikes/coalition_timing.py`, `spikes/pycel_cached_values.py`.
@@ -53,21 +53,38 @@ The §6 strategy holds. Compile time dominates, so the number of formula groups 
 
 ## File-format findings
 - **`docProps/app.xml` Application strings seen:** openpyxl 3.1.5 writes `Microsoft Excel Compatible / Openpyxl 3.1.5`; LibreOffice writes `LibreOffice/26.8.3.1$Windows_X86_64 LibreOffice_project/…`. `parse.py` must match **exactly** `Microsoft Excel` for Excel and the `LibreOffice` prefix for LibreOffice. A substring match would label openpyxl-written files as Excel and break the honest-label rule. No cached values → `none`, whatever the app name says.
-- **LibreOffice rewrites the literal `FALSE` as `FALSE()`** on save (seen in `VLOOKUP(…,5,FALSE)`). pycel evaluates it correctly. The golden files now use `0` as the exact-match flag so they are stable across apps. **Proposal for Phase 1:** add `TRUE` and `FALSE` to the allowlist, or every LibreOffice-saved file with a boolean literal becomes unverifiable.
+- **LibreOffice rewrites the literal `FALSE` as `FALSE()`** on save (seen in `VLOOKUP(…,5,FALSE)`). pycel evaluates it correctly. The golden files now use `0` as the exact-match flag so they are stable across apps. Decision: `TRUE` / `FALSE` join the allowlist only after a golden test (Phase 1 requirement 6); until then a LibreOffice-saved file with a boolean literal is unverifiable at those cells.
 - **XLOOKUP is stored as `_xlfn.XLOOKUP`.** Allowlist detection must strip the `_xlfn.` / `_xlws.` prefixes. LibreOffice 26.8 computes it (judge file has all 306 cached values).
 - LibreOffice headless **does** compute values for openpyxl-written files (no cached values going in, all present coming out).
 
 ## Golden files: saved values
-| File | Saved by | Formula cells with cached value | Summary!C6 | Summary!C4 |
-|---|---|---|---|---|
-| dues_v2.xlsx | LibreOffice 26.8.3.1 | 307 / 307 | 286000 | 100000 |
-| dues_v3_REAL.xlsx | LibreOffice 26.8.3.1 | 306 / 306 | 328000 | 100000 |
-| judge_xlookup.xlsx | LibreOffice 26.8.3.1 | 306 / 306 | 328000 | 100000 |
+Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → `excel_resave.ps1` (Excel). Both results were checked; the Excel-saved files are the frozen ones.
 
-Excel re-save: _pending (see In progress)._
+| File | Step | `docProps/app.xml` Application | Formula cells with cached value | Summary!C6 | Summary!C4 | LateFees!F3 | Error cells |
+|---|---|---|---|---|---|---|---|
+| dues_v2.xlsx | LibreOffice | `LibreOffice/26.8.3.1$Windows_X86_64 …` | 307 / 307 | 286000 | 100000 | 4000 | 0 |
+| dues_v2.xlsx | **Excel 16.0** | `Microsoft Excel` (exact) | 307 / 307 | 286000 | 100000 | 4000 | 0 |
+| dues_v3_REAL.xlsx | LibreOffice | `LibreOffice/26.8.3.1$Windows_X86_64 …` | 306 / 306 | 328000 | 100000 | 8000 | 0 |
+| dues_v3_REAL.xlsx | **Excel 16.0** | `Microsoft Excel` (exact) | 306 / 306 | 328000 | 100000 | 8000 | 0 |
+| judge_xlookup.xlsx | LibreOffice | `LibreOffice/26.8.3.1$Windows_X86_64 …` | 306 / 306 | 328000 | 100000 | 8000 | 0 |
+| judge_xlookup.xlsx | **Excel 16.0** | `Microsoft Excel` (exact) | 306 / 306 | 328000 | 100000 | 8000 | 0 |
+
+- **LibreOffice vs Excel, cell by cell** (every cell of every sheet, 1,138 / 1,140 / 1,140 cells): **0 value differences, 0 formula-text differences.** The two applications agree on every cached value.
+- Excel's own scan after `CalculateFull` (all formula cells on LateFees and Summary: 187 / 186 / 186): no error values. `judge_xlookup.xlsx` has **no `#NAME?`**: `make_golden.py` already writes `_xlfn.XLOOKUP`, and both Excel and LibreOffice 26.8 compute it.
+- The scan detects errors by type: over COM an error cell arrives as an Int32 code (checked: `=NOSUCHFN()` → `-2146826259`, `#NAME?`), a number as Double.
+- After the Excel save: `uv run pytest -q` 15 passed; the coalition spike gives the same shares and timing.
+
+## Phase 1 requirements (from Phase 0 findings; treat as acceptance items)
+1. **Always compile pycel from a formulas-only copy** (`ExcelCompiler(excel=load_workbook(path))`), never from a filename. Regression test: a file whose cached `Summary!C6` is tampered to 999 must **not** return 999 from recalc.
+2. **Typed-over cells are always a formula group** (recompile), never a `set_value`.
+3. **Wrap the private pycel `_reset` in one function** (clearing a cell back to empty) **with its own test.** pycel stays pinned at `1.0b30`.
+4. **The app name must be an exact match:** `Microsoft Excel` only. Never a substring match (openpyxl writes `Microsoft Excel Compatible / Openpyxl 3.1.5`). LibreOffice is recognised by its `LibreOffice/` prefix. Anything else, or no cached values, is `none`.
+5. **The allowlist scanner must strip `_xlfn.` / `_xlws.` prefixes** before checking function names.
+6. **`TRUE` / `FALSE` go on the allowlist only after a golden test** (LibreOffice writes them as `TRUE()` / `FALSE()`). Until then they are unverifiable.
+7. Coerce numpy scalars from pycel (e.g. SUMPRODUCT) to Python numbers.
 
 ## In progress
-- Re-save the three golden files in real Excel, then re-verify cached values and the app name.
+Nothing. Phase 0 is complete; Phase 1 has not started.
 
 ## Decisions (with why)
 - **Base value ₹2,86,000 → ₹3,28,000**, not the earlier example ₹1,86,000 → ₹2,28,000. Overdue total is fixed at ₹2,00,000 and is part of pending dues, so pending cannot be below ₹2,04,000 unless flats carry advance credits. Δ is unchanged (+₹42,000). The JSON example in the contracts section is illustrative only and was left as is.
@@ -83,8 +100,9 @@ Excel re-save: _pending (see In progress)._
 
 ## Known issues
 - **uv on this machine:** `uv sync` failed with "Missing expected target directory for Python minor version link". Workaround: `uv venv --python %APPDATA%\uv\python\cpython-3.12.16-windows-x86_64-none\python.exe`, then `uv sync`. May not affect other machines.
-- Re-running `make_golden.py` strips cached values and un-freezes the golden files; `recalc.sh` and the Excel save must follow.
-- The spec, the phase prompts and the build-rules file are kept local and are not committed yet (team decision pending). The four business documents at the repo root are also uncommitted.
+- Re-running `make_golden.py` strips cached values and un-freezes the golden files; `recalc.sh` and then `excel_resave.ps1` must follow.
+- `excel_resave.ps1` needs Windows with Excel installed. Without it the files stop at the LibreOffice step and the banner must say LibreOffice.
+- The four business documents at the repo root are deliberately untracked.
 - `golden/drift_steps.json` is Phase 2.
 
 ## Cut list status
