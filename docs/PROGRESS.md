@@ -182,7 +182,7 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 
 ## Done (Phase 3, P2 UI work; branch `p2-approvals`)
 - **HELD card** (`frontend/src/tabs/Approvals/HeldCard.tsx`) on engine fixtures: badge (HELD / HELD · CAN'T VERIFY), group label, type and cells, "Why held" reasons, ₹ solo impact per watched output in Indian format (5xl, readable from 3 m), committed part of a PARTIAL edit, honest saved-values line, Approve / Deny. A `CANT_VERIFY_HELD` group shows "Impact unknown", never ₹0. Checked in the browser at desktop and phone width; Deny removes the card.
-- **Fixtures** from the real gate: `scripts/make_fixtures.py` runs Session A (PARTIAL), Session B's 9th call (drift HELD) and a payment on the judge file (CANT_VERIFY_HELD) in a throwaway home and writes `frontend/src/fixtures/decision_*.json`. P1 adds the CheckResult and audit fixtures to the same script.
+- **Fixtures** for the HELD cards: Session A (PARTIAL), Session B's 9th call (drift HELD) and a payment on the judge file (CANT_VERIFY_HELD), all from `scripts/dump_fixtures.py` (P1 folded the old `make_fixtures.py` into it: `decision_session_a.json`, `decision_session_b.json`, `decision_cant_verify.json`).
 - **Shared frontend pieces** P4's shell should reuse, not duplicate: Tailwind v4 (`@tailwindcss/vite`), `src/types.ts` (copied from `models.py`), `src/format.ts` (`inr`, `signedInr`, `savedByBanner`). `App.tsx` renders the Approvals tab alone until the shell lands.
 
 ## Phase 3 requirements (UI)

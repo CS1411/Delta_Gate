@@ -24,6 +24,7 @@ MODELS = {
     "check_judge_xlookup.json": CheckResult,
     "decision_session_a.json": Decision,
     "decision_session_b.json": Decision,
+    "decision_cant_verify.json": Decision,
     "audit.json": AuditLog,
 }
 
@@ -168,3 +169,10 @@ def test_audit_chain_and_signatures_verify(fx):
     for cp in log.checkpoints:
         assert hashes[cp.seq] == cp.head_hash
         public.verify(bytes.fromhex(cp.signature), audit._signed(cp.seq, cp.head_hash, cp.ts))
+
+
+def test_cant_verify_card_has_no_number(fx):
+    d = fx["decision_cant_verify.json"]
+    assert d.status == "HELD" and d.committed_version is None
+    assert d.groups[0].status == "CANT_VERIFY_HELD" and d.groups[0].impacts == []
+    assert d.groups[0].reasons == ["Can't verify: LateFees!C2 (XLOOKUP)"]
