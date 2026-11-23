@@ -146,6 +146,7 @@ dependencies = [
     { name = "openpyxl" },
     { name = "pycel" },
     { name = "pydantic" },
+    { name = "python-multipart" },
     { name = "pyyaml" },
     { name = "uvicorn" },
 ]
@@ -166,6 +167,7 @@ requires-dist = [
     { name = "openpyxl" },
     { name = "pycel", specifier = "==1.0b30" },
     { name = "pydantic", specifier = ">=2" },
+    { name = "python-multipart", specifier = ">=0.0.34" },
     { name = "pyyaml" },
     { name = "uvicorn" },
 ]

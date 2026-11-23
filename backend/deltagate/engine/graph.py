@@ -75,6 +75,26 @@ def input_regions(g: nx.DiGraph, book: Book, output: str) -> dict[tuple, tuple[s
     return regions
 
 
+def column_path(g: nx.DiGraph, book: Book, sheet: str, column: str, output: str) -> list[str]:
+    """Shortest dependency path from any input cell of `sheet`!`column` to `output`, one node per column:
+    ['Payments!C', 'Payments!D', 'LateFees!C', ..., 'Summary!C6']. Range nodes are skipped; the output stays a cell.
+    [] if the output does not reach that column."""
+    sources = [n for n in ancestors(g, output) if is_cell(n) and not isinstance(book.cells.get(n), Formula)
+               and split(n)[0] == sheet and get_column_letter(split(n)[2]) == column]
+    if not sources:
+        return []
+    _, cells = nx.multi_source_dijkstra(g, sources, output)
+    path: list[str] = []
+    for node in cells:
+        if not is_cell(node):
+            continue
+        s, _, col = split(node)
+        name = node if node == output else f"{s}!{get_column_letter(col)}"
+        if not path or path[-1] != name:
+            path.append(name)
+    return path
+
+
 def impact(g: nx.DiGraph, book: Book, cell: str, policy: Policy) -> dict:
     """What an edit to `cell` can reach: for the agent's impact_preview, before it proposes anything."""
     direct = {d for s in (g.successors(cell) if cell in g else ())

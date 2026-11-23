@@ -85,6 +85,32 @@ p95 > 1.5 s, so **sidecar mode** was built: a commit writes the openpyxl file at
 - **How they are compared:** `tests/test_fixtures.py` compares field by field with every sha256 and signature normalised to a placeholder (runs everywhere), plus a test that the normaliser still rejects a changed money value, label or status. The exact byte check is opt-in, `DG_FIXTURE_EXACT=1`, and is expected to pass only on the machine that generated the fixtures: a `.xlsx` is a zip, so its bytes are not reproducible across platforms, and the version hashes, audit chain and signatures all derive from them. `.gitattributes` pins `frontend/src/fixtures/*.json` to LF.
 - Regenerate whenever `models.py`, the engine or the gate changes; the test fails until you do.
 
+## Done (P1 tasks 3-5): REST API groups 2-4 (`deltagate/api.py`, branch `p1-api-rest`)
+- **Group 2, checks:**
+  - `POST /api/checks` (multipart `base` + `new`) → `CheckResult`.
+  - `GET /api/checks/{id}`.
+  - `POST /api/checks/{id}/proof/{group_id}` → the proof workbook as a download (base + that group only, `fullCalcOnLoad`).
+  - Uploaded files are kept in `data/checks/<check_id>/` (never `store/`), so proof and export work later.
+  - A file that is not a workbook → **422** "… is not a readable workbook"; over 25 MB → **413**; an engine failure → **422** with the exception name, never a stack trace.
+  - Proof for a Check whose files the API did not keep (gate / `explain_delta` Checks) → **404** "has no files kept".
+- **Group 3, audit and export:**
+  - `GET /api/audit` → `AuditLog`.
+  - `GET /api/audit/verify` → `{ok, entries, checkpoints, error}`; a tampered row gives `ok: false`, "entry 2 does not match its hash".
+  - `GET /api/exports/{check_id}.csv`: one row per fact. The `record` column is `output`, `attribution`, `structural` or `unverifiable`.
+  - Numbers are unformatted engine values; **null is written as `unknown`, never 0**; UTF-8 with BOM so Excel opens it cleanly.
+- **Group 4, Session Audit:**
+  - `POST /api/session-audit/snapshot` (`file`) → `{snapshot_id, sha256}`.
+  - `POST /api/session-audit/complete` (`snapshot_id` + `file`) → `CheckResult` with `mode = session_audit`, stored like any Check (readable, provable, exportable).
+  - Unknown or malformed snapshot id → **404**.
+- **Workbooks, for the Rollback button:** `GET /api/workbooks` → `[{workbook_id, name, current_version, saved_by, source, updated_at, can_rollback}]`.
+  - It reads the database only; no unmanaged-change check runs on a list.
+  - `can_rollback` is false when there is no earlier version, i.e. when `POST /api/workbooks/{id}/rollback` would answer 409.
+  - **Decision:** rollback is per workbook, not per held edit (it undoes the last committed version, usually something that passed). So the UI shows one Rollback button per workbook from this list, and `Decision` keeps no `workbook_id` (no contract change).
+- **Safety:** ids that arrive in a URL (`chk_<12 hex>`, `sa_<12 hex>`) are matched against their exact pattern before any disk access.
+- **Tests:** `tests/test_api_checks.py` (11), over HTTP on the real engine: v2 + v3 → +42,000 = 38,000 + 4,000; the proof has F3 = `=F2*0.04` and C4 still a formula; verify flips on a tampered row; CSV shares add up, judge 38,000 verified + 4,000 unverified, null → "unknown"; Session Audit v2 → v3 with the lost link on C4.
+- **Branch base:** `p1-api` (#7, group 1) with `p3-hardening` (#6, the Session Audit engine) merged in. Merge after both.
+- **Dependency note:** uploads need `python-multipart`. It is installed (locked as a dependency of another package) but not listed in `pyproject.toml`.
+
 ## Known issue: `test_proof_workbook_for_f3` fails when two LibreOffice runs overlap
 - **Test:** `tests/test_check.py::test_proof_workbook_for_f3`. **Failure line:** `subprocess.CalledProcessError: Command '[…/soffice, --headless, --calc, --convert-to, xlsx, …]' returned non-zero exit status 1`.
 - **Rate:** 0 failures in 5 unloaded full runs (`DG_FIXTURE_EXACT=1 pytest -q -rf`); 3 failure reports in 10 loaded runs (5 iterations, each with a second full pytest in parallel; the per-run log names got crossed, so I can't say which of the two runs in an iteration failed). One unlabelled `1 failed, 111 passed` earlier, probably the same test. It is the only test that failed.
@@ -182,9 +208,13 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 
 ## Done (Phase 3, P2 UI work; branch `p2-approvals`)
 - **HELD card** (`frontend/src/tabs/Approvals/HeldCard.tsx`) on engine fixtures: badge (HELD / HELD · CAN'T VERIFY), group label, type and cells, "Why held" reasons, ₹ solo impact per watched output in Indian format (5xl, readable from 3 m), committed part of a PARTIAL edit, honest saved-values line, Approve / Deny. A `CANT_VERIFY_HELD` group shows "Impact unknown", never ₹0. Checked in the browser at desktop and phone width; Deny removes the card.
-- **Fixtures** from the real gate: `scripts/make_fixtures.py` runs Session A (PARTIAL), Session B's 9th call (drift HELD) and a payment on the judge file (CANT_VERIFY_HELD) in a throwaway home and writes `frontend/src/fixtures/decision_*.json`. P1 adds the CheckResult and audit fixtures to the same script.
+- **Fixtures** for the HELD cards: Session A (PARTIAL), Session B's 9th call (drift HELD) and a payment on the judge file (CANT_VERIFY_HELD), all from `scripts/dump_fixtures.py` (P1 folded the old `make_fixtures.py` into it: `decision_session_a.json`, `decision_session_b.json`, `decision_cant_verify.json`).
 - **Shared frontend pieces** P4's shell should reuse, not duplicate: Tailwind v4 (`@tailwindcss/vite`), `src/types.ts` (copied from `models.py`), `src/format.ts` (`inr`, `signedInr`, `savedByBanner`). `App.tsx` renders the Approvals tab alone until the shell lands.
 
+
+- **Fixtures** from the real gate: `scripts/make_fixtures.py` runs Session A (PARTIAL), Session B's 9th call (drift HELD) and a payment on the judge file (CANT_VERIFY_HELD) in a throwaway home and writes `frontend/src/fixtures/decision_*.json`. P1 adds the CheckResult and audit fixtures to the same script.
+- **Structural-findings panel** (`frontend/src/components/StructuralPanel.tsx`) for P4's Check tab, on `fixtures/check_v2_v3.json`: one card per cell; a `lost_link` is the red headline (the engine's message verbatim, "Collected no longer depends on Payments!C (Amount paid)"), the cell's other findings (`typed_over_formula` at C4) are small grey lines under it, and `protected_formula_edit` rows (F3, C4) are a small grey list at the end. The card shows the watched output's label and change from `outputs` (null -> "unknown"). Summary!C6 gets no lost-link card. No React Flow: the mini-graph needs path data that CheckResult does not carry (lost region, old path, surviving paths); that is a contract PR, not started.
+- **Shared frontend pieces** P4's shell should reuse, not duplicate: Tailwind v4 (`@tailwindcss/vite`), `src/types.ts` (copied from `models.py`), `src/format.ts` (`inr`, `signedInr`, `savedByBanner`). `App.tsx` renders the Approvals tab alone until the shell lands.
 ## Done (Phase 3, P3 engine work; branch `p3-hardening`)
 - **Compile budget:** `classify` caps formula groups at `MAX_FORMULA_GROUPS = 3`, so one Check compiles at most 2^3 = 8 models. Only formula groups are coarsened (sheet + type, then type alone); value groups keep their per-column detail. Test: 5 formula columns -> <= 3 formula groups, shares add up to Δ, < 10 s.
 - **Session Audit engine path:** `deltagate/session_audit.py`. `snapshot(file)` keeps an exact byte copy in `data/session_audits/sa_<12 hex>.xlsx` (saved values and `saved_by` kept); `complete(id, after, policy)` is a Check with `mode = "session_audit"`. Ids are checked against `sa_[0-9a-f]{12}` before touching the disk (they arrive over HTTP). Test: snapshot v2, complete with v3 -> C6 2,86,000 -> 3,28,000 (+42,000 = 38,000 + 4,000), lost link on C4. P1 wires `POST /api/session-audit/snapshot` and `/complete` to these two functions.
@@ -220,6 +250,7 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phase-2-gate` goes to `main` by pull request. Phase 3 has not started.
 
 ## Decisions (with why)
+- **Contract change (branch `p3-lostlink-data`): lost-link path data on `StructuralFinding`.** Three optional fields, filled only for `lost_link`, `None` otherwise: `region` `{sheet, column, header}`, `path_before` (column-level nodes from the region to the output in the base file, e.g. `["Payments!C", "Summary!C4"]`) and `kept` (`[{output, path}]` for other watched outputs that still reach the region in the new file; on v2 → v3, Summary!C6 via `Payments!D`, `LateFees!C`, `LateFees!D`, `LateFees!F`, `Summary!C`). Built from the networkx graphs (`graph.column_path`: shortest path from any input cell of the region, range nodes skipped, consecutive cells of one column collapsed), never from message text. Why: the lost-link mini-graph needs them and parsing messages would be a workaround. Needs approval from P1, P2 and P4 (SPLIT.md §8). Fixtures regenerated; `types.ts` mirrors the fields.
 - **Session Audit snapshots live in `data/`, not `store/`.** They are not managed versions, and `store/` is written only by `gate/store.py`. No database row: the snapshot id is the file name and the Check carries its SHA-256 as `base_version`.
 - **Base value ₹2,86,000 → ₹3,28,000**, not the earlier example ₹1,86,000 → ₹2,28,000. Overdue total is fixed at ₹2,00,000 and is part of pending dues, so pending cannot be below ₹2,04,000 unless flats carry advance credits. Δ is unchanged (+₹42,000). The CheckResult example in CLAUDE.md §5 now uses these values (286000 → 328000) and puts the lost link on output `Summary!C4`, as the engine reports it.
 - **Lost link fires on watched output `Summary!C4`** ("Collected no longer depends on Payments!C"), not on C6. C6 still reaches Payments!C through `LateFees!C → Payments!D`, so no lost link on C6 is the correct result. Build rules §7 and Prompt 1 acceptance were updated.

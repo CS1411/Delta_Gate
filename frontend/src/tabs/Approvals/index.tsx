@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, approveEdit, denyEdit, fetchHeld } from '../../api'
 import cantVerify from '../../fixtures/decision_cant_verify.json'
-import driftHeld from '../../fixtures/decision_drift_held.json'
-import partial from '../../fixtures/decision_partial.json'
+import sessionA from '../../fixtures/decision_session_a.json'
+import sessionB from '../../fixtures/decision_session_b.json'
 import type { Decision } from '../../types'
 import HeldCard from './HeldCard'
 
 // Approvals inbox, live: polls GET /api/edits?status=held every 2 s. If the API cannot be reached it shows the
 // engine-generated fixtures instead (the demo must still work with no backend) and says so.
 const POLL_MS = 2000
-const SAMPLE = [partial, driftHeld, cantVerify] as Decision[]
+const SAMPLE = [sessionA, sessionB, cantVerify] as Decision[]
 
 export default function Approvals() {
   const [inbox, setInbox] = useState<Decision[]>([])
