@@ -90,6 +90,27 @@ def deny_edit(edit_id: str, conn: sqlite3.Connection = Conn) -> Decision:
     return _act(lambda: gate.deny(conn, edit_id))
 
 
+class WorkbookSummary(BaseModel):
+    """A managed workbook and its current version: what the Rollback button needs."""
+    workbook_id: str
+    name: str
+    current_version: str  # sha256
+    saved_by: Literal["Microsoft Excel", "LibreOffice", "pending", "none"]
+    source: Literal["managed", "unmanaged"]
+    updated_at: str  # when the current version was recorded
+    can_rollback: bool  # an earlier version exists, so POST .../rollback will not answer 409
+
+
+@app.get("/api/workbooks")
+def list_workbooks(conn: sqlite3.Connection = Conn) -> list[WorkbookSummary]:
+    """Registered workbooks with their current version, as recorded (a read only: no unmanaged-change check runs here)."""
+    rows = conn.execute("SELECT w.id, w.name, v.sha256, v.saved_by, v.source, v.created_at, v.parent_id FROM workbooks w "
+                        "JOIN versions v ON v.id = w.current_version_id ORDER BY w.id")
+    return [WorkbookSummary(workbook_id=r["id"], name=r["name"], current_version=r["sha256"], saved_by=r["saved_by"],
+                            source=r["source"], updated_at=r["created_at"], can_rollback=r["parent_id"] is not None)
+            for r in rows]
+
+
 @app.post("/api/workbooks/{workbook_id}/rollback")
 def rollback_workbook(workbook_id: str, conn: sqlite3.Connection = Conn) -> RollbackResult:
     row = _act(lambda: gate.rollback(conn, workbook_id))

@@ -162,3 +162,24 @@ def test_session_audit_unknown_or_malformed_snapshot_is_404(client):
     for bad in ("sa_000000000000", "../../etc/passwd"):
         r = client.post("/api/session-audit/complete", data={"snapshot_id": bad}, files={"file": upload(V3)})
         assert r.status_code == 404
+
+
+# --- workbooks (for the Rollback button) ---------------------------------------------------------------
+
+
+def test_workbooks_list_the_current_version_and_whether_rollback_can_run(client, home):
+    assert client.get("/api/workbooks").json() == []
+    store.register(home, V2, "dues")
+    (dues,) = client.get("/api/workbooks").json()
+    assert dues == {"workbook_id": "dues", "name": "dues_v2.xlsx", "current_version": store.sha256(V2),
+                    "saved_by": "Microsoft Excel", "source": "managed", "updated_at": dues["updated_at"],
+                    "can_rollback": False}
+
+    passed = gate.propose_edit(home, "dues", [{"op": "set_value", "cell": "Payments!C5", "value": 2500}], "s_1")
+    (dues,) = client.get("/api/workbooks").json()
+    assert dues["current_version"] == passed.committed_version and dues["can_rollback"] is True
+    assert dues["saved_by"] == "none"  # a server commit is never labelled Excel (LibreOffice is off in tests)
+
+    assert client.post("/api/workbooks/dues/rollback").status_code == 200
+    (dues,) = client.get("/api/workbooks").json()
+    assert dues["current_version"] == store.sha256(V2)

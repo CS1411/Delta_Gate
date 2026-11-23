@@ -102,6 +102,10 @@ p95 > 1.5 s, so **sidecar mode** was built: a commit writes the openpyxl file at
   - `POST /api/session-audit/snapshot` (`file`) → `{snapshot_id, sha256}`.
   - `POST /api/session-audit/complete` (`snapshot_id` + `file`) → `CheckResult` with `mode = session_audit`, stored like any Check (readable, provable, exportable).
   - Unknown or malformed snapshot id → **404**.
+- **Workbooks, for the Rollback button:** `GET /api/workbooks` → `[{workbook_id, name, current_version, saved_by, source, updated_at, can_rollback}]`.
+  - It reads the database only; no unmanaged-change check runs on a list.
+  - `can_rollback` is false when there is no earlier version, i.e. when `POST /api/workbooks/{id}/rollback` would answer 409.
+  - **Decision:** rollback is per workbook, not per held edit (it undoes the last committed version, usually something that passed). So the UI shows one Rollback button per workbook from this list, and `Decision` keeps no `workbook_id` (no contract change).
 - **Safety:** ids that arrive in a URL (`chk_<12 hex>`, `sa_<12 hex>`) are matched against their exact pattern before any disk access.
 - **Tests:** `tests/test_api_checks.py` (11), over HTTP on the real engine: v2 + v3 → +42,000 = 38,000 + 4,000; the proof has F3 = `=F2*0.04` and C4 still a formula; verify flips on a tampered row; CSV shares add up, judge 38,000 verified + 4,000 unverified, null → "unknown"; Session Audit v2 → v3 with the lost link on C4.
 - **Branch base:** `p1-api` (#7, group 1) with `p3-hardening` (#6, the Session Audit engine) merged in. Merge after both.
