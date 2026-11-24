@@ -70,7 +70,7 @@ export default function CheckResultView({
     : bannerBase
 
   const bannerBorderClass = hasMismatches
-    ? 'border-red-400 bg-[#EEDADA]/60 text-red-950'
+    ? 'border-[#D7D0C5] bg-[#EEDADA]/60 text-[#36452B]'
     : !isVerifiable
     ? 'border-[#D7D0C5] bg-[#EEDADA]/40 text-[#36452B]'
     : 'border-[#8A9646] bg-[#8A9646]/10 text-[#36452B]'
@@ -245,7 +245,7 @@ function HeadlineCard({
             <p className="text-4xl sm:text-5xl font-black tabular-nums tracking-tight text-[#36452B]">
               {signedInr(output.delta_observed!)} observed ={' '}
               <span className="text-[#8A9646]">{signedInr(output.delta_verified)} verified</span> +{' '}
-              <span className="text-[#A44A3F]">{signedInr(output.delta_unverified!)} unverified</span>
+              <span className="text-[#36452B] font-bold">{signedInr(output.delta_unverified!)} unverified</span>
             </p>
             {causes.length > 0 && (
               <p className="text-xl text-[#7F7D74]">
@@ -363,7 +363,7 @@ function UnverifiablePanel({
       </div>
 
       {mismatched.length > 0 && (
-        <p className="mt-4 rounded-xl border border-red-300 bg-[#EEDADA]/60 p-3 font-mono text-sm font-semibold text-red-950">
+        <p className="mt-4 rounded-xl border border-[#D7D0C5] bg-[#EEDADA]/60 p-3 font-mono text-sm font-semibold text-[#36452B]">
           Mismatched saved values: {mismatched.join(', ')}
         </p>
       )}

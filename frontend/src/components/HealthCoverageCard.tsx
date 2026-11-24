@@ -38,7 +38,7 @@ export default function HealthCoverageCard({ check, output }: Props) {
   const verifiedRatio = totalObserved > 0 ? (Math.abs(verifiedDelta) / totalObserved) * 100 : 100
   const unverifiedRatio = totalObserved > 0 && unverifiedDelta !== null ? (unverifiedAbs / totalObserved) * 100 : 0
 
-  // ECharts Ring Gauge for formula coverage
+  // ECharts Ring Gauge for formula coverage strictly in 6-color palette
   const gaugeOption = {
     backgroundColor: 'transparent',
     series: [
@@ -54,7 +54,7 @@ export default function HealthCoverageCard({ check, output }: Props) {
           roundCap: true,
           clip: false,
           itemStyle: {
-            color: isFullCoverage ? '#8A9646' : '#A44A3F',
+            color: isFullCoverage ? '#8A9646' : '#EEDADA',
           },
         },
         axisLine: {
@@ -96,7 +96,7 @@ export default function HealthCoverageCard({ check, output }: Props) {
             className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] font-bold ${
               isFullCoverage
                 ? 'bg-[#8A9646]/20 text-[#36452B]'
-                : 'bg-[#EEDADA] text-red-950'
+                : 'bg-[#EEDADA] text-[#36452B]'
             }`}
           >
             {isFullCoverage ? 'Full Pass' : 'Partial'}
@@ -124,13 +124,13 @@ export default function HealthCoverageCard({ check, output }: Props) {
             </div>
             <div>
               <span className="text-[#7F7D74]">Mismatches: </span>
-              <strong className={check.verification.mismatched.length > 0 ? 'text-red-700' : 'text-[#36452B]'}>
+              <strong className={check.verification.mismatched.length > 0 ? 'text-[#36452B]' : 'text-[#36452B]'}>
                 {check.verification.mismatched.length}
               </strong>
             </div>
             <div>
               <span className="text-[#7F7D74]">Unverifiable: </span>
-              <strong className={check.unverifiable.length > 0 ? 'text-[#A44A3F]' : 'text-[#36452B]'}>
+              <strong className={check.unverifiable.length > 0 ? 'text-[#7F7D74]' : 'text-[#36452B]'}>
                 {check.unverifiable.length}
               </strong>
             </div>
@@ -141,7 +141,7 @@ export default function HealthCoverageCard({ check, output }: Props) {
         <div className="mt-5 space-y-1.5 border-t border-[#D7D0C5]/60 pt-4">
           <div className="flex justify-between font-mono text-[11px] font-bold">
             <span className="text-[#8A9646]">Verified: {signedInr(verifiedDelta)}</span>
-            <span className={unverifiedDelta !== null && unverifiedDelta !== 0 ? 'text-[#A44A3F]' : 'text-[#7F7D74]'}>
+            <span className={unverifiedDelta !== null && unverifiedDelta !== 0 ? 'text-[#36452B]' : 'text-[#7F7D74]'}>
               Unverified: {unverifiedText}
             </span>
           </div>
@@ -154,7 +154,7 @@ export default function HealthCoverageCard({ check, output }: Props) {
             />
             {unverifiedRatio > 0 && (
               <div
-                className="bg-[#EEDADA] border-l border-red-300 transition-all"
+                className="bg-[#EEDADA] border-l border-[#D7D0C5] transition-all"
                 style={{ width: `${unverifiedRatio}%` }}
                 title={`Unverified: ${unverifiedRatio.toFixed(1)}%`}
               />
@@ -178,7 +178,7 @@ export default function HealthCoverageCard({ check, output }: Props) {
             </span>
           </div>
 
-          <div className="rounded-xl border border-[#36452B]/20 bg-[#36452B]/5 p-2">
+          <div className="rounded-xl border border-[#36452B]/30 bg-[#36452B]/10 p-2">
             <span className="block font-mono text-[10px] font-bold uppercase text-[#7F7D74]">
               Logic ({typeSummary.logic.count})
             </span>
@@ -187,9 +187,9 @@ export default function HealthCoverageCard({ check, output }: Props) {
             </span>
           </div>
 
-          <div className="rounded-xl border border-[#D7D0C5] bg-[#EEDADA]/50 p-2">
+          <div className="rounded-xl border border-[#D7D0C5] bg-[#D7D0C5]/20 p-2">
             <span className="block font-mono text-[10px] font-bold uppercase text-[#7F7D74]">
-              Struct ({typeSummary.structural.count})
+              Structural ({typeSummary.structural.count})
             </span>
             <span className="block text-sm font-black tabular-nums text-[#36452B]">
               {inr(typeSummary.structural.totalShare)}

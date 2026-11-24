@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 
-// A 64- or 128-character hex value shown as its first 12 characters. The full value is the tooltip and the
-// copy button's payload. Never wraps: a hash broken across lines cannot be compared by eye.
+// A 64- or 128-character hex value shown as its first 12 characters. Strictly in 6-color Zen Bamboo palette.
 export default function Hash({ value, label }: { value: string; label?: string }) {
   const [copied, setCopied] = useState(false)
   useEffect(() => {
@@ -11,15 +10,19 @@ export default function Hash({ value, label }: { value: string; label?: string }
   }, [copied])
 
   const copy = () => {
-    navigator.clipboard?.writeText(value).then(() => setCopied(true), () => {}) // clipboard can be blocked: stay silent
+    navigator.clipboard?.writeText(value).then(() => setCopied(true), () => {})
   }
 
   return (
-    <span className="inline-flex items-center gap-1 whitespace-nowrap font-mono text-slate-700" title={value}>
-      {label && <span className="font-sans text-sm text-slate-500">{label}</span>}
-      {value.slice(0, 12)}…
-      <button type="button" onClick={copy} aria-label={`Copy full ${label ?? 'value'}`}
-        className="rounded px-1 font-sans text-sm text-slate-500 hover:bg-slate-200">
+    <span className="inline-flex items-center gap-1 whitespace-nowrap font-mono text-[#36452B]" title={value}>
+      {label && <span className="font-sans text-xs text-[#7F7D74]">{label}</span>}
+      <span className="text-xs">{value.slice(0, 12)}…</span>
+      <button
+        type="button"
+        onClick={copy}
+        aria-label={`Copy full ${label ?? 'value'}`}
+        className="rounded px-1 font-sans text-xs text-[#7F7D74] hover:bg-[#D7D0C5]/40 transition"
+      >
         {copied ? 'copied' : 'copy'}
       </button>
     </span>

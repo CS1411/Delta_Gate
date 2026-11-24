@@ -156,7 +156,7 @@ export default function GroupsTable({
 
                       <td className="px-4 py-4 text-right align-top text-2xl font-black tabular-nums text-[#36452B]">
                         {excluded ? (
-                          <span className="text-base font-bold text-[#A44A3F]">unverified</span>
+                          <span className="text-base font-bold text-[#36452B]">unverified</span>
                         ) : (
                           signedInr(attr.share)
                         )}
@@ -207,7 +207,7 @@ export default function GroupsTable({
                                 >
                                   {cell}
                                   {reason && (
-                                    <span className="ml-1.5 font-sans text-xs text-[#A44A3F]">
+                                    <span className="ml-1.5 font-sans text-xs text-[#7F7D74]">
                                       ({reason})
                                     </span>
                                   )}

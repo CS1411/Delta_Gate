@@ -34,3 +34,71 @@ body {
   border: 1px solid rgba(215, 208, 197, 0.9);
   border-radius: 1.25rem;
 }
+
+/* Floating orb halo animations */
+@keyframes floatOrb {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(6px, -12px) scale(1.04);
+  }
+  66% {
+    transform: translate(-8px, 6px) scale(0.96);
+  }
+}
+
+@keyframes convergeOrb {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) translate(0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-float-orb {
+  animation: floatOrb 8s ease-in-out infinite;
+}
+
+.animate-converge-orb {
+  animation: convergeOrb 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Refractive glass orb */
+.glass-orb {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 9999px;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 6px rgba(54, 69, 43, 0.15),
+    0 8px 24px -4px rgba(54, 69, 43, 0.12);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-orb:hover {
+  transform: scale(1.12) translateY(-4px);
+  box-shadow: 
+    inset 0 3px 6px rgba(255, 255, 255, 0.9),
+    inset 0 -3px 8px rgba(54, 69, 43, 0.2),
+    0 16px 36px -6px rgba(54, 69, 43, 0.22);
+}
+
+/* Specular borders & 3D tilt folder styling */
+.glass-folder {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(215, 208, 197, 0.45) 100%);
+  border: 1px solid rgba(215, 208, 197, 0.9);
+  box-shadow: 0 10px 30px -10px rgba(54, 69, 43, 0.08);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s ease;
+}
+
+.glass-folder:hover {
+  transform: translateY(-8px) scale(1.02);
+  border-color: #8A9646;
+  box-shadow: 0 20px 40px -12px rgba(54, 69, 43, 0.16);
+}

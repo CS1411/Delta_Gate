@@ -5,8 +5,7 @@ import type { AuditCheckpoint, AuditEntry, AuditLog } from '../../types'
 import Hash from './Hash'
 import Payload from './Payload'
 
-// Audit tab: the log in seq order with each signed checkpoint right after the entry it covers, and a Verify
-// button. Polls every 2 s like the inbox; if the API cannot be reached it shows the sample log and says so.
+// Audit tab strictly formatted in 6-color Zen Bamboo palette.
 const POLL_MS = 2000
 const SAMPLE = sample as AuditLog
 
@@ -21,7 +20,7 @@ function rows(log: AuditLog): Row[] {
       if (checkpoint.seq === entry.seq) { out.push({ kind: 'checkpoint', checkpoint }); used.add(checkpoint) }
     }
   }
-  for (const checkpoint of log.checkpoints) if (!used.has(checkpoint)) out.push({ kind: 'checkpoint', checkpoint }) // covers an entry that is gone
+  for (const checkpoint of log.checkpoints) if (!used.has(checkpoint)) out.push({ kind: 'checkpoint', checkpoint })
   return out
 }
 
@@ -56,7 +55,7 @@ export default function Audit() {
   const verify = async () => {
     setVerdict({ state: 'busy' })
     try {
-      const result = await verifyAudit() // a tampered log is still a 200: the answer is in `ok`
+      const result = await verifyAudit()
       setVerdict({ state: 'done', ...result })
     } catch {
       setVerdict({ state: 'unreachable' })
@@ -68,20 +67,31 @@ export default function Audit() {
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
       <div className="flex flex-wrap items-center gap-4">
-        <h2 className="text-3xl font-bold">Audit log <span className="text-slate-500">({log.entries.length} entries, {log.checkpoints.length} checkpoints)</span></h2>
-        <button type="button" onClick={() => void verify()} disabled={verdict.state === 'busy'}
-          className="ml-auto h-14 rounded-xl bg-slate-900 px-8 text-xl font-semibold text-white hover:bg-slate-700 focus-visible:outline-4 focus-visible:outline-slate-400 disabled:opacity-50">
-          {verdict.state === 'busy' ? 'Verifying…' : 'Verify log'}
+        <div>
+          <h2 className="text-2xl font-serif font-bold text-[#36452B]">
+            Audit Log <span className="text-sm font-sans font-normal text-[#7F7D74]">({log.entries.length} entries, {log.checkpoints.length} checkpoints)</span>
+          </h2>
+          <p className="text-xs text-[#7F7D74]">Tamper-evident Ed25519 signed chain with SHA-256 state hashes</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void verify()}
+          disabled={verdict.state === 'busy'}
+          className="ml-auto h-11 rounded-xl bg-[#36452B] px-6 text-sm font-semibold text-white hover:bg-[#36452B]/90 focus-visible:outline-4 focus-visible:outline-[#8A9646] disabled:opacity-50 transition"
+        >
+          {verdict.state === 'busy' ? 'Verifying…' : 'Verify Log Integrity'}
         </button>
       </div>
 
       {offline && (
-        <p role="status" className="rounded-lg bg-slate-200 px-4 py-2 text-base text-slate-700">offline — showing sample data</p>
+        <p role="status" className="rounded-lg bg-[#D7D0C5]/40 border border-[#D7D0C5] px-4 py-2 text-xs font-mono text-[#7F7D74]">
+          offline — showing sample data
+        </p>
       )}
 
       <VerdictBanner verdict={verdict} />
 
-      {loaded && list.length === 0 && <p className="text-xl text-slate-600">The log is empty.</p>}
+      {loaded && list.length === 0 && <p className="text-base text-[#7F7D74]">The log is empty.</p>}
 
       <ol className="space-y-3">
         {list.map((row) => row.kind === 'entry'
@@ -95,19 +105,26 @@ export default function Audit() {
 function VerdictBanner({ verdict }: { verdict: Verdict }) {
   if (verdict.state === 'idle' || verdict.state === 'busy') return null
   if (verdict.state === 'unreachable') {
-    return <p role="alert" className="rounded-2xl bg-slate-200 px-8 py-6 text-3xl font-bold text-slate-700">Can't verify: the server is not reachable.</p>
+    return (
+      <p role="alert" className="rounded-2xl bg-[#EEDADA]/60 border border-[#D7D0C5] px-6 py-4 text-base font-bold text-[#36452B]">
+        Can't verify: the server is not reachable.
+      </p>
+    )
   }
   return verdict.ok ? (
-    <div role="status" className="flex items-center gap-6 rounded-2xl border-4 border-emerald-600 bg-emerald-50 px-8 py-8">
-      <span className="text-8xl leading-none" aria-hidden>✅</span>
-      <p className="text-5xl font-bold text-emerald-800">Chain verified: {verdict.entries} entries, {verdict.checkpoints} checkpoints</p>
+    <div role="status" className="flex items-center gap-4 rounded-2xl border-2 border-[#8A9646] bg-[#8A9646]/10 px-6 py-5">
+      <span className="text-4xl leading-none text-[#8A9646]" aria-hidden>✓</span>
+      <div>
+        <p className="text-lg font-serif font-bold text-[#36452B]">Chain Verified</p>
+        <p className="text-xs font-mono text-[#7F7D74]">{verdict.entries} entries, {verdict.checkpoints} checkpoints matched</p>
+      </div>
     </div>
   ) : (
-    <div role="alert" className="flex items-center gap-6 rounded-2xl border-4 border-red-600 bg-red-50 px-8 py-8">
-      <span className="text-8xl leading-none" aria-hidden>❌</span>
+    <div role="alert" className="flex items-center gap-4 rounded-2xl border-2 border-[#D7D0C5] bg-[#EEDADA] px-6 py-5">
+      <span className="text-4xl leading-none text-[#36452B]" aria-hidden>⚠</span>
       <div>
-        <p className="text-5xl font-bold text-red-800">Log does not verify</p>
-        <p className="mt-2 text-4xl font-semibold text-red-700">{verdict.error ?? 'No reason given'}</p>
+        <p className="text-lg font-serif font-bold text-[#36452B]">Log does not verify</p>
+        <p className="mt-1 text-xs font-mono text-[#7F7D74]">{verdict.error ?? 'No reason given'}</p>
       </div>
     </div>
   )
@@ -115,21 +132,21 @@ function VerdictBanner({ verdict }: { verdict: Verdict }) {
 
 function EntryRow({ entry }: { entry: AuditEntry }) {
   return (
-    <li className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+    <li className="rounded-xl border border-[#D7D0C5] bg-white px-5 py-4 shadow-sm space-y-2">
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <span className="font-mono text-xl font-bold">#{entry.seq}</span>
-        <span className="text-lg font-semibold">{entry.action}</span>
-        <span className="text-lg text-slate-600">by {entry.actor}</span>
-        <time dateTime={entry.ts} className="ml-auto text-base text-slate-500">{clock(entry.ts)}</time>
+        <span className="font-mono text-sm font-bold text-[#36452B]">#{entry.seq}</span>
+        <span className="text-sm font-serif font-semibold text-[#36452B]">{entry.action}</span>
+        <span className="text-xs text-[#7F7D74]">by {entry.actor}</span>
+        <time dateTime={entry.ts} className="ml-auto font-mono text-xs text-[#7F7D74]">{clock(entry.ts)}</time>
       </div>
-      <div className="mt-2 flex flex-wrap gap-x-6 text-sm">
+      <div className="flex flex-wrap gap-x-6 text-xs border-t border-[#D7D0C5]/40 pt-2">
         <Hash value={entry.prev_hash} label="prev" />
         <Hash value={entry.hash} label="hash" />
       </div>
       {Object.keys(entry.payload).length > 0 && (
-        <details className="mt-2">
-          <summary className="cursor-pointer text-base text-slate-600">Payload</summary>
-          <div className="mt-2"><Payload payload={entry.payload} /></div>
+        <details className="mt-1">
+          <summary className="cursor-pointer text-xs font-mono text-[#7F7D74] hover:text-[#36452B]">Payload details</summary>
+          <div className="mt-2 p-2 rounded-lg bg-[#F8F7F4] border border-[#D7D0C5]/60"><Payload payload={entry.payload} /></div>
         </details>
       )}
     </li>
@@ -138,12 +155,12 @@ function EntryRow({ entry }: { entry: AuditEntry }) {
 
 function CheckpointRow({ checkpoint }: { checkpoint: AuditCheckpoint }) {
   return (
-    <li className="rounded-xl border-2 border-indigo-400 bg-indigo-50 px-5 py-3">
+    <li className="rounded-xl border border-[#8A9646]/60 bg-[#8A9646]/10 px-5 py-3 space-y-1">
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <span className="text-lg font-bold text-indigo-900">🔏 Signed checkpoint at #{checkpoint.seq}</span>
-        <time dateTime={checkpoint.ts} className="ml-auto text-base text-indigo-800">{clock(checkpoint.ts)}</time>
+        <span className="text-sm font-serif font-bold text-[#36452B]">🔏 Signed checkpoint at #{checkpoint.seq}</span>
+        <time dateTime={checkpoint.ts} className="ml-auto font-mono text-xs text-[#7F7D74]">{clock(checkpoint.ts)}</time>
       </div>
-      <div className="mt-1 flex flex-wrap gap-x-6 text-sm">
+      <div className="flex flex-wrap gap-x-6 text-xs">
         <Hash value={checkpoint.head_hash} label="head" />
         <Hash value={checkpoint.signature} label="Ed25519 signature" />
       </div>

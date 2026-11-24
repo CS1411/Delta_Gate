@@ -5,8 +5,15 @@ import { inr, savedByBanner } from './format'
 import Approvals from './tabs/Approvals'
 import Audit from './tabs/Audit'
 import Check from './tabs/Check'
+import { HomeTab } from './tabs/Home'
 
 const TABS = {
+  home: {
+    id: '00',
+    label: 'Home',
+    description: 'System Overview & Verification Halo',
+    Tab: () => <HomeTab onNavigateTab={(t) => { window.location.hash = `#${t}` }} />,
+  },
   check: {
     id: '01',
     label: 'Check',
@@ -30,8 +37,9 @@ const TABS = {
 type TabKey = keyof typeof TABS
 
 const fromHash = (): TabKey => {
-  const key = window.location.hash.slice(1)
-  return key in TABS ? (key as TabKey) : 'check'
+  const raw = window.location.hash.slice(1)
+  const key = raw.split('/')[0].split('?')[0]
+  return key in TABS ? (key as TabKey) : 'home'
 }
 
 const POLL_WORKBOOKS_MS = 5000
@@ -46,6 +54,7 @@ function AppShell() {
   const [workbooks, setWorkbooks] = useState<WorkbookSummary[] | null>(null)
   const [heldCount, setHeldCount] = useState<number | null>(null)
   const [policy, setPolicy] = useState<Policy | null>(null)
+  const [isMorphOpen, setIsMorphOpen] = useState(false)
 
   // URL hash sync
   useEffect(() => {
@@ -98,16 +107,26 @@ function AppShell() {
   }, [])
 
   const currentTab = TABS[tab]
-  const { Tab } = currentTab
+  const TabComponent = currentTab.Tab
+
+  const navigateTab = (targetTab: TabKey) => {
+    window.location.hash = `#${targetTab}`
+    setTab(targetTab)
+    setIsMorphOpen(false)
+  }
 
   return (
     <div className="min-h-screen bg-[#F8F7F4] text-[#36452B] selection:bg-[#8A9646]/20">
       {/* Editorial Command Header */}
       <header className="sticky top-0 z-40 border-b border-[#D7D0C5]/80 bg-[#F8F7F4]/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-y-3 px-4 py-3 sm:px-6 lg:px-8">
-          {/* Left: Logo + Title */}
-          <div className="flex items-center gap-3.5">
-            <img src="/logo.png" alt="Delta Gate logo" className="h-9 w-auto object-contain rounded-lg" />
+          {/* Left: Logo + Title (clicking navigates to #home) */}
+          <a
+            href="#home"
+            onClick={() => navigateTab('home')}
+            className="flex items-center gap-3.5 group cursor-pointer"
+          >
+            <img src="/logo.png" alt="Delta Gate logo" className="h-9 w-auto object-contain rounded-lg transition-transform group-hover:scale-105" />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-black tracking-tight text-[#36452B]">
@@ -121,7 +140,7 @@ function AppShell() {
                 Independent verification &amp; policy gate for AI spreadsheet edits
               </p>
             </div>
-          </div>
+          </a>
 
           {/* Center: Dynamic Policy Guardrails Pill Bar */}
           <div className="hidden xl:flex items-center gap-2 rounded-full border border-[#D7D0C5] bg-white/80 px-4 py-1.5 shadow-sm font-mono text-xs text-[#36452B]">
@@ -158,9 +177,95 @@ function AppShell() {
       </header>
 
       {/* Main Tab Content */}
-      <main className="pb-36 pt-4">
-        <Tab />
+      <main className="mx-auto max-w-7xl px-4 pb-36 pt-4 sm:px-6 lg:px-8">
+        {tab === 'home' ? (
+          <HomeTab onNavigateTab={(t) => navigateTab(t)} />
+        ) : (
+          <TabComponent />
+        )}
       </main>
+
+      {/* Morph Drawer (Expands Upward from Bottom Dock) */}
+      {isMorphOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-4 bg-[#36452B]/20 backdrop-blur-sm transition-opacity">
+          <div className="w-full max-w-lg mb-24 rounded-3xl border border-[#D7D0C5] bg-[#F8F7F4]/95 p-6 shadow-2xl backdrop-blur-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#D7D0C5] pb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#8A9646]" />
+                <h3 className="font-serif font-bold text-[#36452B] text-lg">Quick Jump Navigation</h3>
+              </div>
+              <button
+                onClick={() => setIsMorphOpen(false)}
+                className="px-3 py-1 rounded-full text-xs font-mono font-medium text-[#7F7D74] hover:bg-[#D7D0C5]/40 transition"
+              >
+                Close ✕
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-[11px] font-mono font-semibold uppercase tracking-wider text-[#7F7D74]">
+                Editorial Jump Links
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <a
+                  href="#overview"
+                  onClick={() => { navigateTab('home'); setIsMorphOpen(false); }}
+                  className="p-2.5 rounded-xl bg-white/70 hover:bg-white border border-[#D7D0C5]/60 text-[#36452B] font-medium transition"
+                >
+                  <span className="font-mono text-xs text-[#8A9646] mr-1">1</span> Overview
+                </a>
+                <a
+                  href="#engine"
+                  onClick={() => { navigateTab('home'); setIsMorphOpen(false); }}
+                  className="p-2.5 rounded-xl bg-white/70 hover:bg-white border border-[#D7D0C5]/60 text-[#36452B] font-medium transition"
+                >
+                  <span className="font-mono text-xs text-[#8A9646] mr-1">2</span> Engine
+                </a>
+                <a
+                  href="#pipeline"
+                  onClick={() => { navigateTab('home'); setIsMorphOpen(false); }}
+                  className="p-2.5 rounded-xl bg-white/70 hover:bg-white border border-[#D7D0C5]/60 text-[#36452B] font-medium transition"
+                >
+                  <span className="font-mono text-xs text-[#8A9646] mr-1">3</span> Pipeline
+                </a>
+                <a
+                  href="#workspaces"
+                  onClick={() => { navigateTab('home'); setIsMorphOpen(false); }}
+                  className="p-2.5 rounded-xl bg-white/70 hover:bg-white border border-[#D7D0C5]/60 text-[#36452B] font-medium transition"
+                >
+                  <span className="font-mono text-xs text-[#8A9646] mr-1">4</span> Workspaces
+                </a>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-[#D7D0C5]/60">
+              <div className="text-[11px] font-mono font-semibold uppercase tracking-wider text-[#7F7D74]">
+                Workspaces
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <button
+                  onClick={() => navigateTab('check')}
+                  className="p-2 rounded-xl bg-white/70 hover:bg-white border border-[#D7D0C5]/60 text-[#36452B] font-medium transition"
+                >
+                  01 Check
+                </button>
+                <button
+                  onClick={() => navigateTab('approvals')}
+                  className="p-2 rounded-xl bg-white/70 hover:bg-white border border-[#D7D0C5]/60 text-[#36452B] font-medium transition"
+                >
+                  02 Approvals
+                </button>
+                <button
+                  onClick={() => navigateTab('audit')}
+                  className="p-2 rounded-xl bg-white/70 hover:bg-white border border-[#D7D0C5]/60 text-[#36452B] font-medium transition"
+                >
+                  03 Audit
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Floating Bottom Pill Dock (#36452B Deep Bamboo Green) */}
       <nav
@@ -180,15 +285,17 @@ function AppShell() {
               <a
                 key={key}
                 href={`#${key}`}
+                onClick={() => navigateTab(key)}
                 aria-current={active ? 'page' : undefined}
-                className={`relative flex items-center gap-2 rounded-full px-6 py-2.5 text-base font-bold transition-all duration-200 ${tabClass}`}
+                className={`relative flex items-center gap-1.5 sm:gap-2 rounded-full px-3.5 sm:px-5 py-2 text-sm sm:text-base font-bold transition-all duration-200 ${tabClass}`}
               >
                 <span className="font-mono text-xs opacity-75">{item.id}</span>
                 <span>{item.label}</span>
                 {showBadge && (
                   <span
-                    className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 font-mono text-xs font-bold ${active ? 'bg-[#36452B] text-white' : 'bg-[#EEDADA] text-[#36452B]'
-                      }`}
+                    className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 font-mono text-xs font-bold ${
+                      active ? 'bg-[#36452B] text-white' : 'bg-[#EEDADA] text-[#36452B]'
+                    }`}
                   >
                     {heldCount}
                   </span>
@@ -196,6 +303,16 @@ function AppShell() {
               </a>
             )
           })}
+
+          {/* Morph Menu Toggle Button (≡) */}
+          <button
+            type="button"
+            onClick={() => setIsMorphOpen(!isMorphOpen)}
+            title="Toggle Quick Navigation Drawer"
+            className="flex items-center justify-center rounded-full w-9 h-9 text-[#D7D0C5] hover:bg-white/10 hover:text-white transition font-mono text-lg font-bold"
+          >
+            ≡
+          </button>
         </div>
       </nav>
     </div>
@@ -248,7 +365,7 @@ function HeaderVerificationBanner({ workbooks }: { workbooks: WorkbookSummary[] 
               {w.current_version.slice(0, 8)}
             </span>
             {w.source === 'unmanaged' && (
-              <span className="rounded-md bg-[#EEDADA] px-2 py-0.5 font-mono text-[10px] font-black uppercase tracking-wider text-red-950 border border-red-300">
+              <span className="rounded-md bg-[#EEDADA] px-2 py-0.5 font-mono text-[10px] font-black uppercase tracking-wider text-[#36452B] border border-[#D7D0C5]">
                 Out-of-band edit
               </span>
             )}

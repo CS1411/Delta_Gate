@@ -5,7 +5,6 @@ import v2v3Fixture from '../../fixtures/check_v2_v3.json'
 import type { CheckResult } from '../../types'
 import CheckResultView from './CheckResultView'
 import HealthCoverageCard from '../../components/HealthCoverageCard'
-import LandingHero from '../../components/LandingHero'
 import Waterfall from './Waterfall'
 
 const SAMPLES: { label: string; desc: string; data: CheckResult }[] = [
@@ -79,9 +78,6 @@ export default function Check() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-10 px-4 py-4 sm:px-6 lg:px-8">
-      {/* Editorial Glass Landing Hero */}
-      <LandingHero />
-
       {/* 01 / Comparative Dual Ingestion */}
       <section id="workbook-ingestion" aria-label="Workbook Ingestion" className="glass-card p-6 sm:p-8">
         <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-[#D7D0C5]/70 pb-4">
@@ -214,7 +210,7 @@ export default function Check() {
         {error && (
           <div
             role="alert"
-            className="mt-6 flex items-start gap-3 rounded-xl border border-red-300 bg-[#EEDADA]/60 p-4 text-[#36452B]"
+            className="mt-6 flex items-start gap-3 rounded-xl border border-[#D7D0C5] bg-[#EEDADA]/60 p-4 text-[#36452B]"
           >
             <span className="text-xl">⚠️</span>
             <div className="text-sm font-semibold">{error}</div>

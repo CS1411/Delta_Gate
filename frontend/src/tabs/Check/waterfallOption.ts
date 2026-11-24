@@ -12,13 +12,13 @@ interface StepMeta {
   interaction?: number
 }
 
-// Visual Design System palette for Waterfall chart:
-// - Deep Bamboo Green #36452B: Total waterfall bars (Base, New)
-// - Mossy Rock Green #8A9646: Positive attribution bars
-// - Terracotta Crimson #A44A3F: Negative attribution bars
-// - Cherry Blossom Pink #EEDADA: Unverified bars
+// Strict 6-Color Zen Bamboo Palette for Waterfall chart:
+// - Deep Bamboo Green #36452B: Total waterfall bars (Base, New) & high contrast
+// - Mossy Rock Green #8A9646: Positive attribution bars & active states
+// - Cherry Blossom Pink #EEDADA: Negative shares & unverified bars
 // - Weathered Wood Grey #7F7D74: Muted axis labels & captions
 // - Zen Sand Beige #D7D0C5: Dividers and subtle grid lines
+// - Warm Off-White #F8F7F4: Canvas background
 
 function stepColor(meta: StepMeta, selected: boolean): string {
   if (meta.kind === 'total') {
@@ -29,7 +29,7 @@ function stepColor(meta: StepMeta, selected: boolean): string {
     return '#EEDADA'
   }
   if (meta.share !== undefined && meta.share < 0) {
-    return '#A44A3F'
+    return '#EEDADA'
   }
   // Positive attribution bars use Mossy Rock Green
   const base = '#8A9646'
@@ -49,162 +49,197 @@ export function buildWaterfallOption(
   const causes = output.attribution.filter((a) => a.share !== 0)
   const hasUnverified = output.delta_unverified !== null && output.delta_unverified !== 0
 
-  const metas: StepMeta[] = [{ kind: 'total', label: 'Base', value: output.base }]
-  const bases: number[] = [0]
-  const heights: number[] = [Math.abs(output.base)]
+  // Category labels and raw values for the waterfall steps
+  const categories: string[] = ['Base']
+  const metaList: StepMeta[] = [
+    { kind: 'total', label: 'Base', value: output.base },
+  ]
 
-  let running = output.base
-  const extremes: number[] = [output.base, output.new]
-
-  for (const a of causes) {
-    const group = groupById.get(a.group_id)
-    const start = a.share >= 0 ? running : running + a.share
-    bases.push(start)
-    heights.push(Math.abs(a.share))
-    running += a.share
-    extremes.push(running)
-    metas.push({
+  for (const c of causes) {
+    const g = groupById.get(c.group_id)
+    const label = g?.label ?? c.group_id
+    categories.push(label)
+    metaList.push({
       kind: 'group',
-      label: group?.label ?? a.group_id,
-      value: a.share,
-      groupId: a.group_id,
-      groupType: group?.type,
-      solo: a.solo,
-      share: a.share,
-      interaction: a.interaction,
+      label,
+      value: c.share,
+      groupId: c.group_id,
+      groupType: g?.type,
+      solo: c.solo,
+      share: c.share,
+      interaction: c.interaction,
     })
   }
 
-  if (hasUnverified) {
-    const unv = output.delta_unverified!
-    const start = unv >= 0 ? running : running + unv
-    bases.push(start)
-    heights.push(Math.abs(unv))
-    running += unv
-    extremes.push(running)
-    metas.push({ kind: 'unverified', label: 'Unverified', value: unv })
+  if (hasUnverified && output.delta_unverified !== null) {
+    categories.push('Unverified')
+    metaList.push({
+      kind: 'unverified',
+      label: 'Unverified',
+      value: output.delta_unverified,
+    })
   }
 
-  bases.push(0)
-  heights.push(Math.abs(output.new))
-  metas.push({ kind: 'total', label: 'New', value: output.new })
+  categories.push('New')
+  metaList.push({ kind: 'total', label: 'New', value: output.new })
 
-  const minVal = Math.min(...extremes)
-  const maxVal = Math.max(...extremes)
-  const span = maxVal - minVal
-  const pad = span > 0 ? span * 0.5 : Math.max(1000, Math.abs(minVal) * 0.1)
-  const axisMin = minVal > 0 && minVal > pad ? Math.max(0, Math.floor((minVal - pad) / 1000) * 1000) : undefined
+  // ECharts waterfall stacked-bar math (transparent base + visible delta)
+  const baseSeriesData: number[] = []
+  const deltaSeriesData: Array<{
+    value: number
+    itemStyle?: { color: string; borderColor?: string; borderWidth?: number; borderType?: 'dashed' | 'solid' }
+  }> = []
+
+  let running = 0
+
+  for (let i = 0; i < metaList.length; i++) {
+    const meta = metaList[i]
+    const isSelected = !!meta.groupId && meta.groupId === selectedGroupId
+
+    if (meta.kind === 'total') {
+      baseSeriesData.push(0)
+      deltaSeriesData.push({
+        value: meta.value,
+        itemStyle: {
+          color: '#36452B',
+          borderColor: '#36452B',
+        },
+      })
+      running = meta.value
+    } else {
+      const delta = meta.value
+      const start = running
+      const end = running + delta
+      const bottom = Math.min(start, end)
+      const height = Math.abs(delta)
+
+      baseSeriesData.push(bottom)
+
+      const color = stepColor(meta, isSelected)
+      const isUnverified = meta.kind === 'unverified'
+
+      deltaSeriesData.push({
+        value: height,
+        itemStyle: {
+          color,
+          borderColor: isUnverified ? '#36452B' : isSelected ? '#36452B' : undefined,
+          borderWidth: isUnverified ? 2 : isSelected ? 2 : 0,
+          borderType: isUnverified ? 'dashed' : 'solid',
+        },
+      })
+
+      running = end
+    }
+  }
 
   return {
     backgroundColor: 'transparent',
-    grid: { left: 104, right: 32, top: 48, bottom: 64 },
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-      borderColor: '#D7D0C5',
-      borderWidth: 1,
-      textStyle: { color: '#36452B', fontSize: 14, fontFamily: 'inherit' },
       formatter: (params: unknown) => {
-        const list = Array.isArray(params) ? params : [params]
-        const first = list[0] as { dataIndex?: number } | undefined
-        const meta = first?.dataIndex !== undefined ? metas[first.dataIndex] : undefined
+        const pList = params as Array<{ dataIndex: number }>
+        if (!pList || pList.length === 0) return ''
+        const idx = pList[0].dataIndex
+        const meta = metaList[idx]
         if (!meta) return ''
+
         if (meta.kind === 'total') {
-          return `<div style="font-weight:bold;color:#36452B">${meta.label} Total</div><div style="font-size:16px;font-weight:bold;margin-top:2px;">${inr(meta.value)}</div>`
+          return `<div style="font-weight:bold;color:#36452B">${meta.label}</div><div style="font-size:16px;font-weight:bold;margin-top:2px;">${inr(meta.value)}</div>`
         }
+
         if (meta.kind === 'unverified') {
-          return `<div style="font-weight:bold;color:#A44A3F">Unverified Delta</div><div style="font-size:16px;font-weight:bold;margin-top:2px;">${signedInr(meta.value)}</div><div style="color:#7F7D74;font-size:12px;margin-top:2px">Excluded from attribution (never guessed)</div>`
+          return `<div style="font-weight:bold;color:#36452B">Unverified Delta</div><div style="font-size:16px;font-weight:bold;margin-top:2px;">${signedInr(meta.value)}</div><div style="color:#7F7D74;font-size:12px;margin-top:2px">Excluded from attribution (never guessed)</div>`
         }
-        return [
-          `<div style="font-weight:bold;color:#36452B">${meta.label} <span style="font-size:11px;padding:1px 6px;border-radius:4px;background:#D7D0C5;color:#36452B;text-transform:uppercase">${meta.groupType ?? 'change'}</span></div>`,
-          `<div style="font-size:15px;margin-top:4px;">Shapley Share: <b>${signedInr(meta.share ?? 0)}</b></div>`,
-          `<div style="color:#7F7D74;font-size:13px;">Solo Effect: ${signedInr(meta.solo ?? 0)}</div>`,
-          `<div style="color:#7F7D74;font-size:13px;">Synergy / Interaction: ${signedInr(meta.interaction ?? 0)}</div>`,
-        ].join('')
+
+        const gType = meta.groupType ? `<span style="font-size:11px;padding:1px 6px;border-radius:4px;background:#D7D0C5;color:#36452B;margin-left:6px">${meta.groupType}</span>` : ''
+        let body = `<div style="display:flex;align-items:center;font-weight:bold;color:#36452B"><span>${meta.label}</span>${gType}</div>`
+        body += `<div style="font-size:16px;font-weight:bold;margin-top:4px;color:#36452B">Share: ${signedInr(meta.value)}</div>`
+
+        if (meta.solo !== undefined && meta.interaction !== undefined) {
+          body += `<div style="margin-top:6px;font-size:12px;border-top:1px solid #D7D0C5;padding-top:4px;color:#7F7D74">
+            <div>Solo contribution: <b style="color:#36452B">${signedInr(meta.solo)}</b></div>
+            <div>Interaction (cooperation): <b style="color:#36452B">${signedInr(meta.interaction)}</b></div>
+          </div>`
+        }
+
+        return body
       },
+    },
+    grid: {
+      top: 24,
+      bottom: 40,
+      left: 70,
+      right: 24,
+      containLabel: true,
     },
     xAxis: {
       type: 'category',
-      data: metas.map((m) => m.label),
+      data: categories,
+      axisLabel: {
+        color: '#7F7D74',
+        fontSize: 12,
+        fontWeight: 'bold',
+        interval: 0,
+        formatter: (val: string) => {
+          return val.length > 16 ? `${val.slice(0, 14)}…` : val
+        },
+      },
       axisLine: { lineStyle: { color: '#D7D0C5' } },
       axisTick: { show: false },
-      axisLabel: {
-        interval: 0,
-        fontSize: 13,
-        fontWeight: '500',
-        color: '#7F7D74',
-        margin: 12,
-        formatter: (value: string) => (value.length > 24 ? `${value.slice(0, 22)}…` : value),
-      },
     },
     yAxis: {
       type: 'value',
-      min: axisMin,
-      axisLine: { show: false },
-      axisTick: { show: false },
       axisLabel: {
-        fontSize: 13,
-        fontWeight: 'bold',
         color: '#7F7D74',
-        formatter: (value: number) => inr(value),
+        fontSize: 11,
+        formatter: (val: number) => inr(val),
       },
       splitLine: {
         lineStyle: {
-          color: '#D7D0C5',
-          opacity: 0.5,
+          color: 'rgba(215, 208, 197, 0.4)',
           type: 'dashed',
         },
       },
     },
     series: [
+      // Transparent helper bar for bottom elevation
       {
-        name: 'BaseOffset',
+        name: 'Placeholder',
         type: 'bar',
-        stack: 'wf',
-        silent: true,
-        itemStyle: { borderColor: 'transparent', color: 'transparent' },
-        emphasis: { itemStyle: { borderColor: 'transparent', color: 'transparent' } },
-        data: bases,
+        stack: 'waterfall',
+        itemStyle: {
+          borderColor: 'transparent',
+          color: 'transparent',
+        },
+        emphasis: {
+          itemStyle: {
+            borderColor: 'transparent',
+            color: 'transparent',
+          },
+        },
+        data: baseSeriesData,
       },
+      // Visible step / attribution bar
       {
-        name: 'Amount',
+        name: 'Attribution',
         type: 'bar',
-        stack: 'wf',
-        barMaxWidth: 76,
+        stack: 'waterfall',
+        data: deltaSeriesData,
+        barMaxWidth: 56,
         label: {
           show: true,
           position: 'top',
-          fontSize: 14,
-          fontWeight: 'bold',
           color: '#36452B',
-          distance: 6,
-          formatter: ({ dataIndex }: { dataIndex: number }) => {
-            const meta = metas[dataIndex]
+          fontSize: 11,
+          fontWeight: 'bold',
+          formatter: (params: unknown) => {
+            const p = params as { dataIndex: number }
+            const meta = metaList[p.dataIndex]
             if (!meta) return ''
             return meta.kind === 'total' ? inr(meta.value) : signedInr(meta.value)
           },
         },
-        data: heights.map((value, i) => {
-          const meta = metas[i]
-          const isSelected = Boolean(meta.groupId && meta.groupId === selectedGroupId)
-          const barColor = stepColor(meta, isSelected)
-          const isUnverified = meta.kind === 'unverified'
-          return {
-            value,
-            groupId: meta.groupId ?? null,
-            itemStyle: {
-              color: barColor,
-              borderRadius: [6, 6, 0, 0],
-              borderColor: isSelected
-                ? '#36452B'
-                : isUnverified
-                ? '#A44A3F'
-                : 'transparent',
-              borderWidth: isSelected ? 3 : isUnverified ? 1.5 : 0,
-            },
-          }
-        }),
       },
     ],
   }
