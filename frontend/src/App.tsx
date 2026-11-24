@@ -1,43 +1,48 @@
-import { useEffect, useState, type ComponentType, type SVGProps } from 'react'
+import { useEffect, useState, type ComponentType } from 'react'
 
 import { fetchHeld, fetchPolicy, fetchWorkbooks, type Policy, type WorkbookSummary } from './api'
-import { IconChain, IconCompare, IconHistory, IconInbox, IconSliders } from './components/Icons'
+import { IconSliders } from './components/Icons'
 import { inr, savedByBanner } from './format'
 import Approvals from './tabs/Approvals'
 import Audit from './tabs/Audit'
 import Check from './tabs/Check'
+import { HomeTab } from './tabs/Home'
 import SessionAudit from './tabs/SessionAudit'
 
 interface TabDef {
   label: string
   description: string
-  Icon: ComponentType<SVGProps<SVGSVGElement>>
   Tab: ComponentType
 }
 
+const goTo = (t: string) => {
+  window.location.hash = `#${t}`
+}
+
 const TABS = {
+  home: {
+    label: 'Home',
+    description: 'What Delta Gate checks, and where to start',
+    Tab: () => <HomeTab onNavigateTab={goTo} />,
+  },
   check: {
     label: 'Check',
     description: 'Two-version comparator & Shapley attribution',
-    Icon: IconCompare,
     Tab: Check,
   },
   approvals: {
     label: 'Approvals',
     description: 'MCP agent gate & held edits inbox',
-    Icon: IconInbox,
     Tab: Approvals,
   },
   audit: {
     label: 'Audit',
     description: 'Hash-chained Ed25519 audit ledger',
-    Icon: IconChain,
     Tab: Audit,
   },
   session: {
     label: 'Session Audit',
     description: 'Snapshot before an in-Excel AI session, Check after',
-    Icon: IconHistory,
     Tab: SessionAudit,
   },
 } as const satisfies Record<string, TabDef>
@@ -46,7 +51,7 @@ type TabKey = keyof typeof TABS
 
 const fromHash = (): TabKey => {
   const key = window.location.hash.slice(1)
-  return key in TABS ? (key as TabKey) : 'check'
+  return key in TABS ? (key as TabKey) : 'home'
 }
 
 const POLL_WORKBOOKS_MS = 5000
@@ -61,9 +66,13 @@ function AppShell() {
   const [workbooks, setWorkbooks] = useState<WorkbookSummary[] | null>(null)
   const [heldCount, setHeldCount] = useState<number | null>(null)
   const [policy, setPolicy] = useState<Policy | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
-    const onHash = () => setTab(fromHash())
+    const onHash = () => {
+      setTab(fromHash())
+      setMenuOpen(false)
+    }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
@@ -115,86 +124,63 @@ function AppShell() {
 
   return (
     <div className="min-h-screen bg-[#F8F7F4] text-[#36452B]">
-      {/* Desktop / Tablet Left Sidebar Rail (#36452B Deep Bamboo) */}
-      <aside
-        aria-label="Primary Sidebar"
-        className="hidden md:fixed md:inset-y-0 md:left-0 md:z-40 md:flex md:w-56 lg:w-60 md:flex-col md:border-r md:border-[#2B3822] md:bg-[#36452B] md:text-[#F8F7F4]"
-      >
-        <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
-          <img
-            src="/logo.png"
-            alt="Delta Gate logo"
-            className="h-9 w-9 shrink-0 rounded-md bg-[#F8F7F4] object-contain p-1"
-          />
-          <div className="min-w-0">
-            <div className="text-base font-bold tracking-tight text-[#F8F7F4]">Delta Gate</div>
-            <div className="truncate text-xs text-[#D7D0C5]/85">Spreadsheet audit &amp; gate</div>
-          </div>
+      <header className="sticky top-0 z-30 border-b border-[#D7D0C5] bg-[#F8F7F4]/95 backdrop-blur-sm">
+        <div className="mx-auto flex min-h-14 max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
+          <a href="#home" className="flex items-center gap-3">
+            <img src="/logo.png" alt="Delta Gate logo" className="h-8 w-8 shrink-0 rounded-md object-contain" />
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+              <span className="text-base font-bold tracking-tight text-[#36452B]">Delta Gate</span>
+              <span className="text-sm font-semibold text-[#36452B]/80">{currentTab.label}</span>
+              <span className="hidden text-xs text-[#36452B]/75 sm:inline">{currentTab.description}</span>
+            </div>
+          </a>
+          <HeaderVerificationBanner workbooks={workbooks} />
         </div>
+      </header>
 
-        <nav aria-label="Main Navigation" className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {(Object.keys(TABS) as TabKey[]).map((key) => {
-            const active = tab === key
-            const { label, Icon } = TABS[key]
-            const showBadge = key === 'approvals' && heldCount !== null && heldCount > 0
+      <main className="mx-auto max-w-6xl px-4 pb-36 pt-6 sm:px-6 lg:px-8">
+        <div key={tab} className="animate-dg-enter">
+          <Tab />
+        </div>
+      </main>
 
-            return (
-              <a
-                key={key}
-                href={`#${key}`}
-                aria-current={active ? 'page' : undefined}
-                className={`relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold transition-colors duration-150 ${
-                  active
-                    ? 'bg-white/12 text-[#F8F7F4]'
-                    : 'text-[#D7D0C5]/85 hover:bg-white/6 hover:text-[#F8F7F4]'
-                }`}
+      {menuOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-[#36452B]/20 p-4 backdrop-blur-sm"
+          onClick={() => setMenuOpen(false)}
+        >
+          <div
+            className="mb-24 w-full max-w-md rounded-2xl border border-[#D7D0C5] bg-[#F8F7F4] p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[#D7D0C5] pb-3">
+              <div className="flex items-center gap-1.5 text-sm font-semibold">
+                <IconSliders className="h-4 w-4 text-[#8A9646]" />
+                <span>Policy guardrails</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                className="rounded-full px-3 py-1 font-mono text-xs text-[#7F7D74] hover:bg-[#D7D0C5]/40"
               >
-                <span
-                  aria-hidden="true"
-                  className={`absolute inset-y-1.5 left-0 w-[3px] rounded-r bg-[#8A9646] transition-opacity duration-150 ${
-                    active ? 'opacity-100' : 'opacity-0'
-                  }`}
-                />
-                <Icon className={`h-4 w-4 shrink-0 ${active ? 'text-[#8A9646]' : 'text-[#D7D0C5]/80'}`} />
-                <span className="flex-1">{label}</span>
-                {showBadge && (
-                  <span className="rounded-md bg-[#EEDADA] px-1.5 py-0.5 font-mono text-xs font-semibold tabular-nums text-[#36452B]">
-                    {heldCount}
-                  </span>
-                )}
-              </a>
-            )
-          })}
-        </nav>
-
-        <div className="border-t border-white/10 p-4">
-          <div className="rounded-md border border-white/10 bg-[#2B3822] p-3">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#D7D0C5]">
-              <IconSliders className="h-3.5 w-3.5 text-[#8A9646]" />
-              <span>Policy guardrails</span>
+                Close ✕
+              </button>
             </div>
             {policy ? (
-              <dl className="mt-2.5 space-y-2 text-xs">
+              <dl className="mt-3 space-y-2 text-sm">
                 <div className="flex items-baseline justify-between gap-2">
-                  <dt className="text-[#D7D0C5]/80">Impact limit</dt>
-                  <dd className="font-mono font-semibold tabular-nums text-[#F8F7F4]">
-                    {inr(policy.impact_limit_abs)}
-                  </dd>
+                  <dt className="text-[#36452B]/75">Impact limit</dt>
+                  <dd className="font-mono font-semibold tabular-nums">{inr(policy.impact_limit_abs)}</dd>
                 </div>
                 <div className="flex items-baseline justify-between gap-2">
-                  <dt className="text-[#D7D0C5]/80">Drift budget</dt>
-                  <dd className="font-mono font-semibold tabular-nums text-[#F8F7F4]">
-                    {inr(policy.drift_budget)}
-                  </dd>
+                  <dt className="text-[#36452B]/75">Drift budget</dt>
+                  <dd className="font-mono font-semibold tabular-nums">{inr(policy.drift_budget)}</dd>
                 </div>
-                <div className="border-t border-white/10 pt-2">
-                  <dt className="text-[#D7D0C5]/80">Protected cells</dt>
+                <div className="border-t border-[#D7D0C5] pt-2">
+                  <dt className="text-[#36452B]/75">Protected cells</dt>
                   <dd className="mt-1 flex flex-wrap gap-1">
                     {policy.protected.map((cell) => (
-                      <span
-                        key={cell}
-                        className="rounded bg-[#36452B] px-1.5 py-0.5 font-mono text-[11px] text-[#F8F7F4]"
-                      >
+                      <span key={cell} className="rounded bg-[#36452B] px-1.5 py-0.5 font-mono text-xs text-[#F8F7F4]">
                         {cell}
                       </span>
                     ))}
@@ -202,81 +188,52 @@ function AppShell() {
                 </div>
               </dl>
             ) : (
-              <p className="mt-2 text-xs text-[#D7D0C5]/75">
-                Connect backend API to inspect active policy limits.
-              </p>
+              <p className="mt-3 text-sm text-[#36452B]/75">Connect backend API to inspect active policy limits.</p>
             )}
           </div>
         </div>
-      </aside>
+      )}
 
-      {/* Mobile Top Chrome */}
-      <div className="md:hidden">
-        <div className="flex items-center justify-between bg-[#36452B] px-4 py-3 text-[#F8F7F4]">
-          <div className="flex items-center gap-2.5">
-            <img
-              src="/logo.png"
-              alt="Delta Gate logo"
-              className="h-7 w-7 rounded bg-[#F8F7F4] object-contain p-0.5"
-            />
-            <span className="text-sm font-bold tracking-tight">Delta Gate</span>
-          </div>
-          {policy && (
-            <span className="font-mono text-[11px] text-[#D7D0C5]">
-              Limit {inr(policy.impact_limit_abs)} · Drift {inr(policy.drift_budget)}
-            </span>
-          )}
-        </div>
-        <nav
-          aria-label="Mobile Navigation"
-          className="flex overflow-x-auto border-b border-[#D7D0C5] bg-[#F8F7F4] px-2"
-        >
-          {(Object.keys(TABS) as TabKey[]).map((key) => {
+      {/* Floating bottom dock */}
+      <nav aria-label="Main Navigation" className="fixed bottom-6 left-1/2 z-50 max-w-[calc(100vw-1rem)] -translate-x-1/2">
+        <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] rounded-full border border-[#D7D0C5]/40 bg-[#36452B]/95 p-2 shadow-2xl backdrop-blur-xl">
+          {(Object.keys(TABS) as TabKey[]).map((key, i) => {
             const active = tab === key
-            const { label, Icon } = TABS[key]
             const showBadge = key === 'approvals' && heldCount !== null && heldCount > 0
             return (
               <a
                 key={key}
                 href={`#${key}`}
                 aria-current={active ? 'page' : undefined}
-                className={`flex shrink-0 items-center gap-2 border-b-2 px-3.5 py-2.5 text-sm font-semibold transition-colors ${
-                  active
-                    ? 'border-[#36452B] text-[#36452B]'
-                    : 'border-transparent text-[#36452B]/70 hover:text-[#36452B]'
+                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-bold transition-all duration-200 sm:gap-2 sm:px-5 sm:text-base ${
+                  active ? 'bg-[#8A9646] text-white shadow-sm' : 'text-[#D7D0C5] hover:bg-white/10 hover:text-white'
                 }`}
               >
-                <Icon className={`h-4 w-4 ${active ? 'text-[#8A9646]' : ''}`} />
-                <span>{label}</span>
+                <span className="font-mono text-xs opacity-75">{String(i).padStart(2, '0')}</span>
+                <span>{TABS[key].label}</span>
                 {showBadge && (
-                  <span className="rounded-md bg-[#EEDADA] px-1.5 py-0.5 font-mono text-xs font-semibold tabular-nums text-[#36452B]">
+                  <span
+                    className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 font-mono text-xs font-bold ${
+                      active ? 'bg-[#36452B] text-white' : 'bg-[#EEDADA] text-[#36452B]'
+                    }`}
+                  >
                     {heldCount}
                   </span>
                 )}
               </a>
             )
           })}
-        </nav>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="md:pl-56 lg:pl-60">
-        <header className="sticky top-0 z-30 border-b border-[#D7D0C5] bg-[#F8F7F4]/95 backdrop-blur-sm">
-          <div className="mx-auto flex min-h-14 max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-              <h1 className="text-base font-bold text-[#36452B]">{currentTab.label}</h1>
-              <p className="hidden text-xs text-[#36452B]/75 sm:inline">{currentTab.description}</p>
-            </div>
-            <HeaderVerificationBanner workbooks={workbooks} />
-          </div>
-        </header>
-
-        <main className="mx-auto max-w-6xl px-4 py-6 pb-12 sm:px-6 lg:px-8">
-          <div key={tab} className="animate-dg-enter">
-            <Tab />
-          </div>
-        </main>
-      </div>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            title="Policy guardrails"
+            aria-label="Policy guardrails"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-mono text-lg font-bold text-[#D7D0C5] transition hover:bg-white/10 hover:text-white"
+          >
+            ≡
+          </button>
+        </div>
+      </nav>
     </div>
   )
 }
