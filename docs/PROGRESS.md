@@ -144,6 +144,9 @@ p95 > 1.5 s, so **sidecar mode** was built: a commit writes the openpyxl file at
 - **`docs/DEMO_RUNBOOK.md`:** complete 3-minute demo script (pre-demo checklist, exact engine numbers, Acts 0–3, Claude Desktop prompt, REST routes, live fallback matrix, backup recording slot, Q&A quick reference), with `[Nitika/P4: ...]` / `[Nikita/P2: ...]` UI click placeholders.
 - **`docs/SPLIT.md`:** filled in `P3 = Hemanth (h0674)`.
 
+## Done (P2): lost-link mini-graph
+`frontend/src/components/LostLinkGraph.tsx` (React Flow, `@xyflow/react` added) + `lostLinkModel.ts` (pure: finding in, nodes and edges out) + `GraphBoundary.tsx`. Mounted lazily under every `lost_link` finding in `StructuralPanel`; the graph is its own chunk, not in the main bundle. Draws `path_before` as a dashed red chain labelled "no longer connected" and each `kept[].path` as a solid grey chain labelled "still connected"; the region is drawn once. Handled without crashing or going blank: `path_before = []` (region and output as two unconnected nodes, "no path found"), `kept = []` (a red callout: no other watched output still reaches the region), `region = null` (nothing drawn, a console warning). The text alert does not depend on the graph: remove the `<LostLinkGraph>` block and its three imports and the panel is unchanged.
+
 ## How a Check decides what is verified (read before Phase 2)
 - **Unverifiable roots:** formula not on the allowlist (reason = the function name), `#REF!`-style error, named range / table / external reference, array formula, a workbook with macros or pivot tables (every formula), a base cell whose engine value differs from its saved value, an engine error.
 - **Tainted** = roots + everything downstream, taken on the union of the base and new graphs (every coalition's dependencies are a subset of that union).
