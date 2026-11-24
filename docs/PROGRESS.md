@@ -306,6 +306,18 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 - `api.ts`: `fetchPolicy()` and a `Policy` type. For the header's policy pills, so no limit or protected cell is typed into the UI by hand (rule 1).
 - Test: `test_policy_endpoint_returns_what_the_gate_enforces`.
 
+## Done (P1): Rollback button, and a fix for random 500s from the API (branch `p1-rollback`)
+- **Rollback button** (`frontend/src/tabs/Approvals/Workbooks.tsx`, under the held cards):
+  - One row per workbook from `GET /api/workbooks`: current version and the honest saved-values wording.
+  - Clicking **Roll back** shows **Confirm rollback / Cancel**, so a stray click on stage can't undo anything. Confirm → `POST /api/workbooks/{id}/rollback`.
+  - The button is disabled when `can_rollback` is false. The server's 409 message is shown.
+  - Checked live: a committed payment was rolled back, the Excel-saved original is current again, and the agent's `get_decision` reads ROLLED_BACK.
+  - Rolling back again goes one more step back: that is the gate's existing behaviour (restore the managed version before the current one).
+- **Bug fixed: random 500s** (`sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread`).
+  - **Cause:** FastAPI opens a request's connection (the `connection` dependency) on one worker thread and can run the endpoint on another. While the page polled three endpoints at once, some requests failed. It would have shown up in the live demo.
+  - **Fix:** `db.connect()` opens connections with `check_same_thread=False`. Each connection still belongs to one request or one process and is never used concurrently.
+  - **Tests:** `test_a_connection_can_be_handed_to_another_thread` (fails without the fix) and `test_parallel_polls_never_500`.
+
 ## In progress
 Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phase-2-gate` goes to `main` by pull request. Phase 3 has not started.
 

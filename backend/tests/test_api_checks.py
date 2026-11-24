@@ -191,3 +191,32 @@ def test_policy_endpoint_returns_what_the_gate_enforces(client):
     assert r.json() == config.load_policy().model_dump()
     assert r.json()["impact_limit_abs"] == 10000 and r.json()["drift_budget"] == 25000
     assert r.json()["protected"] == ["LateFees!F3", "Summary!C4", "Summary!C6"]
+
+
+# --- a request's connection may be used from more than one worker thread -----------------------------------
+
+
+def test_a_connection_can_be_handed_to_another_thread(home):
+    """FastAPI opens a request's connection (the dependency) on one worker thread and may run the endpoint on
+    another. With sqlite3's default check_same_thread=True that raised ProgrammingError, seen as random 500s
+    while the page polled three endpoints at once."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from deltagate import db
+
+    conn = db.connect()
+    try:
+        with ThreadPoolExecutor(max_workers=1) as other:
+            assert other.submit(lambda: conn.execute("SELECT 1").fetchone()[0]).result() == 1
+    finally:
+        conn.close()
+
+
+def test_parallel_polls_never_500(client, home):
+    from concurrent.futures import ThreadPoolExecutor
+
+    store.register(home, V2, "dues")
+    paths = ["/api/workbooks", "/api/edits?status=held", "/api/audit"] * 10
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        codes = list(pool.map(lambda p: client.get(p).status_code, paths))
+    assert codes == [200] * len(paths)

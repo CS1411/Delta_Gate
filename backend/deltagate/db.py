@@ -33,7 +33,10 @@ CREATE TABLE IF NOT EXISTS checkpoints (
 
 
 def connect(path: Path | str | None = None) -> sqlite3.Connection:
-    conn = sqlite3.connect(path or config.db_path(), isolation_level=None, timeout=30)  # we say BEGIN ourselves
+    # check_same_thread=False: FastAPI opens a request's connection on one worker thread and may run the endpoint
+    # on another. Each connection still belongs to one request (or one process) and is never used concurrently.
+    conn = sqlite3.connect(path or config.db_path(), isolation_level=None, timeout=30,  # we say BEGIN ourselves
+                           check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.executescript(SCHEMA)
