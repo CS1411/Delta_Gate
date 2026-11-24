@@ -183,3 +183,11 @@ def test_workbooks_list_the_current_version_and_whether_rollback_can_run(client,
     assert client.post("/api/workbooks/dues/rollback").status_code == 200
     (dues,) = client.get("/api/workbooks").json()
     assert dues["current_version"] == store.sha256(V2)
+
+
+def test_policy_endpoint_returns_what_the_gate_enforces(client):
+    r = client.get("/api/policy")
+    assert r.status_code == 200
+    assert r.json() == config.load_policy().model_dump()
+    assert r.json()["impact_limit_abs"] == 10000 and r.json()["drift_budget"] == 25000
+    assert r.json()["protected"] == ["LateFees!F3", "Summary!C4", "Summary!C6"]

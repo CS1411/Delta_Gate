@@ -31,7 +31,7 @@ from deltagate import config, db, session_audit
 from deltagate.engine.check import check
 from deltagate.engine.proof import proof_workbook
 from deltagate.gate import audit, gate, store
-from deltagate.models import AuditLog, CheckResult, Decision
+from deltagate.models import AuditLog, CheckResult, Decision, Policy
 
 app = FastAPI(title="Delta Gate")
 
@@ -99,6 +99,12 @@ class WorkbookSummary(BaseModel):
     source: Literal["managed", "unmanaged"]
     updated_at: str  # when the current version was recorded
     can_rollback: bool  # an earlier version exists, so POST .../rollback will not answer 409
+
+
+@app.get("/api/policy")
+def get_policy() -> Policy:
+    """The policy the gate enforces, read from policy.yaml on each call, so the UI never types a limit in by hand."""
+    return config.load_policy()
 
 
 @app.get("/api/workbooks")

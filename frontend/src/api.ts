@@ -75,3 +75,12 @@ export interface WorkbookSummary {
   can_rollback: boolean
 }
 export const fetchWorkbooks = () => call<WorkbookSummary[]>('/api/workbooks')
+
+// The policy the gate enforces (policy.yaml), for the header: limits are never typed into the UI.
+export interface Policy {
+  watched_outputs: { cell: string; label: string }[]
+  impact_limit_abs: number
+  drift_budget: number
+  protected: string[]
+}
+export const fetchPolicy = () => call<Policy>('/api/policy')
