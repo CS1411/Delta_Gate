@@ -12,17 +12,28 @@ interface StepMeta {
   interaction?: number
 }
 
-const GROUP_COLOR: Record<GroupType, string> = {
-  data: '#0284c7',
-  logic: '#7c3aed',
-  structural: '#d97706',
-}
+// Visual Design System palette for Waterfall chart:
+// - Deep Bamboo Green #36452B: Total waterfall bars (Base, New)
+// - Mossy Rock Green #8A9646: Positive attribution bars
+// - Terracotta Crimson #A44A3F: Negative attribution bars
+// - Cherry Blossom Pink #EEDADA: Unverified bars
+// - Weathered Wood Grey #7F7D74: Muted axis labels & captions
+// - Zen Sand Beige #D7D0C5: Dividers and subtle grid lines
 
 function stepColor(meta: StepMeta, selected: boolean): string {
-  if (meta.kind === 'total') return meta.label === 'Base' ? '#475569' : '#0f172a'
-  if (meta.kind === 'unverified') return '#f59e0b'
-  const base = meta.share !== undefined && meta.share < 0 ? '#059669' : GROUP_COLOR[meta.groupType ?? 'data']
-  return selected ? '#0369a1' : base
+  if (meta.kind === 'total') {
+    // Both Base and New total bars use Deep Bamboo Green
+    return '#36452B'
+  }
+  if (meta.kind === 'unverified') {
+    return '#EEDADA'
+  }
+  if (meta.share !== undefined && meta.share < 0) {
+    return '#A44A3F'
+  }
+  // Positive attribution bars use Mossy Rock Green
+  const base = '#8A9646'
+  return selected ? '#36452B' : base
 }
 
 /** Build the ECharts option for a single watched output's waterfall, or null when base/new is unknown. */
@@ -85,44 +96,66 @@ export function buildWaterfallOption(
   const axisMin = minVal > 0 && minVal > pad ? Math.max(0, Math.floor((minVal - pad) / 1000) * 1000) : undefined
 
   return {
-    grid: { left: 96, right: 28, top: 44, bottom: 56 },
+    backgroundColor: 'transparent',
+    grid: { left: 104, right: 32, top: 48, bottom: 64 },
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderColor: '#D7D0C5',
+      borderWidth: 1,
+      textStyle: { color: '#36452B', fontSize: 14, fontFamily: 'inherit' },
       formatter: (params: unknown) => {
         const list = Array.isArray(params) ? params : [params]
         const first = list[0] as { dataIndex?: number } | undefined
         const meta = first?.dataIndex !== undefined ? metas[first.dataIndex] : undefined
         if (!meta) return ''
-        if (meta.kind === 'total') return `<b>${meta.label}</b><br/>${inr(meta.value)}`
-        if (meta.kind === 'unverified') return `<b>Unverified</b><br/>${signedInr(meta.value)} (never guessed)`
+        if (meta.kind === 'total') {
+          return `<div style="font-weight:bold;color:#36452B">${meta.label} Total</div><div style="font-size:16px;font-weight:bold;margin-top:2px;">${inr(meta.value)}</div>`
+        }
+        if (meta.kind === 'unverified') {
+          return `<div style="font-weight:bold;color:#A44A3F">Unverified Delta</div><div style="font-size:16px;font-weight:bold;margin-top:2px;">${signedInr(meta.value)}</div><div style="color:#7F7D74;font-size:12px;margin-top:2px">Excluded from attribution (never guessed)</div>`
+        }
         return [
-          `<b>${meta.label}</b> (${meta.groupType ?? 'change'})`,
-          `Share: <b>${signedInr(meta.share ?? 0)}</b>`,
-          `Solo: ${signedInr(meta.solo ?? 0)}`,
-          `Interaction: ${signedInr(meta.interaction ?? 0)}`,
-        ].join('<br/>')
+          `<div style="font-weight:bold;color:#36452B">${meta.label} <span style="font-size:11px;padding:1px 6px;border-radius:4px;background:#D7D0C5;color:#36452B;text-transform:uppercase">${meta.groupType ?? 'change'}</span></div>`,
+          `<div style="font-size:15px;margin-top:4px;">Shapley Share: <b>${signedInr(meta.share ?? 0)}</b></div>`,
+          `<div style="color:#7F7D74;font-size:13px;">Solo Effect: ${signedInr(meta.solo ?? 0)}</div>`,
+          `<div style="color:#7F7D74;font-size:13px;">Synergy / Interaction: ${signedInr(meta.interaction ?? 0)}</div>`,
+        ].join('')
       },
     },
     xAxis: {
       type: 'category',
       data: metas.map((m) => m.label),
+      axisLine: { lineStyle: { color: '#D7D0C5' } },
+      axisTick: { show: false },
       axisLabel: {
         interval: 0,
         fontSize: 13,
-        color: '#334155',
-        formatter: (value: string) => (value.length > 26 ? `${value.slice(0, 24)}…` : value),
+        fontWeight: '500',
+        color: '#7F7D74',
+        margin: 12,
+        formatter: (value: string) => (value.length > 24 ? `${value.slice(0, 22)}…` : value),
       },
     },
     yAxis: {
       type: 'value',
       min: axisMin,
+      axisLine: { show: false },
+      axisTick: { show: false },
       axisLabel: {
         fontSize: 13,
-        color: '#475569',
+        fontWeight: 'bold',
+        color: '#7F7D74',
         formatter: (value: number) => inr(value),
       },
-      splitLine: { lineStyle: { color: '#e2e8f0' } },
+      splitLine: {
+        lineStyle: {
+          color: '#D7D0C5',
+          opacity: 0.5,
+          type: 'dashed',
+        },
+      },
     },
     series: [
       {
@@ -138,13 +171,14 @@ export function buildWaterfallOption(
         name: 'Amount',
         type: 'bar',
         stack: 'wf',
-        barMaxWidth: 72,
+        barMaxWidth: 76,
         label: {
           show: true,
           position: 'top',
           fontSize: 14,
           fontWeight: 'bold',
-          color: '#0f172a',
+          color: '#36452B',
+          distance: 6,
           formatter: ({ dataIndex }: { dataIndex: number }) => {
             const meta = metas[dataIndex]
             if (!meta) return ''
@@ -154,14 +188,20 @@ export function buildWaterfallOption(
         data: heights.map((value, i) => {
           const meta = metas[i]
           const isSelected = Boolean(meta.groupId && meta.groupId === selectedGroupId)
+          const barColor = stepColor(meta, isSelected)
+          const isUnverified = meta.kind === 'unverified'
           return {
             value,
             groupId: meta.groupId ?? null,
             itemStyle: {
-              color: stepColor(meta, isSelected),
+              color: barColor,
               borderRadius: [6, 6, 0, 0],
-              borderColor: isSelected ? '#0f172a' : 'transparent',
-              borderWidth: isSelected ? 3 : 0,
+              borderColor: isSelected
+                ? '#36452B'
+                : isUnverified
+                ? '#A44A3F'
+                : 'transparent',
+              borderWidth: isSelected ? 3 : isUnverified ? 1.5 : 0,
             },
           }
         }),

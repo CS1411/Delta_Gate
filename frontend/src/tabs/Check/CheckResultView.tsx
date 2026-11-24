@@ -1,12 +1,15 @@
 import { useState, type ReactNode } from 'react'
 import StructuralPanel from '../../components/StructuralPanel'
-import { inr, savedByBanner, signedInr } from '../../format'
+import { inr, signedInr } from '../../format'
 import type { CheckResult, Group, Output } from '../../types'
 import GroupsTable from './GroupsTable'
 
-// Check tab results view: verification banner, template headline, watched output selector, groups table
-// (with type filter, clickable cells, Prove it), structural findings, and unverifiable list.
-// Every number comes from the engine CheckResult; null always shows as "unknown", never 0.
+// Check tab results view: honest verification banner, executive headline, watched output switcher,
+// waterfall chart, structural integrity panel, and change groups ledger.
+// Adheres strictly to Non-Negotiable Rules:
+// 1. Every number comes directly from the engine CheckResult.
+// 2. Null means "unknown", NEVER 0.
+// 3. Honest banner based on verification.saved_by.
 
 export interface CheckResultViewProps {
   check: CheckResult
@@ -22,6 +25,14 @@ export interface CheckResultViewProps {
 
 const fmtValue = (n: number | null) => (n === null ? 'unknown' : inr(n))
 const fmtDelta = (n: number | null) => (n === null ? 'unknown' : signedInr(n))
+
+// Honest verification banner helper complying with rule 5
+function getSavedByBannerText(savedBy: string | null | undefined): string {
+  if (savedBy === 'Microsoft Excel') return "Verified against Excel's saved values"
+  if (savedBy === 'LibreOffice') return "Verified against LibreOffice's saved values"
+  if (savedBy === 'pending') return "Verification pending (LibreOffice sidecar running…)"
+  return "Not verifiable against saved values"
+}
 
 export default function CheckResultView({
   check,
@@ -49,74 +60,103 @@ export default function CheckResultView({
 
   const v = check.verification
   const hasMismatches = v.mismatched.length > 0
-  const unverifiedSaved = v.saved_by === 'none'
-  const bannerText = unverifiedSaved
-    ? savedByBanner(v.saved_by)
-    : `${savedByBanner(v.saved_by)}: ${v.matched.toLocaleString('en-IN')} / ${v.formula_cells.toLocaleString('en-IN')} formula cells match`
+  const isExcel = v.saved_by === 'Microsoft Excel'
+  const isLO = v.saved_by === 'LibreOffice'
+  const isVerifiable = isExcel || isLO
 
-  const bannerClasses = hasMismatches
-    ? 'border-red-500 bg-red-50 text-red-900'
-    : unverifiedSaved
-      ? 'border-amber-500 bg-amber-50 text-amber-950'
-      : 'border-emerald-600 bg-emerald-50 text-emerald-950'
+  const bannerBase = getSavedByBannerText(v.saved_by)
+  const bannerText = isVerifiable
+    ? `${bannerBase}: ${v.matched.toLocaleString('en-IN')} / ${v.formula_cells.toLocaleString('en-IN')} formula cells match`
+    : bannerBase
+
+  const bannerBorderClass = hasMismatches
+    ? 'border-red-400 bg-[#EEDADA]/60 text-red-950'
+    : !isVerifiable
+    ? 'border-[#D7D0C5] bg-[#EEDADA]/40 text-[#36452B]'
+    : 'border-[#8A9646] bg-[#8A9646]/10 text-[#36452B]'
 
   const coveragePct = Math.round(check.coverage * 1000) / 10
 
   return (
-    <div className="space-y-8">
-      <header className={`flex flex-wrap items-center justify-between gap-4 rounded-2xl border-l-8 px-6 py-4 shadow-sm ${bannerClasses}`}>
-        <div className="space-y-1">
-          <p className="text-xl font-bold">{bannerText}</p>
-          <p className="font-mono text-sm opacity-80">
-            {check.check_id} · mode: {check.mode} · coverage {coveragePct}%
-            {hasMismatches && ` · ${v.mismatched.length} mismatched`}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          {check.coverage < 1 && (
-            <span className="rounded-full bg-amber-200/80 px-4 py-1 text-base font-bold text-amber-950">
-              Partial verification ({coveragePct}%)
-            </span>
-          )}
-          {csvHref && (
-            <a
-              href={csvHref}
-              download
-              className="rounded-xl border-2 border-slate-900 bg-white px-5 py-2.5 text-base font-semibold text-slate-900 hover:bg-slate-900 hover:text-white"
-            >
-              Export CSV
-            </a>
-          )}
-        </div>
-      </header>
-
-      {check.outputs.length > 1 && (
-        <div role="group" aria-label="Watched outputs" className="flex flex-wrap gap-3">
-          {check.outputs.map((o) => {
-            const active = selectedOutput?.cell === o.cell
-            return (
-              <button
-                key={o.cell}
-                type="button"
-                onClick={() => setSelectedOutputCell(o.cell)}
-                className={`rounded-xl border-2 px-5 py-3 text-left transition-colors ${
-                  active
-                    ? 'border-slate-900 bg-slate-900 text-white'
-                    : 'border-slate-200 bg-white text-slate-900 hover:border-slate-400'
-                }`}
-              >
-                <span className="block text-base font-semibold">{o.label}</span>
-                <span className="mt-0.5 flex items-baseline gap-2">
-                  <span className="font-mono text-sm opacity-75">{o.cell}</span>
-                  <span className="text-xl font-bold tabular-nums">{fmtDelta(o.delta_observed)}</span>
+    <div className="space-y-10">
+      {/* 01 / Honest Verification Banner */}
+      <section aria-label="Verification Banner" className={`glass-card border-l-8 p-6 shadow-sm ${bannerBorderClass}`}>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
+                01 / INTEGRITY VERIFICATION
+              </span>
+              {check.coverage === 1 && isVerifiable && (
+                <span className="rounded-full bg-[#8A9646]/20 px-2.5 py-0.5 font-mono text-xs font-bold text-[#36452B]">
+                  100% COVERAGE
                 </span>
-              </button>
-            )
-          })}
+              )}
+            </div>
+            <h3 className="text-2xl font-extrabold tracking-tight text-[#36452B]">
+              {bannerText}
+            </h3>
+            <p className="font-mono text-xs text-[#7F7D74]">
+              Check ID: <span className="font-semibold text-[#36452B]">{check.check_id}</span> · Mode: {check.mode} · Coverage: {coveragePct}%
+              {hasMismatches && ` · ${v.mismatched.length} mismatched`}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {check.coverage < 1 && (
+              <span className="rounded-full border border-[#D7D0C5] bg-[#EEDADA] px-4 py-1.5 text-sm font-bold text-[#36452B]">
+                Partial verification ({coveragePct}%)
+              </span>
+            )}
+            {csvHref && (
+              <a
+                href={csvHref}
+                download
+                className="flex items-center gap-2 rounded-xl border-2 border-[#36452B] bg-white/80 px-5 py-2.5 text-sm font-bold text-[#36452B] shadow-sm transition-all hover:bg-[#36452B] hover:text-white"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export CSV Ledger
+              </a>
+            )}
+          </div>
         </div>
+      </section>
+
+      {/* 02 / Watched Outputs Selector */}
+      {check.outputs.length > 1 && (
+        <section aria-label="Watched Outputs Selector" className="space-y-3">
+          <p className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
+            02 / WATCHED OUTPUT CELLS
+          </p>
+          <div role="group" aria-label="Watched outputs" className="flex flex-wrap gap-4">
+            {check.outputs.map((o) => {
+              const active = selectedOutput?.cell === o.cell
+              return (
+                <button
+                  key={o.cell}
+                  type="button"
+                  onClick={() => setSelectedOutputCell(o.cell)}
+                  className={`flex flex-col rounded-2xl border-2 px-6 py-4 text-left transition-all ${
+                    active
+                      ? 'border-[#36452B] bg-[#36452B] text-white shadow-md'
+                      : 'border-[#D7D0C5] bg-white/70 text-[#36452B] hover:border-[#8A9646]'
+                  }`}
+                >
+                  <span className="text-sm font-bold opacity-80">{o.label}</span>
+                  <div className="mt-1 flex items-baseline gap-3">
+                    <span className="font-mono text-xs opacity-75">{o.cell}</span>
+                    <span className="text-2xl font-black tabular-nums">{fmtDelta(o.delta_observed)}</span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </section>
       )}
 
+      {/* Headline Card (Visible from 3 metres on Projector) */}
       {selectedOutput && (
         <HeadlineCard
           output={selectedOutput}
@@ -126,19 +166,32 @@ export default function CheckResultView({
         />
       )}
 
+      {/* 03 / ECharts Waterfall */}
       {waterfallSlot}
 
-      {structuralSlot ?? <StructuralPanel check={check} />}
+      {/* 04 / Structural Integrity Panel */}
+      <section aria-label="Structural Findings">
+        <div className="mb-4">
+          <p className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
+            04 / STRUCTURAL INTEGRITY AUDIT
+          </p>
+        </div>
+        {structuralSlot ?? <StructuralPanel check={check} />}
+      </section>
 
-      <GroupsTable
-        groups={check.groups}
-        attribution={selectedOutput?.attribution ?? []}
-        unverifiable={check.unverifiable}
-        selectedGroupId={activeGroupId}
-        onSelectGroup={setSelectedGroupId}
-        onProve={onProve}
-      />
+      {/* 05 / Change Groups Table */}
+      <section aria-label="Change Groups Ledger">
+        <GroupsTable
+          groups={check.groups}
+          attribution={selectedOutput?.attribution ?? []}
+          unverifiable={check.unverifiable}
+          selectedGroupId={activeGroupId}
+          onSelectGroup={setSelectedGroupId}
+          onProve={onProve}
+        />
+      </section>
 
+      {/* 06 / Unverifiable Cells Panel */}
       {(check.unverifiable.length > 0 || v.mismatched.length > 0) && (
         <UnverifiablePanel items={check.unverifiable} mismatched={v.mismatched} />
       )}
@@ -157,46 +210,45 @@ function HeadlineCard({
   selectedGroupId: string | null
   onSelectGroup: (groupId: string | null) => void
 }) {
-  // Zero-share groups stay out of the headline sentence (they remain visible in GroupsTable).
   const causes = output.attribution.filter((a) => a.share !== 0)
   const hasUnverified = output.delta_unverified !== null && output.delta_unverified !== 0
   const observedKnown = output.delta_observed !== null
 
   return (
-    <section aria-label="Check headline" className="rounded-2xl bg-white p-8 shadow-md">
-      <div className="flex flex-wrap items-baseline justify-between gap-4">
+    <section aria-label="Check executive headline" className="glass-card p-8 sm:p-10 shadow-sm">
+      <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-[#D7D0C5]/60 pb-6">
         <div>
-          <p className="text-lg font-semibold uppercase tracking-wide text-slate-500">
-            Watched output · <span className="font-mono normal-case">{output.cell}</span>
+          <p className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
+            WATCHED OUTPUT · <span className="text-[#36452B]">{output.cell}</span>
           </p>
-          <h2 className="mt-1 text-3xl font-bold text-slate-900">{output.label}</h2>
+          <h2 className="mt-1 text-3xl sm:text-4xl font-extrabold text-[#36452B]">{output.label}</h2>
         </div>
 
         <div className="text-right">
-          <p className="text-lg text-slate-500">Base → New</p>
-          <p className="text-3xl font-bold tabular-nums text-slate-900">
+          <p className="font-mono text-xs font-bold uppercase tracking-wider text-[#7F7D74]">Base → New</p>
+          <p className="text-2xl sm:text-3xl font-extrabold tabular-nums text-[#36452B]">
             {fmtValue(output.base)} → {fmtValue(output.new)}
           </p>
         </div>
       </div>
 
-      <div className="mt-6 rounded-xl bg-slate-50 p-6">
+      <div className="mt-6 rounded-2xl border border-[#D7D0C5]/80 bg-white/70 p-6 sm:p-8">
         {!observedKnown ? (
           <div className="space-y-2">
-            <p className="text-4xl font-bold text-slate-900">Observed change: unknown</p>
-            <p className="text-lg text-slate-600">
-              Verified change computed by engine: <b className="tabular-nums">{signedInr(output.delta_verified)}</b>
+            <p className="text-4xl sm:text-5xl font-black text-[#36452B]">Observed change: unknown</p>
+            <p className="text-xl text-[#7F7D74]">
+              Verified change computed by engine: <b className="tabular-nums text-[#36452B]">{signedInr(output.delta_verified)}</b>
             </p>
           </div>
         ) : hasUnverified ? (
-          <div className="space-y-3">
-            <p className="text-4xl font-bold tabular-nums text-slate-900">
+          <div className="space-y-4">
+            <p className="text-4xl sm:text-5xl font-black tabular-nums tracking-tight text-[#36452B]">
               {signedInr(output.delta_observed!)} observed ={' '}
-              <span className="text-emerald-800">{signedInr(output.delta_verified)} verified</span> +{' '}
-              <span className="text-amber-800">{signedInr(output.delta_unverified!)} unverified</span>
+              <span className="text-[#8A9646]">{signedInr(output.delta_verified)} verified</span> +{' '}
+              <span className="text-[#A44A3F]">{signedInr(output.delta_unverified!)} unverified</span>
             </p>
             {causes.length > 0 && (
-              <p className="text-xl text-slate-700">
+              <p className="text-xl text-[#7F7D74]">
                 Verified split:{' '}
                 <CauseTokens
                   causes={causes}
@@ -208,7 +260,7 @@ function HeadlineCard({
             )}
           </div>
         ) : (
-          <p className="text-4xl font-bold leading-snug tabular-nums text-slate-900">
+          <p className="text-4xl sm:text-5xl font-black leading-snug tabular-nums tracking-tight text-[#36452B]">
             <span>{signedInr(output.delta_observed!)}</span>
             {causes.length > 0 ? (
               <>
@@ -221,7 +273,7 @@ function HeadlineCard({
                 />
               </>
             ) : (
-              <span className="ml-3 text-2xl font-normal text-slate-600">No verified attribution change</span>
+              <span className="ml-3 text-2xl font-normal text-[#7F7D74]">No verified attribution change</span>
             )}
           </p>
         )}
@@ -249,17 +301,22 @@ function CauseTokens({
         const amount = index === 0 ? signedInr(a.share) : inr(Math.abs(a.share))
         return (
           <span key={a.group_id}>
-            {index > 0 && <span className="text-slate-400">{a.share < 0 ? ' − ' : ' + '}</span>}
+            {index > 0 && <span className="text-[#7F7D74]">{a.share < 0 ? ' − ' : ' + '}</span>}
             <button
               type="button"
               onClick={() => onSelectGroup(selected ? null : a.group_id)}
-              className={`inline-flex items-baseline gap-1.5 rounded-lg px-2 py-0.5 text-left transition-colors ${
-                selected ? 'bg-sky-100 text-sky-950' : 'hover:bg-slate-200'
+              className={`inline-flex items-baseline gap-2 rounded-xl px-3 py-1 text-left transition-all ${
+                selected
+                  ? 'border border-[#8A9646] bg-[#8A9646]/20 text-[#36452B]'
+                  : 'border border-transparent bg-[#F8F7F4] hover:border-[#D7D0C5]'
               }`}
             >
-              <span className="font-bold">{amount}</span>
-              <span className="text-xl font-medium text-slate-700">
-                {group?.label ?? a.group_id} ({group?.type ?? 'change'})
+              <span className="font-extrabold text-[#36452B] tabular-nums">{amount}</span>
+              <span className="text-lg font-semibold text-[#36452B]/90">
+                {group?.label ?? a.group_id}{' '}
+                <span className="font-mono text-xs uppercase tracking-wider text-[#7F7D74]">
+                  ({group?.type ?? 'change'})
+                </span>
               </span>
             </button>
           </span>
@@ -282,38 +339,45 @@ function UnverifiablePanel({
   }
 
   return (
-    <section aria-label="Unverifiable cells" className="rounded-2xl border-l-8 border-slate-500 bg-white p-6 shadow-md">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-2xl font-bold text-slate-900">
-          Can&apos;t verify ({items.length} {items.length === 1 ? 'cell' : 'cells'})
-        </h3>
-        <span className="text-base font-medium text-slate-600">Excluded from attribution — we never guess.</span>
+    <section aria-label="Unverifiable cells" className="glass-card border-l-8 border-[#7F7D74] p-6 sm:p-8">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[#D7D0C5]/60 pb-3">
+        <div>
+          <p className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
+            06 / UNVERIFIABLE BOUNDARY
+          </p>
+          <h3 className="mt-1 text-2xl font-extrabold text-[#36452B]">
+            Can&apos;t Verify ({items.length} {items.length === 1 ? 'cell' : 'cells'})
+          </h3>
+        </div>
+        <span className="rounded-full border border-[#D7D0C5] bg-[#EEDADA] px-3.5 py-1 text-xs font-bold uppercase tracking-wide text-[#36452B]">
+          Excluded from attribution — we never guess
+        </span>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap gap-2.5">
         {[...counts.entries()].map(([reason, count]) => (
-          <span key={reason} className="rounded-full bg-slate-100 px-4 py-1.5 text-base font-semibold text-slate-800">
-            {reason}: <span className="tabular-nums">{count}</span>
+          <span key={reason} className="rounded-xl border border-[#D7D0C5] bg-white/80 px-4 py-1.5 text-sm font-bold text-[#36452B]">
+            {reason}: <span className="tabular-nums text-[#8A9646]">{count}</span>
           </span>
         ))}
       </div>
 
       {mismatched.length > 0 && (
-        <p className="mt-3 text-base text-red-700">
-          Mismatched saved values: <span className="font-mono">{mismatched.join(', ')}</span>
+        <p className="mt-4 rounded-xl border border-red-300 bg-[#EEDADA]/60 p-3 font-mono text-sm font-semibold text-red-950">
+          Mismatched saved values: {mismatched.join(', ')}
         </p>
       )}
 
       {items.length > 0 && (
-        <details className="mt-4">
-          <summary className="cursor-pointer text-base font-medium text-slate-600">
+        <details className="mt-5">
+          <summary className="cursor-pointer font-mono text-xs font-bold uppercase tracking-wider text-[#7F7D74] hover:text-[#36452B]">
             Show all {items.length} unverifiable cells
           </summary>
-          <ul className="mt-3 grid max-h-64 gap-1.5 overflow-y-auto text-sm sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-3 grid max-h-64 gap-2 overflow-y-auto text-xs sm:grid-cols-2 lg:grid-cols-3">
             {items.map((u) => (
-              <li key={u.cell} className="rounded border border-slate-200 bg-slate-50 px-3 py-1.5">
-                <span className="font-mono font-semibold text-slate-900">{u.cell}</span>{' '}
-                <span className="text-slate-600">— {u.reason}</span>
+              <li key={u.cell} className="rounded-lg border border-[#D7D0C5] bg-white/70 px-3 py-2 font-mono">
+                <span className="font-bold text-[#36452B]">{u.cell}</span>{' '}
+                <span className="text-[#7F7D74]">— {u.reason}</span>
               </li>
             ))}
           </ul>
