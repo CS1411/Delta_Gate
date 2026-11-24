@@ -1,22 +1,19 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
+import HealthCoverageCard from '../../components/HealthCoverageCard'
 import StructuralPanel from '../../components/StructuralPanel'
 import { inr, signedInr } from '../../format'
-import type { CheckResult, Group, Output } from '../../types'
+import type { CheckResult, Output } from '../../types'
 import GroupsTable from './GroupsTable'
-
-// Check tab results view: honest verification banner, executive headline, watched output switcher,
-// waterfall chart, structural integrity panel, and change groups ledger.
-// Adheres strictly to Non-Negotiable Rules:
-// 1. Every number comes directly from the engine CheckResult.
-// 2. Null means "unknown", NEVER 0.
-// 3. Honest banner based on verification.saved_by.
+import Waterfall from './Waterfall'
 
 export interface CheckResultViewProps {
   check: CheckResult
+  baseName?: string
+  newName?: string
+  isLive?: boolean
   onProve?: (groupId: string) => void
+  onReset?: () => void
   csvHref?: string
-  waterfallSlot?: ReactNode
-  structuralSlot?: ReactNode
   selectedOutputCell?: string | null
   onSelectOutput?: (cell: string) => void
   selectedGroupId?: string | null
@@ -26,20 +23,14 @@ export interface CheckResultViewProps {
 const fmtValue = (n: number | null) => (n === null ? 'unknown' : inr(n))
 const fmtDelta = (n: number | null) => (n === null ? 'unknown' : signedInr(n))
 
-// Honest verification banner helper complying with rule 5
-function getSavedByBannerText(savedBy: string | null | undefined): string {
-  if (savedBy === 'Microsoft Excel') return "Verified against Excel's saved values"
-  if (savedBy === 'LibreOffice') return "Verified against LibreOffice's saved values"
-  if (savedBy === 'pending') return "Verification pending (LibreOffice sidecar running…)"
-  return "Not verifiable against saved values"
-}
-
 export default function CheckResultView({
   check,
+  baseName = 'dues_v2.xlsx',
+  newName = 'dues_v3_REAL.xlsx',
+  isLive = false,
   onProve,
+  onReset,
   csvHref,
-  waterfallSlot,
-  structuralSlot,
   selectedOutputCell: controlledOutput,
   onSelectOutput,
   selectedGroupId: controlledGroup,
@@ -59,78 +50,84 @@ export default function CheckResultView({
   const groupById = new Map(check.groups.map((g) => [g.group_id, g]))
 
   const v = check.verification
-  const hasMismatches = v.mismatched.length > 0
   const isExcel = v.saved_by === 'Microsoft Excel'
   const isLO = v.saved_by === 'LibreOffice'
   const isVerifiable = isExcel || isLO
-
-  const bannerBase = getSavedByBannerText(v.saved_by)
-  const bannerText = isVerifiable
-    ? `${bannerBase}: ${v.matched.toLocaleString('en-IN')} / ${v.formula_cells.toLocaleString('en-IN')} formula cells match`
-    : bannerBase
-
-  const bannerBorderClass = hasMismatches
-    ? 'border-[#D7D0C5] bg-[#EEDADA]/60 text-[#36452B]'
-    : !isVerifiable
-    ? 'border-[#D7D0C5] bg-[#EEDADA]/40 text-[#36452B]'
-    : 'border-[#8A9646] bg-[#8A9646]/10 text-[#36452B]'
-
   const coveragePct = Math.round(check.coverage * 1000) / 10
 
+  // Cause-type breakdown for change header counts
+  const typeSummary = check.groups.reduce(
+    (acc, g) => {
+      acc[g.type] += 1
+      return acc
+    },
+    { data: 0, logic: 0, structural: 0 }
+  )
+
+  const causes = selectedOutput ? selectedOutput.attribution.filter((a) => a.share !== 0) : []
+
   return (
-    <div className="space-y-10">
-      {/* 01 / Honest Verification Banner */}
-      <section aria-label="Verification Banner" className={`glass-card border-l-8 p-6 shadow-sm ${bannerBorderClass}`}>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
-                01 / INTEGRITY VERIFICATION
-              </span>
-              {check.coverage === 1 && isVerifiable && (
-                <span className="rounded-full bg-[#8A9646]/20 px-2.5 py-0.5 font-mono text-xs font-bold text-[#36452B]">
-                  100% COVERAGE
-                </span>
-              )}
-            </div>
-            <h3 className="text-2xl font-extrabold tracking-tight text-[#36452B]">
-              {bannerText}
-            </h3>
-            <p className="font-mono text-xs text-[#7F7D74]">
-              Check ID: <span className="font-semibold text-[#36452B]">{check.check_id}</span> · Mode: {check.mode} · Coverage: {coveragePct}%
-              {hasMismatches && ` · ${v.mismatched.length} mismatched`}
-            </p>
+    <div className="space-y-8">
+      {/* 1. Live Check Action Bar & Coverage Banner */}
+      <section aria-label="Live Check Action Bar" className="glass-card p-4 sm:p-5 border border-[#D7D0C5] bg-white/80 shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="flex items-center gap-1.5 rounded-full border border-[#8A9646] bg-[#8A9646]/15 px-3 py-1 font-mono text-xs font-bold text-[#36452B]">
+              <span className="h-2 w-2 rounded-full bg-[#8A9646]" />
+              {isLive ? '● LIVE CHECK' : '● CHECK RESULT'}
+            </span>
+            <span className="font-mono text-xs text-[#7F7D74]">
+              {baseName} → {newName}
+            </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {check.coverage < 1 && (
-              <span className="rounded-full border border-[#D7D0C5] bg-[#EEDADA] px-4 py-1.5 text-sm font-bold text-[#36452B]">
-                Partial verification ({coveragePct}%)
-              </span>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {onReset && (
+              <button
+                type="button"
+                onClick={onReset}
+                className="rounded-xl border border-[#D7D0C5] bg-white px-3.5 py-1.5 font-mono text-xs font-semibold text-[#36452B] shadow-xs hover:border-[#8A9646] hover:bg-[#8A9646]/10 transition"
+              >
+                Reset to sample
+              </button>
             )}
             {csvHref && (
               <a
                 href={csvHref}
                 download
-                className="flex items-center gap-2 rounded-xl border-2 border-[#36452B] bg-white/80 px-5 py-2.5 text-sm font-bold text-[#36452B] shadow-sm transition-all hover:bg-[#36452B] hover:text-white"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#36452B] bg-[#36452B] px-4 py-1.5 font-mono text-xs font-semibold text-[#F8F7F4] shadow-xs hover:bg-[#36452B]/90 transition"
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Export CSV Ledger
+                Export CSV
               </a>
             )}
           </div>
         </div>
+
+        {/* Verification banner showing formula match count and coverage percentage */}
+        <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#8A9646]/30 bg-[#8A9646]/15 px-4 py-2.5 text-xs text-[#36452B]">
+          <div className="flex items-center gap-2 font-mono">
+            <span className="text-[#8A9646] font-bold text-sm">✓</span>
+            <span>
+              <strong>Formula match:</strong> {v.matched.toLocaleString('en-IN')} / {v.formula_cells.toLocaleString('en-IN')} cells match ({coveragePct}%)
+            </span>
+          </div>
+          <span className="font-mono text-[11px] text-[#7F7D74]">
+            {isVerifiable ? `Verified against ${v.saved_by}` : 'Not verifiable against saved cache'}
+          </span>
+        </div>
       </section>
 
-      {/* 02 / Watched Outputs Selector */}
-      {check.outputs.length > 1 && (
+      {/* 2. Watched Outputs Selector Row */}
+      {check.outputs.length > 0 && (
         <section aria-label="Watched Outputs Selector" className="space-y-3">
-          <p className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
-            02 / WATCHED OUTPUT CELLS
-          </p>
-          <div role="group" aria-label="Watched outputs" className="flex flex-wrap gap-4">
+          <div className="flex items-center justify-between">
+            <p className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
+              Watched Outputs Selector
+            </p>
+            <span className="font-mono text-xs text-[#7F7D74]">Click card to switch attribution breakdown</span>
+          </div>
+
+          <div role="group" aria-label="Watched outputs" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {check.outputs.map((o) => {
               const active = selectedOutput?.cell === o.cell
               return (
@@ -138,16 +135,27 @@ export default function CheckResultView({
                   key={o.cell}
                   type="button"
                   onClick={() => setSelectedOutputCell(o.cell)}
-                  className={`flex flex-col rounded-2xl border-2 px-6 py-4 text-left transition-all ${
+                  className={`flex flex-col justify-between rounded-2xl p-4 text-left transition-all ${
                     active
-                      ? 'border-[#36452B] bg-[#36452B] text-white shadow-md'
-                      : 'border-[#D7D0C5] bg-white/70 text-[#36452B] hover:border-[#8A9646]'
+                      ? 'border-2 border-[#36452B] bg-[#36452B] text-[#D7D0C5] shadow-md'
+                      : 'border border-[#D7D0C5] bg-white/70 text-[#36452B] hover:border-[#8A9646]'
                   }`}
                 >
-                  <span className="text-sm font-bold opacity-80">{o.label}</span>
-                  <div className="mt-1 flex items-baseline gap-3">
-                    <span className="font-mono text-xs opacity-75">{o.cell}</span>
-                    <span className="text-2xl font-black tabular-nums">{fmtDelta(o.delta_observed)}</span>
+                  <div className="flex items-center justify-between">
+                    <span className={`font-mono text-xs ${active ? 'text-[#8A9646]' : 'text-[#7F7D74]'}`}>
+                      {o.cell}
+                    </span>
+                    <span className={`text-xs font-semibold ${active ? 'text-[#D7D0C5]' : 'text-[#7F7D74]'}`}>
+                      {fmtValue(o.base)} → {fmtValue(o.new)}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-baseline justify-between gap-2">
+                    <span className={`text-sm font-bold truncate ${active ? 'text-[#F8F7F4]' : 'text-[#36452B]'}`}>
+                      {o.label}
+                    </span>
+                    <span className={`text-xl font-black font-mono tabular-nums ${active ? 'text-[#F8F7F4]' : 'text-[#36452B]'}`}>
+                      {fmtDelta(o.delta_observed)}
+                    </span>
                   </div>
                 </button>
               )
@@ -156,30 +164,127 @@ export default function CheckResultView({
         </section>
       )}
 
-      {/* Headline Card (Visible from 3 metres on Projector) */}
+      {/* 3. 2-Column Attribution + Verification Dossier Grid */}
       {selectedOutput && (
-        <HeadlineCard
-          output={selectedOutput}
-          groupById={groupById}
-          selectedGroupId={activeGroupId}
-          onSelectGroup={setSelectedGroupId}
-        />
+        <section aria-label="Attribution & Verification Dossier" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Card: Selected output attribution breakdown */}
+          <div className="glass-card p-6 flex flex-col justify-between border border-[#D7D0C5] bg-white/80 shadow-xs">
+            <div className="space-y-4">
+              <div className="flex items-baseline justify-between border-b border-[#D7D0C5]/60 pb-3">
+                <div>
+                  <span className="font-mono text-xs font-bold uppercase tracking-wider text-[#7F7D74]">
+                    Watched Output · {selectedOutput.cell}
+                  </span>
+                  <h3 className="text-2xl font-serif font-bold text-[#36452B] mt-0.5">{selectedOutput.label}</h3>
+                </div>
+                <div className="text-right font-mono">
+                  <span className="text-[11px] text-[#7F7D74]">Range:</span>
+                  <p className="text-sm font-bold text-[#36452B]">
+                    {fmtValue(selectedOutput.base)} → {fmtValue(selectedOutput.new)}
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-xs text-[#7F7D74] italic">
+                Exact Shapley attribution — click any cause to inspect its cells
+              </p>
+
+              {/* Clickable cause rows with DATA / LOGIC pills */}
+              <div className="space-y-2 mt-2">
+                {causes.length > 0 ? (
+                  causes.map((attr) => {
+                    const g = groupById.get(attr.group_id)
+                    const isSelected = activeGroupId === attr.group_id
+                    return (
+                      <div
+                        key={attr.group_id}
+                        onClick={() => setSelectedGroupId(isSelected ? null : attr.group_id)}
+                        className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                          isSelected
+                            ? 'border-[#8A9646] bg-[#8A9646]/10'
+                            : 'border-[#D7D0C5]/60 bg-[#F8F7F4] hover:border-[#8A9646]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="rounded bg-[#D7D0C5]/50 px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-[#36452B]">
+                            {g?.type ?? 'change'}
+                          </span>
+                          <span className="font-serif font-semibold text-sm text-[#36452B]">
+                            {g?.label ?? attr.group_id}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 font-mono">
+                          <span className="text-xs text-[#7F7D74] hidden sm:inline">
+                            solo: {signedInr(attr.solo)}
+                          </span>
+                          <strong className="text-base text-[#36452B] tabular-nums font-bold">
+                            {signedInr(attr.share)}
+                          </strong>
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <p className="text-xs text-[#7F7D74] font-mono py-4 text-center">
+                    No verified cause changes for this output
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-[#D7D0C5]/60 flex justify-between items-center text-xs font-mono">
+              <span className="text-[#7F7D74]">Observed Net Change:</span>
+              <strong className="text-[#36452B] text-base">{fmtDelta(selectedOutput.delta_observed)}</strong>
+            </div>
+          </div>
+
+          {/* Right Card: Verification dossier / HealthCoverageCard */}
+          <HealthCoverageCard check={check} output={selectedOutput} />
+        </section>
       )}
 
-      {/* 03 / ECharts Waterfall */}
-      {waterfallSlot}
+      {/* 4. Delta Summary & Interactive ECharts Waterfall */}
+      {selectedOutput && (
+        <section aria-label="Waterfall Attribution" className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D7D0C5]/60 pb-3">
+            <div>
+              <p className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
+                Attribution waterfall
+              </p>
+              <h3 className="text-2xl font-serif font-black tracking-tight text-[#36452B] mt-0.5">
+                {fmtDelta(selectedOutput.delta_observed)} Total change
+              </h3>
+            </div>
 
-      {/* 04 / Structural Integrity Panel */}
+            {/* Data / Logic / Structural count boxes */}
+            <div className="flex items-center gap-2">
+              <span className="rounded-xl border border-[#D7D0C5] bg-white px-3 py-1 font-mono text-xs text-[#36452B]">
+                Data: <b>{typeSummary.data}</b>
+              </span>
+              <span className="rounded-xl border border-[#D7D0C5] bg-white px-3 py-1 font-mono text-xs text-[#36452B]">
+                Logic: <b>{typeSummary.logic}</b>
+              </span>
+              <span className="rounded-xl border border-[#D7D0C5] bg-white px-3 py-1 font-mono text-xs text-[#36452B]">
+                Structural: <b>{typeSummary.structural}</b>
+              </span>
+            </div>
+          </div>
+
+          <Waterfall
+            check={check}
+            outputCell={selectedOutput.cell}
+            selectedGroupId={activeGroupId}
+            onSelectGroup={setSelectedGroupId}
+          />
+        </section>
+      )}
+
+      {/* 5. Structural Findings, Lost-Link Graph & Protected Cell Alerts */}
       <section aria-label="Structural Findings">
-        <div className="mb-4">
-          <p className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
-            04 / STRUCTURAL INTEGRITY AUDIT
-          </p>
-        </div>
-        {structuralSlot ?? <StructuralPanel check={check} />}
+        <StructuralPanel check={check} />
       </section>
 
-      {/* 05 / Change Groups Table */}
+      {/* 6. Expandable Change groups Table */}
       <section aria-label="Change Groups Ledger">
         <GroupsTable
           groups={check.groups}
@@ -190,199 +295,6 @@ export default function CheckResultView({
           onProve={onProve}
         />
       </section>
-
-      {/* 06 / Unverifiable Cells Panel */}
-      {(check.unverifiable.length > 0 || v.mismatched.length > 0) && (
-        <UnverifiablePanel items={check.unverifiable} mismatched={v.mismatched} />
-      )}
     </div>
-  )
-}
-
-function HeadlineCard({
-  output,
-  groupById,
-  selectedGroupId,
-  onSelectGroup,
-}: {
-  output: Output
-  groupById: Map<string, Group>
-  selectedGroupId: string | null
-  onSelectGroup: (groupId: string | null) => void
-}) {
-  const causes = output.attribution.filter((a) => a.share !== 0)
-  const hasUnverified = output.delta_unverified !== null && output.delta_unverified !== 0
-  const observedKnown = output.delta_observed !== null
-
-  return (
-    <section aria-label="Check executive headline" className="glass-card p-8 sm:p-10 shadow-sm">
-      <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-[#D7D0C5]/60 pb-6">
-        <div>
-          <p className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
-            WATCHED OUTPUT · <span className="text-[#36452B]">{output.cell}</span>
-          </p>
-          <h2 className="mt-1 text-3xl sm:text-4xl font-extrabold text-[#36452B]">{output.label}</h2>
-        </div>
-
-        <div className="text-right">
-          <p className="font-mono text-xs font-bold uppercase tracking-wider text-[#7F7D74]">Base → New</p>
-          <p className="text-2xl sm:text-3xl font-extrabold tabular-nums text-[#36452B]">
-            {fmtValue(output.base)} → {fmtValue(output.new)}
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-6 rounded-2xl border border-[#D7D0C5]/80 bg-white/70 p-6 sm:p-8">
-        {!observedKnown ? (
-          <div className="space-y-2">
-            <p className="text-4xl sm:text-5xl font-black text-[#36452B]">Observed change: unknown</p>
-            <p className="text-xl text-[#7F7D74]">
-              Verified change computed by engine: <b className="tabular-nums text-[#36452B]">{signedInr(output.delta_verified)}</b>
-            </p>
-          </div>
-        ) : hasUnverified ? (
-          <div className="space-y-4">
-            <p className="text-4xl sm:text-5xl font-black tabular-nums tracking-tight text-[#36452B]">
-              {signedInr(output.delta_observed!)} observed ={' '}
-              <span className="text-[#8A9646]">{signedInr(output.delta_verified)} verified</span> +{' '}
-              <span className="text-[#36452B] font-bold">{signedInr(output.delta_unverified!)} unverified</span>
-            </p>
-            {causes.length > 0 && (
-              <p className="text-xl text-[#7F7D74]">
-                Verified split:{' '}
-                <CauseTokens
-                  causes={causes}
-                  groupById={groupById}
-                  selectedGroupId={selectedGroupId}
-                  onSelectGroup={onSelectGroup}
-                />
-              </p>
-            )}
-          </div>
-        ) : (
-          <p className="text-4xl sm:text-5xl font-black leading-snug tabular-nums tracking-tight text-[#36452B]">
-            <span>{signedInr(output.delta_observed!)}</span>
-            {causes.length > 0 ? (
-              <>
-                {' = '}
-                <CauseTokens
-                  causes={causes}
-                  groupById={groupById}
-                  selectedGroupId={selectedGroupId}
-                  onSelectGroup={onSelectGroup}
-                />
-              </>
-            ) : (
-              <span className="ml-3 text-2xl font-normal text-[#7F7D74]">No verified attribution change</span>
-            )}
-          </p>
-        )}
-      </div>
-    </section>
-  )
-}
-
-function CauseTokens({
-  causes,
-  groupById,
-  selectedGroupId,
-  onSelectGroup,
-}: {
-  causes: Output['attribution']
-  groupById: Map<string, Group>
-  selectedGroupId: string | null
-  onSelectGroup: (groupId: string | null) => void
-}) {
-  return (
-    <>
-      {causes.map((a, index) => {
-        const group = groupById.get(a.group_id)
-        const selected = selectedGroupId === a.group_id
-        const amount = index === 0 ? signedInr(a.share) : inr(Math.abs(a.share))
-        return (
-          <span key={a.group_id}>
-            {index > 0 && <span className="text-[#7F7D74]">{a.share < 0 ? ' − ' : ' + '}</span>}
-            <button
-              type="button"
-              onClick={() => onSelectGroup(selected ? null : a.group_id)}
-              className={`inline-flex items-baseline gap-2 rounded-xl px-3 py-1 text-left transition-all ${
-                selected
-                  ? 'border border-[#8A9646] bg-[#8A9646]/20 text-[#36452B]'
-                  : 'border border-transparent bg-[#F8F7F4] hover:border-[#D7D0C5]'
-              }`}
-            >
-              <span className="font-extrabold text-[#36452B] tabular-nums">{amount}</span>
-              <span className="text-lg font-semibold text-[#36452B]/90">
-                {group?.label ?? a.group_id}{' '}
-                <span className="font-mono text-xs uppercase tracking-wider text-[#7F7D74]">
-                  ({group?.type ?? 'change'})
-                </span>
-              </span>
-            </button>
-          </span>
-        )
-      })}
-    </>
-  )
-}
-
-function UnverifiablePanel({
-  items,
-  mismatched,
-}: {
-  items: CheckResult['unverifiable']
-  mismatched: string[]
-}) {
-  const counts = new Map<string, number>()
-  for (const item of items) {
-    counts.set(item.reason, (counts.get(item.reason) ?? 0) + 1)
-  }
-
-  return (
-    <section aria-label="Unverifiable cells" className="glass-card border-l-8 border-[#7F7D74] p-6 sm:p-8">
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[#D7D0C5]/60 pb-3">
-        <div>
-          <p className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
-            06 / UNVERIFIABLE BOUNDARY
-          </p>
-          <h3 className="mt-1 text-2xl font-extrabold text-[#36452B]">
-            Can&apos;t Verify ({items.length} {items.length === 1 ? 'cell' : 'cells'})
-          </h3>
-        </div>
-        <span className="rounded-full border border-[#D7D0C5] bg-[#EEDADA] px-3.5 py-1 text-xs font-bold uppercase tracking-wide text-[#36452B]">
-          Excluded from attribution — we never guess
-        </span>
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-2.5">
-        {[...counts.entries()].map(([reason, count]) => (
-          <span key={reason} className="rounded-xl border border-[#D7D0C5] bg-white/80 px-4 py-1.5 text-sm font-bold text-[#36452B]">
-            {reason}: <span className="tabular-nums text-[#8A9646]">{count}</span>
-          </span>
-        ))}
-      </div>
-
-      {mismatched.length > 0 && (
-        <p className="mt-4 rounded-xl border border-[#D7D0C5] bg-[#EEDADA]/60 p-3 font-mono text-sm font-semibold text-[#36452B]">
-          Mismatched saved values: {mismatched.join(', ')}
-        </p>
-      )}
-
-      {items.length > 0 && (
-        <details className="mt-5">
-          <summary className="cursor-pointer font-mono text-xs font-bold uppercase tracking-wider text-[#7F7D74] hover:text-[#36452B]">
-            Show all {items.length} unverifiable cells
-          </summary>
-          <ul className="mt-3 grid max-h-64 gap-2 overflow-y-auto text-xs sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((u) => (
-              <li key={u.cell} className="rounded-lg border border-[#D7D0C5] bg-white/70 px-3 py-2 font-mono">
-                <span className="font-bold text-[#36452B]">{u.cell}</span>{' '}
-                <span className="text-[#7F7D74]">— {u.reason}</span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-    </section>
   )
 }

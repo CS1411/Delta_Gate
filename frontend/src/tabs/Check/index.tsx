@@ -2,21 +2,24 @@ import { useState } from 'react'
 import { ApiError, csvHref, downloadProof, runCheck } from '../../api'
 import judgeFixture from '../../fixtures/check_judge_xlookup.json'
 import v2v3Fixture from '../../fixtures/check_v2_v3.json'
+import { savedByBanner } from '../../format'
 import type { CheckResult } from '../../types'
 import CheckResultView from './CheckResultView'
-import HealthCoverageCard from '../../components/HealthCoverageCard'
-import Waterfall from './Waterfall'
 
-const SAMPLES: { label: string; desc: string; data: CheckResult }[] = [
+const SAMPLES: { label: string; desc: string; data: CheckResult; baseName: string; newName: string }[] = [
   {
     label: 'Sample: dues v2 → v3',
     desc: 'Excel-Saved Golden (Full Match, Lost-Link on C4)',
     data: v2v3Fixture as CheckResult,
+    baseName: 'dues_v2.xlsx',
+    newName: 'dues_v3_REAL.xlsx',
   },
   {
     label: 'Sample: judge file (XLOOKUP)',
     desc: 'Partial Verification (60 XLOOKUP cells unverifiable)',
     data: judgeFixture as CheckResult,
+    baseName: 'dues_v2.xlsx',
+    newName: 'judge_xlookup.xlsx',
   },
 ]
 
@@ -25,6 +28,9 @@ const OFFLINE = "Could not reach backend API at http://localhost:8000. Showing d
 export default function Check() {
   const [base, setBase] = useState<File | null>(null)
   const [next, setNext] = useState<File | null>(null)
+  const [baseName, setBaseName] = useState<string>('dues_v2.xlsx')
+  const [newName, setNewName] = useState<string>('dues_v3_REAL.xlsx')
+
   // Default to golden demo fixture so full Check workspace is immediately populated and active offline
   const [result, setResult] = useState<{ check: CheckResult; live: boolean }>({
     check: v2v3Fixture as CheckResult,
@@ -42,6 +48,8 @@ export default function Check() {
     try {
       const check = await runCheck(base, next)
       setResult({ check, live: true })
+      setBaseName(base.name)
+      setNewName(next.name)
       const preferred = check.outputs.find((o) => o.cell === 'Summary!C6')?.cell ?? check.outputs[0]?.cell ?? null
       setSelectedOutputCell(preferred)
       setSelectedGroupId(null)
@@ -65,42 +73,62 @@ export default function Check() {
     }
   }
 
-  const loadSample = (sampleData: CheckResult) => {
+  const loadSample = (sample: typeof SAMPLES[number]) => {
     setError(null)
-    setResult({ check: sampleData, live: false })
-    const preferred = sampleData.outputs.find((o) => o.cell === 'Summary!C6')?.cell ?? sampleData.outputs[0]?.cell ?? null
+    setBase(null)
+    setNext(null)
+    setBaseName(sample.baseName)
+    setNewName(sample.newName)
+    setResult({ check: sample.data, live: false })
+    const preferred = sample.data.outputs.find((o) => o.cell === 'Summary!C6')?.cell ?? sample.data.outputs[0]?.cell ?? null
     setSelectedOutputCell(preferred)
     setSelectedGroupId(null)
   }
 
-  const activeOutput =
-    result.check.outputs.find((o) => o.cell === (selectedOutputCell ?? 'Summary!C6')) ?? result.check.outputs[0]
+  const resetToCheck = () => {
+    loadSample(SAMPLES[0])
+  }
+
+  const currentSavedBy = result.check.verification.saved_by
+  const bannerStatus = savedByBanner(currentSavedBy)
 
   return (
-    <div className="mx-auto max-w-7xl space-y-10 px-4 py-4 sm:px-6 lg:px-8">
-      {/* 01 / Comparative Dual Ingestion */}
-      <section id="workbook-ingestion" aria-label="Workbook Ingestion" className="glass-card p-6 sm:p-8">
-        <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-[#D7D0C5]/70 pb-4">
+    <div className="mx-auto max-w-7xl space-y-8 px-4 py-4 sm:px-6 lg:px-8">
+      {/* 1. Top Context Strip */}
+      <div className="flex flex-wrap items-center justify-between gap-y-2 border-b border-[#D7D0C5]/60 pb-3">
+        <div className="flex flex-wrap items-baseline gap-2.5">
+          <h2 className="text-xl font-bold tracking-tight text-[#36452B]">Check</h2>
+          <span className="text-xs text-[#7F7D74]">Two-version comparator &amp; Shapley attribution</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full border border-[#D7D0C5] bg-white/70 px-3 py-0.5 font-mono text-[11px] font-semibold text-[#7F7D74]">
+            {baseName} → {newName}
+          </span>
+          <span className="rounded-full border border-[#8A9646]/40 bg-[#8A9646]/15 px-3 py-0.5 font-mono text-[11px] font-bold text-[#36452B]">
+            {bannerStatus}
+          </span>
+        </div>
+      </div>
+
+      {/* 2. Compare Two Workbook Versions Card */}
+      <section aria-label="Compare Two Workbook Versions" className="relative overflow-hidden rounded-2xl border border-[#D7D0C5] bg-white/75 p-6 shadow-sm backdrop-blur-md sm:p-7">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D7D0C5]/60 pb-4">
           <div>
-            <p className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
-              01 / COMPARATIVE DUAL INGESTION
+            <h3 className="text-lg font-serif font-bold text-[#36452B]">Compare Two Workbook Versions</h3>
+            <p className="text-xs text-[#7F7D74]">
+              Upload base and edited spreadsheets to decompose net delta into exact Shapley cause attributions
             </p>
-            <h2 className="mt-1 text-3xl font-black tracking-tight text-[#36452B]">
-              Two-Version Comparator
-            </h2>
           </div>
 
-          {/* One-click Load Demo Fixtures */}
+          {/* Quick-load fixture buttons */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs font-bold uppercase tracking-wider text-[#7F7D74]">
-              Demo Fixtures:
-            </span>
             {SAMPLES.map((s) => (
               <button
                 key={s.label}
                 type="button"
-                onClick={() => loadSample(s.data)}
-                className="rounded-xl border border-[#D7D0C5] bg-white/80 px-3.5 py-1.5 font-mono text-xs font-bold text-[#36452B] shadow-sm transition-all hover:border-[#8A9646] hover:bg-white"
+                onClick={() => loadSample(s)}
+                className="rounded-xl border border-[#D7D0C5] bg-white px-3.5 py-1.5 font-mono text-xs font-semibold text-[#36452B] shadow-xs transition-all hover:border-[#8A9646] hover:bg-[#8A9646]/10"
                 title={s.desc}
               >
                 {s.label}
@@ -109,148 +137,140 @@ export default function Check() {
           </div>
         </div>
 
-        {/* Folder Cards */}
-        <div className="mt-6 grid gap-6 sm:grid-cols-2">
-          {/* Base Workbook Card */}
-          <div className="relative">
-            <div className="inline-block rounded-t-lg border-x border-t border-[#D7D0C5] bg-white/85 px-4 py-1 font-mono text-[11px] font-bold tracking-widest text-[#7F7D74]">
-              BASE WORKBOOK (.xlsx)
+        {/* Two side-by-side dashed dropzones */}
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          {/* Base Workbook Dropzone */}
+          <div className="relative rounded-xl border-2 border-dashed border-[#D7D0C5] bg-[#F8F7F4]/60 p-4 transition-colors hover:border-[#8A9646]">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs font-bold uppercase tracking-wider text-[#7F7D74]">
+                Base workbook
+              </span>
+              <label className="cursor-pointer text-xs font-semibold text-[#8A9646] hover:underline">
+                Replace
+                <input
+                  type="file"
+                  accept=".xlsx,.xlsm"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) {
+                      setBase(f)
+                      setBaseName(f.name)
+                    }
+                  }}
+                />
+              </label>
             </div>
-            <label className="group relative block cursor-pointer rounded-b-2xl rounded-tr-2xl border border-[#D7D0C5] bg-white/60 p-5 shadow-sm transition-all hover:border-[#8A9646] hover:bg-white/85">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-[#36452B]">Baseline Version</h3>
-                  <p className="mt-0.5 text-xs text-[#7F7D74]">
-                    Approved reference with cached values (dues_v2.xlsx)
-                  </p>
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#D7D0C5]/60 bg-[#F8F7F4] text-xl">
-                  📁
-                </div>
+            <div className="mt-3 flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white border border-[#D7D0C5] text-base">
+                📁
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-mono text-xs font-bold text-[#36452B]">{base ? base.name : baseName}</p>
+                <p className="text-[11px] text-[#7F7D74]">
+                  {base ? `${(base.size / 1024).toFixed(1)} KB · Ready` : 'Golden baseline with saved cache'}
+                </p>
               </div>
-              <input
-                type="file"
-                accept=".xlsx,.xlsm"
-                className="mt-4 block w-full text-xs text-[#36452B] file:mr-4 file:rounded-xl file:border file:border-[#D7D0C5] file:bg-[#F8F7F4] file:px-3 file:py-1.5 file:font-mono file:text-xs file:font-bold file:text-[#36452B] hover:file:bg-[#EEDADA]/40"
-                onChange={(e) => setBase(e.target.files?.[0] ?? null)}
-              />
-              {base && (
-                <div className="mt-2.5 flex items-center justify-between rounded-lg border border-[#8A9646]/30 bg-[#8A9646]/10 px-3 py-1 font-mono text-xs font-bold text-[#36452B]">
-                  <span className="truncate">{base.name}</span>
-                  <span className="text-[#7F7D74]">{(base.size / 1024).toFixed(1)} KB</span>
-                </div>
-              )}
-            </label>
+            </div>
           </div>
 
-          {/* New Workbook Card */}
-          <div className="relative">
-            <div className="inline-block rounded-t-lg border-x border-t border-[#D7D0C5] bg-white/85 px-4 py-1 font-mono text-[11px] font-bold tracking-widest text-[#7F7D74]">
-              NEW WORKBOOK (.xlsx)
+          {/* New Workbook Dropzone */}
+          <div className="relative rounded-xl border-2 border-dashed border-[#D7D0C5] bg-[#F8F7F4]/60 p-4 transition-colors hover:border-[#8A9646]">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs font-bold uppercase tracking-wider text-[#7F7D74]">
+                New workbook
+              </span>
+              <label className="cursor-pointer text-xs font-semibold text-[#8A9646] hover:underline">
+                Replace
+                <input
+                  type="file"
+                  accept=".xlsx,.xlsm"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) {
+                      setNext(f)
+                      setNewName(f.name)
+                    }
+                  }}
+                />
+              </label>
             </div>
-            <label className="group relative block cursor-pointer rounded-b-2xl rounded-tr-2xl border border-[#D7D0C5] bg-white/60 p-5 shadow-sm transition-all hover:border-[#8A9646] hover:bg-white/85">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-[#36452B]">Modified Candidate</h3>
-                  <p className="mt-0.5 text-xs text-[#7F7D74]">
-                    Workbook after AI edits or user changes (dues_v3_REAL.xlsx)
-                  </p>
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#D7D0C5]/60 bg-[#F8F7F4] text-xl">
-                  📄
-                </div>
+            <div className="mt-3 flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white border border-[#D7D0C5] text-base">
+                📄
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-mono text-xs font-bold text-[#36452B]">{next ? next.name : newName}</p>
+                <p className="text-[11px] text-[#7F7D74]">
+                  {next ? `${(next.size / 1024).toFixed(1)} KB · Ready` : 'Candidate version with AI / manual edits'}
+                </p>
               </div>
-              <input
-                type="file"
-                accept=".xlsx,.xlsm"
-                className="mt-4 block w-full text-xs text-[#36452B] file:mr-4 file:rounded-xl file:border file:border-[#D7D0C5] file:bg-[#F8F7F4] file:px-3 file:py-1.5 file:font-mono file:text-xs file:font-bold file:text-[#36452B] hover:file:bg-[#EEDADA]/40"
-                onChange={(e) => setNext(e.target.files?.[0] ?? null)}
-              />
-              {next && (
-                <div className="mt-2.5 flex items-center justify-between rounded-lg border border-[#8A9646]/30 bg-[#8A9646]/10 px-3 py-1 font-mono text-xs font-bold text-[#36452B]">
-                  <span className="truncate">{next.name}</span>
-                  <span className="text-[#7F7D74]">{(next.size / 1024).toFixed(1)} KB</span>
-                </div>
-              )}
-            </label>
+            </div>
           </div>
         </div>
 
-        {/* CTA & Status */}
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 pt-1">
+        {/* Primary Run check button */}
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
           <button
             type="button"
-            disabled={!base || !next || running}
-            onClick={() => void run()}
-            className="flex h-12 items-center gap-2.5 rounded-xl bg-[#36452B] px-8 text-base font-bold text-white shadow-md transition-all hover:bg-[#36452B]/90 focus-visible:outline-4 focus-visible:outline-[#8A9646] disabled:opacity-40"
+            disabled={(!base || !next) && running}
+            onClick={() => {
+              if (base && next) {
+                void run()
+              } else {
+                // If files aren't manually selected, click resets/refreshes active check
+                resetToCheck()
+              }
+            }}
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#36452B] px-6 text-sm font-semibold text-[#F8F7F4] shadow-sm transition-all hover:bg-[#36452B]/90 focus-visible:outline-4 focus-visible:outline-[#8A9646] disabled:opacity-50"
           >
             {running ? (
               <>
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Calculating Exact Shapley Coalitions…
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                <span>Running engine check... →</span>
               </>
             ) : (
-              'Run Check (POST /api/checks)'
+              <span>Run check →</span>
             )}
           </button>
 
-          <div className="flex items-center gap-3">
-            {!result.live ? (
-              <span className="rounded-full border border-[#D7D0C5] bg-[#EEDADA]/50 px-3.5 py-1 font-mono text-xs font-bold text-[#36452B]">
-                ● Displaying Engine Golden Fixture
-              </span>
-            ) : (
-              <span className="rounded-full border border-[#8A9646] bg-[#8A9646]/15 px-3.5 py-1 font-mono text-xs font-bold text-[#36452B]">
-                ✓ Live Server Check: {result.check.check_id}
-              </span>
-            )}
-          </div>
+          <span className="font-mono text-xs text-[#7F7D74]">
+            {result.live ? `Live Check ID: ${result.check.check_id}` : 'Displaying engine golden verification'}
+          </span>
         </div>
+
+        {/* Animated progress bar along bottom of card when running */}
+        {running && (
+          <div className="absolute inset-x-0 bottom-0 h-1 bg-[#D7D0C5] overflow-hidden">
+            <div className="h-full bg-[#8A9646] animate-pulse w-full" />
+          </div>
+        )}
 
         {error && (
           <div
             role="alert"
-            className="mt-6 flex items-start gap-3 rounded-xl border border-[#D7D0C5] bg-[#EEDADA]/60 p-4 text-[#36452B]"
+            className="mt-4 flex items-start gap-2.5 rounded-xl border border-[#D7D0C5] bg-[#EEDADA]/60 p-3 text-xs font-medium text-[#36452B]"
           >
-            <span className="text-xl">⚠️</span>
-            <div className="text-sm font-semibold">{error}</div>
+            <span>⚠️</span>
+            <div>{error}</div>
           </div>
         )}
       </section>
 
-      {/* 02+ Check Result View */}
+      {/* 3. Results Workspace */}
       <CheckResultView
         check={result.check}
+        baseName={baseName}
+        newName={newName}
+        isLive={result.live}
         onProve={result.live ? (groupId) => void prove(groupId) : undefined}
+        onReset={resetToCheck}
         csvHref={result.live ? csvHref(result.check.check_id) : undefined}
         selectedOutputCell={selectedOutputCell}
         onSelectOutput={setSelectedOutputCell}
         selectedGroupId={selectedGroupId}
         onSelectGroup={setSelectedGroupId}
-        waterfallSlot={
-          activeOutput ? (
-            <div className="grid gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <Waterfall
-                  check={result.check}
-                  outputCell={selectedOutputCell}
-                  selectedGroupId={selectedGroupId}
-                  onSelectGroup={setSelectedGroupId}
-                />
-              </div>
-              <div>
-                <HealthCoverageCard check={result.check} output={activeOutput} />
-              </div>
-            </div>
-          ) : (
-            <Waterfall
-              check={result.check}
-              outputCell={selectedOutputCell}
-              selectedGroupId={selectedGroupId}
-              onSelectGroup={setSelectedGroupId}
-            />
-          )
-        }
       />
     </div>
   )
