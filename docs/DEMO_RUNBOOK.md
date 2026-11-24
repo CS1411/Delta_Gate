@@ -37,6 +37,7 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
    - `golden/dues_v2.xlsx`
    - `golden/dues_v3_REAL.xlsx`
    - `golden/judge_xlookup.xlsx`
+8. **Never open `store\dues\current.xlsx` in Excel while the gate runs.** Excel holds it open for editing, Windows refuses the commit, and every edit with a PASS group fails with *"current.xlsx is open in another program (Excel?)"*. In Act 2 that means Session A shows no HELD card. To show the committed workbook in Excel, open a **copy** (or open read-only after the last edit and close with *Don't Save*; a read-only window does not refresh).
 
 ---
 
@@ -139,6 +140,7 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
 | **Claude Desktop hangs, rate-limits, or asks too many clarifying questions** | Run the Act 2 gate flow headlessly from terminal: `cd backend && uv run python ../scripts/demo_check.py --isolated` (if run without `--isolated`, run `powershell -File scripts\demo_reset.ps1` again afterwards), or switch directly to the backup recording. |
 | **Frontend (`localhost:5173`) or API (`localhost:8000`) crashes** | Run Act 1 & Act 3 live in terminal with CLI: `cd backend && uv run python -m deltagate.cli check ../golden/dues_v2.xlsx ../golden/dues_v3_REAL.xlsx` and `cd backend && uv run python -m deltagate.cli check ../golden/dues_v2.xlsx ../golden/judge_xlookup.xlsx`. If needed, switch to the backup recording. |
 | **Fresh commit shows `"Not verifiable against saved values"` (`pending` window)** | Do **not** panic — explain honestly: LibreOffice headless is computing the sidecar in the background (~1.8 s after warm-up). Wait 2 s and refresh, or note that an unverified base stays honestly labelled rather than claiming Excel. |
+| **Agent or Approvals tab says *"current.xlsx is open in another program (Excel?)"*** | Close that Excel window (Don't Save), then ask Claude to propose the edit again, or click Approve / Roll back again. Nothing was committed or recorded, so there is nothing to undo. |
 | **Judge hands over their own messy workbook** | Run it through Check (or `uv run python -m deltagate.cli check base.xlsx new.xlsx`). Accept partial coverage or `saved_by = none` openly — never claim 100% coverage on unsupported functions (`ROUND`, `XLOOKUP`, `INDIRECT`, macros). |
 
 ### Playing the Backup Recording
