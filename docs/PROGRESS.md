@@ -301,6 +301,11 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 - **`frontend/src/tabs/Check/CheckResultView.tsx` & `index.tsx`:** wired `Waterfall` as `waterfallSlot`, made `StructuralPanel` the default (deleted `StructuralSummary`), and fixed `CauseTokens` separators so negative shares render as ` − ₹7,500` instead of `+ −₹7,500`.
 - **`docs/DEMO_RUNBOOK.md`:** added `#check` / `#approvals` / `#audit` navigation and exact UI button clicks from `App.tsx`, `Check`, `Approvals`, and `Audit`.
 
+## Done (P1): `GET /api/policy` (branch `p1-policy-endpoint`)
+- Returns the policy the gate enforces (`Policy` from `models.py`: watched outputs, `impact_limit_abs`, `drift_budget`, `protected`), read from `policy.yaml` on each call.
+- `api.ts`: `fetchPolicy()` and a `Policy` type. For the header's policy pills, so no limit or protected cell is typed into the UI by hand (rule 1).
+- Test: `test_policy_endpoint_returns_what_the_gate_enforces`.
+
 ## Done (P1): Rollback button, and a fix for random 500s from the API (branch `p1-rollback`)
 - **Rollback button** (`frontend/src/tabs/Approvals/Workbooks.tsx`, under the held cards):
   - One row per workbook from `GET /api/workbooks`: current version and the honest saved-values wording.

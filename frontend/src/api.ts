@@ -76,6 +76,15 @@ export interface WorkbookSummary {
 }
 export const fetchWorkbooks = () => call<WorkbookSummary[]>('/api/workbooks')
 
+// The policy the gate enforces (policy.yaml), for the header: limits are never typed into the UI.
+export interface Policy {
+  watched_outputs: { cell: string; label: string }[]
+  impact_limit_abs: number
+  drift_budget: number
+  protected: string[]
+}
+export const fetchPolicy = () => call<Policy>('/api/policy')
+
 /** POST /api/workbooks/{id}/rollback: the version it made current. 409 (with the server's reason) when there is nothing earlier. */
 export interface RollbackResult { workbook_id: string; sha256: string; saved_by: SavedBy | 'pending'; source: 'managed' | 'unmanaged'; created_at: string }
 export const rollbackWorkbook = (workbookId: string) =>
