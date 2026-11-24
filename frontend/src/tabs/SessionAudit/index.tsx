@@ -1,6 +1,6 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ApiError, completeSessionAudit, csvHref, downloadProof, takeSnapshot, type SnapshotTaken } from '../../api'
-import { IconAlertTriangle, IconCheck, IconCheckCircle, IconCopy, IconUpload } from '../../components/Icons'
+import { IconAlertTriangle, IconCheck, IconCheckCircle, IconUpload } from '../../components/Icons'
 import v2v3 from '../../fixtures/check_v2_v3.json'
 import type { CheckResult } from '../../types'
 import CheckResultView from '../Check/CheckResultView'
@@ -39,7 +39,6 @@ export default function SessionAudit() {
   const [storageFailed, setStorageFailed] = useState(false)
   const [before, setBefore] = useState<File | null>(null)
   const [after, setAfter] = useState<File | null>(null)
-  const [pasted, setPasted] = useState('')
   const [resetCount, setResetCount] = useState(0)
   const [busy, setBusy] = useState<'snapshot' | 'complete' | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -106,14 +105,6 @@ export default function SessionAudit() {
     }
   }
 
-  const applyPasted = () => {
-    const id = pasted.trim()
-    if (!id) return
-    remember({ snapshot_id: id, sha256: null, file: null, taken_at: new Date().toISOString() })
-    setPasted('')
-    setError(null)
-  }
-
   const startOver = () => {
     remember(null)
     setResetCount((n) => n + 1)
@@ -174,7 +165,7 @@ export default function SessionAudit() {
         <div className="grid gap-5 lg:grid-cols-2">
           <Step number={1} title="Snapshot the workbook before the AI session" done={stored !== null}>
             {stored ? (
-              <SnapshotId stored={stored} />
+              <SnapshotNote stored={stored} />
             ) : (
               <div className="space-y-4">
                 <FilePick
@@ -191,30 +182,6 @@ export default function SessionAudit() {
                 >
                   {busy === 'snapshot' ? 'Taking snapshot…' : 'Take snapshot'}
                 </button>
-
-                <div className="border-t border-[#D7D0C5] pt-3.5">
-                  <label className="block text-xs font-semibold text-[#36452B]" htmlFor="pasted-id">
-                    Already took one? Paste its snapshot id
-                  </label>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <input
-                      id="pasted-id"
-                      value={pasted}
-                      onChange={(e) => setPasted(e.target.value)}
-                      placeholder="sa_…"
-                      spellCheck={false}
-                      className="min-w-0 flex-1 rounded-md border border-[#D7D0C5] bg-[#FFFFFF] px-3 py-1.5 font-mono text-sm text-[#36452B] placeholder:text-[#7F7D74]"
-                    />
-                    <button
-                      type="button"
-                      disabled={!pasted.trim()}
-                      onClick={applyPasted}
-                      className="rounded-md border border-[#D7D0C5] bg-[#FFFFFF] px-3.5 py-1.5 text-xs font-semibold text-[#36452B] transition-colors hover:border-[#36452B] hover:bg-[#F8F7F4] disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Use this id
-                    </button>
-                  </div>
-                </div>
               </div>
             )}
 
@@ -223,7 +190,7 @@ export default function SessionAudit() {
                 role="alert"
                 className="mt-3 rounded-md border border-[#A44A3F]/30 bg-[#EEDADA]/60 px-3 py-2 text-xs font-medium text-[#A44A3F]"
               >
-                This browser would not save the id. Copy it now: if you reload, it is gone.
+                This browser would not save the snapshot: if you reload, it is gone.
               </p>
             )}
           </Step>
@@ -245,7 +212,7 @@ export default function SessionAudit() {
                 {busy === 'complete' ? 'Checking…' : 'Check what the session changed'}
               </button>
               {!stored && (
-                <p className="text-xs text-[#36452B]/70">Take a snapshot, or paste an id, first.</p>
+                <p className="text-xs text-[#36452B]/70">Take a snapshot first.</p>
               )}
             </div>
           </Step>
@@ -325,60 +292,12 @@ function Step({
   )
 }
 
-function SnapshotId({ stored }: { stored: Stored }) {
-  const [copied, setCopied] = useState(false)
-  useEffect(() => {
-    if (!copied) return
-    const timer = setTimeout(() => setCopied(false), 1500)
-    return () => clearTimeout(timer)
-  }, [copied])
-
-  const copy = () =>
-    navigator.clipboard?.writeText(stored.snapshot_id).then(() => setCopied(true), () => {})
-
+function SnapshotNote({ stored }: { stored: Stored }) {
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-[#36452B]/85">
-        {stored.file ? (
-          <>
-            Snapshot of <strong className="font-semibold text-[#36452B]">{stored.file}</strong> kept.
-          </>
-        ) : (
-          <>Using a snapshot id you pasted.</>
-        )}{' '}
-        It survives a reload; copy it for safekeeping.
-      </p>
-
-      <div className="flex flex-wrap items-center gap-2.5">
-        <span className="text-xs font-semibold uppercase tracking-wider text-[#36452B]/70">
-          Snapshot id
-        </span>
-        <code
-          data-testid="snapshot-id"
-          className="whitespace-nowrap rounded-md bg-[#36452B] px-3.5 py-1.5 font-mono text-base font-semibold text-[#F8F7F4]"
-        >
-          {stored.snapshot_id}
-        </code>
-        <button
-          type="button"
-          onClick={copy}
-          aria-label="Copy the snapshot id"
-          className="inline-flex items-center gap-1.5 rounded-md border border-[#D7D0C5] bg-[#FFFFFF] px-3 py-1.5 text-xs font-semibold text-[#36452B] transition-colors hover:border-[#36452B]"
-        >
-          {copied ? (
-            <>
-              <IconCheck className="h-3.5 w-3.5 text-[#8A9646]" />
-              <span className="text-[#8A9646]">copied</span>
-            </>
-          ) : (
-            <>
-              <IconCopy className="h-3.5 w-3.5" />
-              <span>copy</span>
-            </>
-          )}
-        </button>
-      </div>
-    </div>
+    <p className="text-sm text-[#36452B]/85">
+      Snapshot of <strong className="font-semibold text-[#36452B]">{stored.file ?? 'the workbook'}</strong> kept. It
+      survives a reload.
+    </p>
   )
 }
 

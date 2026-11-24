@@ -33,9 +33,7 @@ export default function HeldCard({ decision, onApprove, onDeny, busy = false }: 
             <IconAlertTriangle className="h-3.5 w-3.5" />
             <span>{cantVerify ? "Held · Can't verify" : 'Held'}</span>
           </span>
-          <span className="text-sm text-[#36452B]/75">
-            Agent session <strong className="font-mono font-semibold text-[#36452B]">{decision.session_id}</strong>
-          </span>
+          <span className="text-sm text-[#36452B]/75">Proposed by the AI agent</span>
         </div>
       </header>
 
