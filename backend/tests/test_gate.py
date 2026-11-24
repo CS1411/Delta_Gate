@@ -403,3 +403,30 @@ def test_every_approver_action_signs_a_checkpoint(dues):
     gate.rollback(dues, "dues")
     assert signed_head() == head()
     assert audit.verify(dues) == {"ok": True, "entries": head(), "checkpoints": 3, "error": None}
+
+
+def test_a_live_file_held_open_in_excel_is_a_clear_conflict(dues, monkeypatch):
+    """Excel holding current.xlsx open for editing makes Windows refuse os.replace (WinError 5). Checked with real
+    Excel on 24 Nov. The gate must refuse with one clear sentence, record nothing and leave no stray files."""
+    real_replace = store.os.replace
+
+    def excel_lock(src, dst):
+        if str(dst).endswith("current.xlsx"):
+            raise PermissionError(5, "Access is denied", str(dst))
+        return real_replace(src, dst)
+
+    before = store.sha256(live())
+    snapshots = sorted((config.store_dir() / "dues" / "versions").iterdir())
+    monkeypatch.setattr(store.os, "replace", excel_lock)
+    with pytest.raises(store.Conflict, match="open in another program"):
+        gate.propose_edit(dues, "dues", PAYMENTS_AND_F3, "s_A")  # PARTIAL: the PASS group's commit hits the lock
+
+    assert store.sha256(live()) == before
+    assert dues.execute("SELECT COUNT(*) FROM edits").fetchone()[0] == 0
+    assert drift(dues, "s_A") == 0
+    assert [r["action"] for r in dues.execute("SELECT action FROM audit_log")] == ["register"]
+    assert sorted((config.store_dir() / "dues" / "versions").iterdir()) == snapshots  # no orphan snapshot
+    assert not live().with_suffix(".tmp").exists() and shadow_files() == []
+
+    monkeypatch.setattr(store.os, "replace", real_replace)  # Excel closed: the same edit goes through
+    assert gate.propose_edit(dues, "dues", PAYMENTS_AND_F3, "s_A").status == "PARTIAL"

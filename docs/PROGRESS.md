@@ -335,6 +335,14 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
 - **Checked live** (uvicorn + Vite): Run Check v2 → judge_xlookup gives the banner "Verified against Excel's saved values: 307 / 307" and "+₹42,000 observed = +₹38,000 verified + ₹4,000 unverified"; the lost-link graph shows; the Session Audit tab opens from the dock.
 - **Results:** `npm run build` clean; lint only the two existing warnings; `uv run pytest -q`: 179 passed, 6 skipped.
 
+## Done (P1): Excel lock test, and a clear refusal when Excel holds current.xlsx (branch `p1-excel-lock`)
+- **Tested with real Excel over COM** (24 Nov, throwaway `DELTAGATE_HOME`):
+  - `store/dues/current.xlsx` open in Excel for editing: the commit failed with `PermissionError: [WinError 5] Access is denied` on `os.replace`. The database rolled back (no version, edit, audit entry or drift), but the agent got a raw Python error, and `current.tmp` plus an unreferenced snapshot were left behind. A PARTIAL edit fails as a whole, so in Act 2 Session A would show no HELD card. Approve and Rollback go through the same commit.
+  - Excel closed: the same edit PASSes. Opened read-only: the commit succeeds, but Excel keeps showing the old values. A copy open in Excel: no effect.
+- **Fix:** `store._add_version` turns that `PermissionError` into `store.Conflict` ("current.xlsx is open in another program (Excel?), so nothing was committed. Close it and try again.") and removes the `.tmp` and the snapshot it just created. The API already answers `Conflict` with 409 and that message (approve, rollback); the agent gets the same sentence from `propose_edit`.
+- **Test:** `test_a_live_file_held_open_in_excel_is_a_clear_conflict` simulates the lock (fails without the fix): Session A raises the Conflict, nothing is recorded, no stray files, and the same edit goes through once the lock is gone.
+- **Runbook:** pre-demo checklist item 9 (never open `current.xlsx` in Excel while the gate runs; open a copy) and a fallback row. Also from Nikita's #33 notes: item 8 (never run `demo_reset.ps1` once Act 1 has started) and Act 2 step 4 now describes the real two-click rollback (Workbooks section below the held cards: **Roll back**, then **Confirm rollback**).
+
 ## In progress
 Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phase-2-gate` goes to `main` by pull request. Phase 3 has not started.
 

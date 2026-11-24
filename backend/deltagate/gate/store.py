@@ -98,12 +98,21 @@ def _add_version(conn: sqlite3.Connection, workbook_id: str, file: Path, parent_
     """Snapshot `file` as the workbook's new current version. Call inside a transaction."""
     sha = sha256(file)
     snapshot = _dir(workbook_id, "versions") / f"{sha}.xlsx"
-    if not snapshot.exists():
+    new_snapshot = not snapshot.exists()
+    if new_snapshot:
         shutil.copyfile(file, snapshot)
     live = live_path(workbook_id)
     if Path(file) != live:
-        shutil.copyfile(snapshot, live.with_suffix(".tmp"))
-        os.replace(live.with_suffix(".tmp"), live)
+        tmp = live.with_suffix(".tmp")
+        shutil.copyfile(snapshot, tmp)
+        try:
+            os.replace(tmp, live)
+        except PermissionError as locked:  # Windows: Excel (or another program) has current.xlsx open for editing
+            tmp.unlink(missing_ok=True)
+            if new_snapshot:
+                snapshot.unlink(missing_ok=True)
+            raise Conflict(f"Workbook '{workbook_id}': current.xlsx is open in another program (Excel?), so nothing "
+                           "was committed. Close it and try again.") from locked
 
     if saved_by is None:
         try:
