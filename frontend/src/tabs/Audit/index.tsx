@@ -25,6 +25,7 @@ function rows(log: AuditLog): Row[] {
   return out
 }
 
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 const clock = (ts: string) => `${ts.slice(0, 10)} ${ts.slice(11, 19)} UTC`
 
 type Verdict = { state: 'idle' } | { state: 'busy' } | { state: 'unreachable' } | ({ state: 'done' } & AuditVerdict)
@@ -68,7 +69,7 @@ export default function Audit() {
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
       <div className="flex flex-wrap items-center gap-4">
-        <h2 className="text-3xl font-bold">Audit log <span className="text-slate-500">({log.entries.length} entries, {log.checkpoints.length} checkpoints)</span></h2>
+        <h2 className="text-3xl font-bold">Audit log <span className="text-slate-500">({count(log.entries.length, 'entry', 'entries')}, {count(log.checkpoints.length, 'checkpoint', 'checkpoints')})</span></h2>
         <button type="button" onClick={() => void verify()} disabled={verdict.state === 'busy'}
           className="ml-auto h-14 rounded-xl bg-slate-900 px-8 text-xl font-semibold text-white hover:bg-slate-700 focus-visible:outline-4 focus-visible:outline-slate-400 disabled:opacity-50">
           {verdict.state === 'busy' ? 'Verifying…' : 'Verify log'}
@@ -100,7 +101,7 @@ function VerdictBanner({ verdict }: { verdict: Verdict }) {
   return verdict.ok ? (
     <div role="status" className="flex items-center gap-6 rounded-2xl border-4 border-emerald-600 bg-emerald-50 px-8 py-8">
       <span className="text-8xl leading-none" aria-hidden>✅</span>
-      <p className="text-5xl font-bold text-emerald-800">Chain verified: {verdict.entries} entries, {verdict.checkpoints} checkpoints</p>
+      <p className="text-5xl font-bold text-emerald-800">Chain verified: {count(verdict.entries, 'entry', 'entries')}, {count(verdict.checkpoints, 'checkpoint', 'checkpoints')}</p>
     </div>
   ) : (
     <div role="alert" className="flex items-center gap-6 rounded-2xl border-4 border-red-600 bg-red-50 px-8 py-8">
@@ -122,16 +123,14 @@ function EntryRow({ entry }: { entry: AuditEntry }) {
         <span className="text-lg text-slate-600">by {entry.actor}</span>
         <time dateTime={entry.ts} className="ml-auto text-base text-slate-500">{clock(entry.ts)}</time>
       </div>
-      <div className="mt-2 flex flex-wrap gap-x-6 text-sm">
-        <Hash value={entry.prev_hash} label="prev" />
-        <Hash value={entry.hash} label="hash" />
-      </div>
-      {Object.keys(entry.payload).length > 0 && (
-        <details className="mt-2">
-          <summary className="cursor-pointer text-base text-slate-600">Payload</summary>
-          <div className="mt-2"><Payload payload={entry.payload} /></div>
-        </details>
-      )}
+      <details className="mt-2">
+        <summary className="cursor-pointer text-base text-slate-600">Details</summary>
+        <div className="mt-2 flex flex-wrap gap-x-6 text-sm">
+          <Hash value={entry.prev_hash} label="prev" />
+          <Hash value={entry.hash} label="hash" />
+        </div>
+        {Object.keys(entry.payload).length > 0 && <div className="mt-2"><Payload payload={entry.payload} /></div>}
+      </details>
     </li>
   )
 }
@@ -143,10 +142,13 @@ function CheckpointRow({ checkpoint }: { checkpoint: AuditCheckpoint }) {
         <span className="text-lg font-bold text-indigo-900">🔏 Signed checkpoint at #{checkpoint.seq}</span>
         <time dateTime={checkpoint.ts} className="ml-auto text-base text-indigo-800">{clock(checkpoint.ts)}</time>
       </div>
-      <div className="mt-1 flex flex-wrap gap-x-6 text-sm">
-        <Hash value={checkpoint.head_hash} label="head" />
-        <Hash value={checkpoint.signature} label="Ed25519 signature" />
-      </div>
+      <details className="mt-1">
+        <summary className="cursor-pointer text-sm text-indigo-800">Signature</summary>
+        <div className="mt-1 flex flex-wrap gap-x-6 text-sm">
+          <Hash value={checkpoint.head_hash} label="head" />
+          <Hash value={checkpoint.signature} label="Ed25519 signature" />
+        </div>
+      </details>
     </li>
   )
 }

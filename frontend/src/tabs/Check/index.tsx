@@ -192,11 +192,11 @@ export default function Check() {
             <div className="flex items-center gap-3">
               {!result.live ? (
                 <span className="rounded-full border border-[#D7D0C5] bg-[#EEDADA]/50 px-3.5 py-1 font-mono text-xs font-bold text-[#36452B]">
-                  ● Displaying Engine Golden Fixture
+                  ● Sample data
                 </span>
               ) : (
                 <span className="rounded-full border border-[#8A9646] bg-[#8A9646]/15 px-3.5 py-1 font-mono text-xs font-bold text-[#36452B]">
-                  ✓ Live Server Check: {result.check.check_id}
+                  ✓ Checked live
                 </span>
               )}
             </div>

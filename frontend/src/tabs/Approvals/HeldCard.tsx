@@ -35,14 +35,13 @@ export default function HeldCard({ decision, onApprove, onDeny, busy = false }: 
         <span className="text-lg text-slate-600">
           Agent session <b className="font-mono text-slate-900">{decision.session_id}</b>
         </span>
-        <span className="ml-auto font-mono text-base text-slate-500">{decision.edit_id}</span>
       </header>
 
       <div className="space-y-6 px-8 py-6">
         {passed.length > 0 && (
           <p className="rounded-lg bg-emerald-50 px-4 py-3 text-lg text-emerald-900">
             ✓ {passed.map((g) => groupInfo.get(g.group_id)?.label ?? g.group_id).join('; ')}: passed and
-            committed{decision.committed_version && <> as version <span className="font-mono">{decision.committed_version.slice(0, 8)}</span></>}.
+            committed.
             The part below is waiting for you.
           </p>
         )}
