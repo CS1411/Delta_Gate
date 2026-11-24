@@ -4,6 +4,7 @@ import type { Attribution, Group, GroupType, Unverifiable } from '../../types'
 
 // Change-groups table for the Check tab: type filter, clickable rows highlighting cells, and "Prove it".
 // Every number comes straight from the engine's Attribution; groups excluded by taint show "unverified", never 0.
+// Styled in the "Editorial Glass + Zen Bamboo" visual design system.
 
 export type GroupFilter = 'all' | GroupType | 'unverified'
 
@@ -17,9 +18,9 @@ interface Props {
 }
 
 const TYPE_STYLE: Record<GroupType, string> = {
-  data: 'bg-sky-100 text-sky-900',
-  logic: 'bg-violet-100 text-violet-900',
-  structural: 'bg-amber-100 text-amber-900',
+  data: 'bg-[#8A9646]/15 text-[#36452B] border border-[#8A9646]/40',
+  logic: 'bg-[#36452B]/10 text-[#36452B] border border-[#36452B]/30',
+  structural: 'bg-[#EEDADA] text-[#36452B] border border-[#D7D0C5]',
 }
 
 export default function GroupsTable({
@@ -52,7 +53,7 @@ export default function GroupsTable({
   })
 
   const filters: { key: GroupFilter; label: string }[] = [
-    { key: 'all', label: 'All' },
+    { key: 'all', label: 'All Groups' },
     { key: 'data', label: 'Data' },
     { key: 'logic', label: 'Logic' },
     { key: 'structural', label: 'Structural' },
@@ -62,11 +63,17 @@ export default function GroupsTable({
   const colSpan = onProve ? 5 : 4
 
   return (
-    <section aria-label="Change groups" className="rounded-2xl bg-white p-6 shadow-md">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h3 className="text-2xl font-bold text-slate-900">
-          Change groups <span className="font-normal text-slate-500">({groups.length})</span>
-        </h3>
+    <section aria-label="Change groups ledger" className="glass-card p-6 sm:p-8">
+      <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-[#D7D0C5]/60 pb-5">
+        <div>
+          <p className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
+            05 / CHANGE GROUPS & EXACT ATTRIBUTION
+          </p>
+          <h3 className="mt-1 text-3xl font-extrabold tracking-tight text-[#36452B]">
+            Change Groups <span className="font-normal text-[#7F7D74]">({groups.length})</span>
+          </h3>
+        </div>
+
         <div role="group" aria-label="Filter change groups by type" className="flex flex-wrap gap-2">
           {filters.map(({ key, label }) => {
             const active = filter === key
@@ -75,10 +82,10 @@ export default function GroupsTable({
                 key={key}
                 type="button"
                 onClick={() => setFilter(key)}
-                className={`rounded-full px-4 py-1.5 text-base font-semibold transition-colors ${
+                className={`rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-all ${
                   active
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    ? 'bg-[#36452B] text-white shadow-sm'
+                    : 'border border-[#D7D0C5] bg-white/70 text-[#7F7D74] hover:border-[#8A9646] hover:text-[#36452B]'
                 }`}
               >
                 {label} <span className="ml-1 opacity-75">({counts[key]})</span>
@@ -89,20 +96,20 @@ export default function GroupsTable({
       </div>
 
       {visible.length === 0 ? (
-        <p className="mt-6 text-lg text-slate-500">No change groups match this filter.</p>
+        <p className="mt-6 text-base text-[#7F7D74]">No change groups match this category filter.</p>
       ) : (
-        <div className="mt-5 overflow-x-auto">
+        <div className="mt-6 overflow-x-auto">
           <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="border-b-2 border-slate-200 text-sm font-semibold uppercase tracking-wide text-slate-500">
-                <th className="py-3 pr-4">Change group</th>
-                <th className="px-4 py-3 text-right">Solo</th>
-                <th className="px-4 py-3 text-right">Share</th>
-                <th className="px-4 py-3 text-right">Interaction</th>
-                {onProve && <th className="py-3 pl-4 text-right">Proof</th>}
+              <tr className="border-b-2 border-[#D7D0C5] font-mono text-xs font-bold uppercase tracking-wider text-[#7F7D74]">
+                <th className="py-3.5 pr-4">Change Group & Target Cells</th>
+                <th className="px-4 py-3.5 text-right">Solo Effect</th>
+                <th className="px-4 py-3.5 text-right">Shapley Share (φ)</th>
+                <th className="px-4 py-3.5 text-right">Interaction</th>
+                {onProve && <th className="py-3.5 pl-4 text-right">Independent Proof</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
+            <tbody className="divide-y divide-[#D7D0C5]/60">
               {visible.map((g) => {
                 const attr = attrByGroup.get(g.group_id)
                 const excluded = !attr
@@ -113,37 +120,49 @@ export default function GroupsTable({
                       onClick={() => onSelectGroup(selected ? null : g.group_id)}
                       aria-expanded={selected}
                       className={`cursor-pointer transition-colors ${
-                        selected ? 'bg-sky-50' : 'hover:bg-slate-50'
+                        selected ? 'bg-[#8A9646]/10' : 'hover:bg-white/60'
                       }`}
                     >
                       <td className="py-4 pr-4 align-top">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className={`rounded px-2 py-0.5 text-xs font-bold uppercase ${TYPE_STYLE[g.type]}`}>
+                          <span className={`rounded-md px-2.5 py-0.5 font-mono text-xs font-bold uppercase ${TYPE_STYLE[g.type]}`}>
                             {g.type}
                           </span>
                           {isGroupUnverified(g) && (
-                            <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-bold uppercase text-slate-700">
+                            <span className="rounded-md border border-[#D7D0C5] bg-[#EEDADA] px-2 py-0.5 font-mono text-xs font-bold uppercase text-[#36452B]">
                               unverified
                             </span>
                           )}
-                          <span className="text-xl font-semibold text-slate-900">{g.label}</span>
+                          <span className="text-xl font-bold text-[#36452B]">{g.label}</span>
                         </div>
-                        <p className="mt-1 font-mono text-sm text-slate-500">
+                        <p className="mt-1 font-mono text-xs text-[#7F7D74]">
                           {g.cells.length} {g.cells.length === 1 ? 'cell' : 'cells'} · click to{' '}
-                          {selected ? 'hide' : 'highlight'} cells
+                          {selected ? 'collapse' : 'highlight'} origin cells
                         </p>
                       </td>
 
-                      <td className="px-4 py-4 text-right align-top text-xl font-medium tabular-nums text-slate-700">
-                        {excluded ? <span className="text-slate-500">unverified</span> : signedInr(attr.solo)}
+                      <td className="px-4 py-4 text-right align-top text-xl font-semibold tabular-nums text-[#7F7D74]">
+                        {excluded ? (
+                          <span className="text-sm font-medium text-[#7F7D74]">unverified</span>
+                        ) : (
+                          signedInr(attr.solo)
+                        )}
                       </td>
 
-                      <td className="px-4 py-4 text-right align-top text-2xl font-bold tabular-nums text-slate-900">
-                        {excluded ? <span className="text-lg font-medium text-slate-500">unverified</span> : signedInr(attr.share)}
+                      <td className="px-4 py-4 text-right align-top text-2xl font-black tabular-nums text-[#36452B]">
+                        {excluded ? (
+                          <span className="text-base font-bold text-[#A44A3F]">unverified</span>
+                        ) : (
+                          signedInr(attr.share)
+                        )}
                       </td>
 
-                      <td className="px-4 py-4 text-right align-top text-xl tabular-nums text-slate-600">
-                        {excluded ? <span className="text-slate-500">unverified</span> : signedInr(attr.interaction)}
+                      <td className="px-4 py-4 text-right align-top text-lg font-medium tabular-nums text-[#7F7D74]">
+                        {excluded ? (
+                          <span className="text-sm font-medium text-[#7F7D74]">unverified</span>
+                        ) : (
+                          signedInr(attr.interaction)
+                        )}
                       </td>
 
                       {onProve && (
@@ -154,7 +173,7 @@ export default function GroupsTable({
                               e.stopPropagation()
                               onProve(g.group_id)
                             }}
-                            className="rounded-lg border-2 border-slate-900 px-4 py-2 text-base font-semibold text-slate-900 hover:bg-slate-900 hover:text-white focus-visible:outline-4 focus-visible:outline-slate-400"
+                            className="rounded-xl border-2 border-[#36452B] px-4 py-2 text-sm font-bold text-[#36452B] shadow-sm transition-all hover:bg-[#36452B] hover:text-white focus-visible:outline-4 focus-visible:outline-[#8A9646]"
                           >
                             Prove it
                           </button>
@@ -163,26 +182,30 @@ export default function GroupsTable({
                     </tr>
 
                     {selected && (
-                      <tr className="bg-sky-50/70">
-                        <td colSpan={colSpan} className="px-4 pb-4 pt-2">
-                          <p className="text-sm font-semibold uppercase tracking-wide text-slate-600">
-                            Cells in {g.group_id}
+                      <tr className="bg-[#8A9646]/5">
+                        <td colSpan={colSpan} className="px-6 pb-5 pt-3">
+                          <p className="font-mono text-xs font-bold uppercase tracking-wider text-[#7F7D74]">
+                            Origin Cells in {g.group_id} ({g.label})
                           </p>
-                          <div className="mt-2 flex flex-wrap gap-2">
+                          <div className="mt-2.5 flex flex-wrap gap-2">
                             {g.cells.map((cell) => {
                               const reason = unverifiedByCell.get(cell)
                               return (
                                 <span
                                   key={cell}
                                   title={reason ? `Unverified: ${reason}` : cell}
-                                  className={`rounded-md border px-2.5 py-1 font-mono text-sm ${
+                                  className={`rounded-lg border px-3 py-1 font-mono text-xs font-semibold ${
                                     reason
-                                      ? 'border-amber-400 bg-amber-50 text-amber-900'
-                                      : 'border-sky-300 bg-white text-slate-900'
+                                      ? 'border-[#D7D0C5] bg-[#EEDADA] text-[#36452B]'
+                                      : 'border-[#D7D0C5] bg-white text-[#36452B]'
                                   }`}
                                 >
                                   {cell}
-                                  {reason && <span className="ml-1.5 font-sans text-xs font-semibold">({reason})</span>}
+                                  {reason && (
+                                    <span className="ml-1.5 font-sans text-xs text-[#A44A3F]">
+                                      ({reason})
+                                    </span>
+                                  )}
                                 </span>
                               )
                             })}

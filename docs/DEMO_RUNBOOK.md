@@ -66,21 +66,18 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
 
 ---
 
-### Act 1 — Check: Exact Attribution & Broken Link (60 s)
+### Act 1 — Check: Exact Attribution & Broken Link (45 s)
 
-- **Do:**
+- **Do (Check tab UI clicks):**
   1. Open `http://localhost:5173/#check`.
-  2. Under **Base version**, select `golden/dues_v2.xlsx`; under **New version**, select `golden/dues_v3_REAL.xlsx`; click **Run Check** *(no-backend fallback: click **Sample: dues v2 → v3**)*.
+  2. Under **Base version**, select `golden/dues_v2.xlsx`; under **New version**, select `golden/dues_v3_REAL.xlsx`; click **Run Check** *(offline fallback: click **Sample: dues v2 → v3**)*.
+  3. Show headline: `Summary!C6` moved **₹2,86,000 → ₹3,28,000 (+₹42,000)**, split into **₹38,000** (Lift repair, `data`) + **₹4,000** (`LateFees!F3`, `logic`). Interaction is ₹0, so the bars add up exactly to Δ.
+  4. Click the **+₹4,000** waterfall bar (or `LateFees!F3` group) → click **Prove it** (`POST /api/checks/{id}/proof/{group_id}`) to download the solo proof workbook (Excel recalculates `Summary!C6 = ₹2,90,000`).
+  5. Point to the red Structural Alert on `Summary!C4` (Collected): `typed_over_formula` and **`lost_link`** (*"Collected no longer depends on Payments!C (Amount paid)"*) at **₹0** change; the mini-graph shows the dashed red `Payments!C → Summary!C4` link.
 - **Point to on screen:**
   1. **Verification banner:** `"Verified against Excel's saved values: 307 / 307 formula cells match"`.
-  2. **Headline + ECharts waterfall:** `Summary!C6` moved **₹2,86,000 → ₹3,28,000 (+₹42,000)**, split into **₹38,000** (New row in Expenses: Lift repair, `data`) + **₹4,000** (`LateFees!F3`, `logic`). Interaction is ₹0, so the bars add up exactly to Δ.
-  3. **Click the +₹4,000 waterfall bar (or click the `Logic` filter pill in `Change groups`):** highlights and expands `LateFees!F3`.
-  4. **Click `Prove it`** (`POST /api/checks/{id}/proof/{group_id}`) on the `Formula changed: LateFees!F3` row, open the downloaded proof workbook in Excel (and optionally point to **Export CSV** in the banner).
-     - Show `LateFees!F3` is `=F2*0.04` while `Expenses!B12` is still empty and `Summary!C4` still has its formula.
-     - Excel recalculates `Summary!C6` to **₹2,90,000** (**+₹4,000** solo effect — computed by Excel itself, not our engine).
-  5. **Point to the red Structural Alert on `Summary!C4` (Collected):**
-     - `typed_over_formula` + **`lost_link`**: *"Collected no longer depends on Payments!C (Amount paid)"* with **₹0** change.
-     - React Flow mini-graph: dashed red link `Payments!C → Summary!C4`, while `Summary!C6` stays connected via `Payments!D → LateFees!C`.
+  2. **Waterfall & Attribution:** `+₹42,000 = ₹38,000 + ₹4,000` with zero interaction.
+  3. **Solo Proof & Broken Link:** `LateFees!F3` solo effect verified by Excel itself; `Summary!C4` disconnected link flagged despite zero rupee movement.
 - **Say:**
   > "Total pending dues rose ₹42,000: ₹38,000 from a new Lift repair expense row, ₹4,000 from a late-fee formula change, and you can open Prove it in Excel to verify the ₹4,000 yourself. Even better, Collected didn't move by a single rupee — ₹1,00,000 before and after — yet Delta Gate caught that someone typed over its formula and broke its link to Payments."
 
@@ -134,7 +131,7 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
      *(No-backend fallback: click **Sample: judge file (XLOOKUP)**.)*
 - **Point to on screen:**
   1. Banner: `Verified against Excel's saved values: 307 / 307 formula cells match`, then `coverage 59.6%` and the label **`Partial verification (59.6%)`**. The base file is the Excel-saved dues_v2; the partial part is the judge file's XLOOKUP cells.
-  2. Total pending dues (`Summary!C6`): `₹2,86,000 → ₹3,28,000`, and the line **`+₹42,000 observed = +₹38,000 verified + +₹4,000 unverified`**. Under "Verified split" only the `+₹38,000` New row in Expenses: Lift repair (data) is attributed.
+  2. Total pending dues (`Summary!C6`): `₹2,86,000 → ₹3,28,000`, and the line **`+₹42,000 observed = +₹38,000 verified + ₹4,000 unverified`**. Under "Verified split" only the `+₹38,000` New row in Expenses: Lift repair (data) is attributed.
   3. Change groups: `60 formulas changed in LateFees!C (Balance)` and `Formula changed: LateFees!F3` both read **`unverified`** in Solo, Share and Interaction (never a ₹ number). **VERIFY AFTER #31** (the table is restyled).
   4. The **`Can't verify (124 cells)`** panel: `Excluded from attribution — we never guess.`, **`XLOOKUP: 60`**, `depends on an unverifiable cell: 64`. The full cell list is behind **`Show all 124 unverifiable cells`**; do not open it live. **VERIFY AFTER #31**.
 - **Say:**
