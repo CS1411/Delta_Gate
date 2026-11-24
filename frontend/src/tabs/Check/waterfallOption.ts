@@ -1,7 +1,7 @@
-import { inr, signedInr } from '../../format'
+import { signedInr } from '../../format'
 import type { Group, GroupType, Output } from '../../types'
 
-interface StepMeta {
+interface Row {
   kind: 'total' | 'group' | 'unverified'
   label: string
   value: number
@@ -12,211 +12,110 @@ interface StepMeta {
   interaction?: number
 }
 
-// Visual Design System palette for Waterfall chart:
-// - Deep Bamboo Green #36452B: Total waterfall bars (Base, New)
-// - Mossy Rock Green #8A9646: Positive attribution bars
-// - Terracotta Crimson #A44A3F: Negative attribution bars
-// - Cherry Blossom Pink #EEDADA: Unverified bars
-// - Weathered Wood Grey #7F7D74: Muted axis labels & captions
-// - Zen Sand Beige #D7D0C5: Dividers and subtle grid lines
+// "What moved this output", one horizontal bar per cause, every bar starting at ₹0, so nothing floats:
+// - Mossy Rock Green #8A9646: a cause that raised the output; Terracotta Crimson #A44A3F: one that lowered it
+// - Cherry Blossom Pink #EEDADA: the part the engine can't verify (never attributed, never guessed)
+// - Deep Bamboo Green #36452B: the total change, straight from the engine (delta_observed), never summed here
 
-function stepColor(meta: StepMeta, selected: boolean): string {
-  if (meta.kind === 'total') {
-    // Both Base and New total bars use Deep Bamboo Green
-    return '#36452B'
-  }
-  if (meta.kind === 'unverified') {
-    return '#EEDADA'
-  }
-  if (meta.share !== undefined && meta.share < 0) {
-    return '#A44A3F'
-  }
-  // Positive attribution bars use Mossy Rock Green
-  const base = '#8A9646'
-  return selected ? '#36452B' : base
+function rowColor(row: Row, selected: boolean): string {
+  if (row.kind === 'total') return '#36452B'
+  if (row.kind === 'unverified') return '#EEDADA'
+  if (selected) return '#36452B'
+  return row.value < 0 ? '#A44A3F' : '#8A9646'
 }
 
-/** Build the ECharts option for a single watched output's waterfall, or null when base/new is unknown. */
-export function buildWaterfallOption(
-  output: Output,
-  groups: Group[],
-  selectedGroupId: string | null = null,
-) {
+/** ECharts option for one watched output's change by cause, or null when there is nothing to draw. */
+export function buildWaterfallOption(output: Output, groups: Group[], selectedGroupId: string | null = null) {
   if (output.base === null || output.new === null) return null
 
   const groupById = new Map(groups.map((g) => [g.group_id, g]))
-  // Zero-share groups stay out of the waterfall bars (they remain listed in GroupsTable).
-  const causes = output.attribution.filter((a) => a.share !== 0)
-  const hasUnverified = output.delta_unverified !== null && output.delta_unverified !== 0
-
-  const metas: StepMeta[] = [{ kind: 'total', label: 'Base', value: output.base }]
-  const bases: number[] = [0]
-  const heights: number[] = [Math.abs(output.base)]
-
-  let running = output.base
-  const levels: number[] = [output.base] // where each bar ends; a thin line carries it to the next bar
-  const extremes: number[] = [output.base, output.new]
-
-  for (const a of causes) {
-    const group = groupById.get(a.group_id)
-    const start = a.share >= 0 ? running : running + a.share
-    bases.push(start)
-    heights.push(Math.abs(a.share))
-    running += a.share
-    levels.push(running)
-    extremes.push(running)
-    metas.push({
-      kind: 'group',
-      label: group?.label ?? a.group_id,
-      value: a.share,
-      groupId: a.group_id,
-      groupType: group?.type,
-      solo: a.solo,
-      share: a.share,
-      interaction: a.interaction,
+  // Zero-share groups stay out of the chart (they remain listed in GroupsTable).
+  const rows: Row[] = output.attribution
+    .filter((a) => a.share !== 0)
+    .map((a) => {
+      const group = groupById.get(a.group_id)
+      return {
+        kind: 'group',
+        label: group?.label ?? a.group_id,
+        value: a.share,
+        groupId: a.group_id,
+        groupType: group?.type,
+        solo: a.solo,
+        share: a.share,
+        interaction: a.interaction,
+      }
     })
+  if (output.delta_unverified !== null && output.delta_unverified !== 0) {
+    rows.push({ kind: 'unverified', label: "Can't verify", value: output.delta_unverified })
   }
-
-  if (hasUnverified) {
-    const unv = output.delta_unverified!
-    const start = unv >= 0 ? running : running + unv
-    bases.push(start)
-    heights.push(Math.abs(unv))
-    running += unv
-    levels.push(running)
-    extremes.push(running)
-    metas.push({ kind: 'unverified', label: 'Unverified', value: unv })
+  if (output.delta_observed !== null) {
+    rows.push({ kind: 'total', label: 'Total change', value: output.delta_observed })
   }
+  if (rows.length === 0) return null
 
-  bases.push(0)
-  heights.push(Math.abs(output.new))
-  metas.push({ kind: 'total', label: 'New', value: output.new })
-
-  const minVal = Math.min(...extremes)
-  const maxVal = Math.max(...extremes)
-  const span = maxVal - minVal
-  const pad = span > 0 ? span * 0.5 : Math.max(1000, Math.abs(minVal) * 0.1)
-  const axisMin = minVal > 0 && minVal > pad ? Math.max(0, Math.floor((minVal - pad) / 1000) * 1000) : undefined
+  const ordered = [...rows].reverse() // ECharts draws the first category at the bottom; causes read top-down
 
   return {
     backgroundColor: 'transparent',
-    grid: { left: 104, right: 32, top: 48, bottom: 88 },
+    grid: { left: 16, right: 96, top: 16, bottom: 32, containLabel: true },
     tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
+      trigger: 'item',
       backgroundColor: 'rgba(255, 255, 255, 0.95)',
       borderColor: '#D7D0C5',
       borderWidth: 1,
       textStyle: { color: '#36452B', fontSize: 14, fontFamily: 'inherit' },
-      formatter: (params: unknown) => {
-        const list = Array.isArray(params) ? params : [params]
-        const first = list[0] as { dataIndex?: number } | undefined
-        const meta = first?.dataIndex !== undefined ? metas[first.dataIndex] : undefined
-        if (!meta) return ''
-        if (meta.kind === 'total') {
-          return `<div style="font-weight:bold;color:#36452B">${meta.label} Total</div><div style="font-size:16px;font-weight:bold;margin-top:2px;">${inr(meta.value)}</div>`
+      formatter: ({ dataIndex }: { dataIndex: number }) => {
+        const row = ordered[dataIndex]
+        if (!row) return ''
+        if (row.kind === 'total') {
+          return `<div style="font-weight:bold">Total change</div><div style="font-size:16px;font-weight:bold;margin-top:2px">${signedInr(row.value)}</div>`
         }
-        if (meta.kind === 'unverified') {
-          return `<div style="font-weight:bold;color:#A44A3F">Unverified Delta</div><div style="font-size:16px;font-weight:bold;margin-top:2px;">${signedInr(meta.value)}</div><div style="color:#7F7D74;font-size:12px;margin-top:2px">Excluded from attribution (never guessed)</div>`
+        if (row.kind === 'unverified') {
+          return `<div style="font-weight:bold;color:#A44A3F">Can't verify</div><div style="font-size:16px;font-weight:bold;margin-top:2px">${signedInr(row.value)}</div><div style="color:#7F7D74;font-size:12px;margin-top:2px">Excluded from attribution (never guessed)</div>`
         }
         return [
-          `<div style="font-weight:bold;color:#36452B">${meta.label} <span style="font-size:11px;padding:1px 6px;border-radius:4px;background:#D7D0C5;color:#36452B;text-transform:uppercase">${meta.groupType ?? 'change'}</span></div>`,
-          `<div style="font-size:15px;margin-top:4px;">Shapley Share: <b>${signedInr(meta.share ?? 0)}</b></div>`,
-          `<div style="color:#7F7D74;font-size:13px;">Solo Effect: ${signedInr(meta.solo ?? 0)}</div>`,
-          `<div style="color:#7F7D74;font-size:13px;">Synergy / Interaction: ${signedInr(meta.interaction ?? 0)}</div>`,
+          `<div style="font-weight:bold">${row.label} <span style="font-size:11px;padding:1px 6px;border-radius:4px;background:#D7D0C5;text-transform:uppercase">${row.groupType ?? 'change'}</span></div>`,
+          `<div style="font-size:15px;margin-top:4px">Share: <b>${signedInr(row.share ?? 0)}</b></div>`,
+          `<div style="color:#7F7D74;font-size:13px">On its own: ${signedInr(row.solo ?? 0)} · Interaction: ${signedInr(row.interaction ?? 0)}</div>`,
         ].join('')
       },
     },
     xAxis: {
-      type: 'category',
-      data: metas.map((m) => m.label),
-      axisLine: { lineStyle: { color: '#D7D0C5' } },
-      axisTick: { show: false },
-      axisLabel: {
-        interval: 0,
-        fontSize: 13,
-        fontWeight: '500',
-        color: '#7F7D74',
-        margin: 12,
-        width: 120,
-        overflow: 'break',
-        lineHeight: 16,
-        formatter: (value: string) => (value.length > 40 ? `${value.slice(0, 38)}…` : value),
-      },
-    },
-    yAxis: {
       type: 'value',
-      min: axisMin,
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: {
-        showMinLabel: false, // the cut-off floor (e.g. ₹2,65,000) crowds the first round tick
-        fontSize: 13,
-        fontWeight: 'bold',
-        color: '#7F7D74',
-        formatter: (value: number) => inr(value),
-      },
-      splitLine: {
-        lineStyle: {
-          color: '#D7D0C5',
-          opacity: 0.5,
-          type: 'dashed',
-        },
-      },
+      axisLabel: { show: false }, // each bar carries its own ₹ label; tick labels only crowd it
+      splitLine: { lineStyle: { color: '#D7D0C5', opacity: 0.5, type: 'dashed' } },
+    },
+    yAxis: {
+      type: 'category',
+      data: ordered.map((r) => r.label),
+      axisLine: { lineStyle: { color: '#36452B', width: 1.5 } },
+      axisTick: { show: false },
+      axisLabel: { fontSize: 14, fontWeight: '600', color: '#36452B', width: 220, overflow: 'break', lineHeight: 18 },
     },
     series: [
       {
-        name: 'BaseOffset',
         type: 'bar',
-        stack: 'wf',
-        silent: true,
-        itemStyle: { borderColor: 'transparent', color: 'transparent' },
-        emphasis: { itemStyle: { borderColor: 'transparent', color: 'transparent' } },
-        data: bases,
-      },
-      {
-        name: 'Amount',
-        type: 'bar',
-        stack: 'wf',
-        barMaxWidth: 76,
-        // Connector from the top (or bottom) where each bar ends to the next bar, so the bars read as steps.
-        markLine: {
-          silent: true,
-          symbol: 'none',
-          label: { show: false },
-          lineStyle: { color: '#7F7D74', type: 'dashed', width: 1.5, opacity: 0.7 },
-          data: levels.map((level, i) => [{ coord: [i, level] }, { coord: [i + 1, level] }]),
-        },
+        barMaxWidth: 40,
         label: {
           show: true,
-          position: 'top',
-          fontSize: 14,
+          position: 'right',
+          fontSize: 15,
           fontWeight: 'bold',
           color: '#36452B',
-          distance: 6,
-          formatter: ({ dataIndex }: { dataIndex: number }) => {
-            const meta = metas[dataIndex]
-            if (!meta) return ''
-            return meta.kind === 'total' ? inr(meta.value) : signedInr(meta.value)
-          },
+          formatter: ({ dataIndex }: { dataIndex: number }) => signedInr(ordered[dataIndex]?.value ?? 0),
         },
-        data: heights.map((value, i) => {
-          const meta = metas[i]
-          const isSelected = Boolean(meta.groupId && meta.groupId === selectedGroupId)
-          const barColor = stepColor(meta, isSelected)
-          const isUnverified = meta.kind === 'unverified'
+        data: ordered.map((row) => {
+          const selected = Boolean(row.groupId && row.groupId === selectedGroupId)
           return {
-            value,
-            groupId: meta.groupId ?? null,
+            value: row.value,
+            groupId: row.groupId ?? null,
             itemStyle: {
-              color: barColor,
-              borderRadius: [6, 6, 0, 0],
-              borderColor: isSelected
-                ? '#36452B'
-                : isUnverified
-                ? '#A44A3F'
-                : 'transparent',
-              borderWidth: isSelected ? 3 : isUnverified ? 1.5 : 0,
+              color: rowColor(row, selected),
+              borderRadius: row.value < 0 ? [6, 0, 0, 6] : [0, 6, 6, 0],
+              borderColor: row.kind === 'unverified' ? '#A44A3F' : 'transparent',
+              borderWidth: row.kind === 'unverified' ? 1.5 : 0,
             },
           }
         }),

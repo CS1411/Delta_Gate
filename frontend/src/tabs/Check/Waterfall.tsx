@@ -49,34 +49,34 @@ export default function Waterfall({ check, outputCell, selectedGroupId = null, o
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[#D7D0C5]/60 pb-4">
         <div>
           <p className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
-            03 / ATTRIBUTION WATERFALL (SHAPLEY SHARES)
+            03 / WHAT CAUSED THE CHANGE
           </p>
           <h3 className="mt-1 text-3xl font-extrabold tracking-tight text-[#36452B]">
-            Waterfall · <span className="text-[#8A9646]">{output.label}</span>
+            Change by cause · <span className="text-[#8A9646]">{output.label}</span>
           </h3>
         </div>
         <div className="flex flex-wrap items-center gap-4 text-xs font-semibold">
-          <span className="flex items-center gap-1.5 text-[#36452B]">
-            <span className="inline-block h-3 w-3 rounded bg-[#36452B]" />
-            Totals (Base/New)
-          </span>
           <span className="flex items-center gap-1.5 text-[#8A9646]">
             <span className="inline-block h-3 w-3 rounded bg-[#8A9646]" />
-            Positive Attribution
+            Cause
           </span>
           <span className="flex items-center gap-1.5 text-[#7F7D74]">
             <span className="inline-block h-3 w-3 rounded border border-[#D7D0C5] bg-[#EEDADA]" />
-            Unverified
+            Can&apos;t verify
+          </span>
+          <span className="flex items-center gap-1.5 text-[#36452B]">
+            <span className="inline-block h-3 w-3 rounded bg-[#36452B]" />
+            Total change
           </span>
         </div>
       </div>
 
       <p className="mt-3 text-xs text-[#7F7D74]">
-        Bars add up exactly to Δ · Click any group bar to highlight its source cells in the ledger below
+        The bars above the total add up exactly to it · Click a bar to highlight its cells in the table below
       </p>
 
       <div className="mt-4">
-        <ReactECharts option={option} style={{ height: 360, width: '100%' }} onEvents={onEvents} />
+        <ReactECharts option={option} style={{ height: 300, width: '100%' }} onEvents={onEvents} />
       </div>
     </section>
   )
