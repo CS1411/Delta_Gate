@@ -3,4 +3,6 @@ watched_outputs:
   - {cell: "Summary!C4", label: "Collected"}
 impact_limit_abs: 10000      # per output, per group
 drift_budget: 25000          # per session, sum of |Δ| over PASSed groups
+workbook_drift_budget: 50000   # all sessions on one workbook, rolling window: a new session cannot reset drift
+drift_window_hours: 24
 protected: ["LateFees!F3", "Summary!C4", "Summary!C6"]

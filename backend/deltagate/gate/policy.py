@@ -5,6 +5,8 @@
                        is one of them); a finding on no group's cell holds every group -> HELD
   3. impact limit      |solo effect| on a watched output > impact_limit_abs            -> HELD
   4. drift budget      session drift + the group's largest |solo effect| > drift_budget -> HELD
+     workbook drift   same, summed over every session on the workbook in the last drift_window_hours
+                       (when workbook_drift_budget is set), so opening a new session cannot reset it
   5. combined effect   all passing groups applied together move an output past the limit -> all HELD
 
 Every number in a reason is an engine value or a policy value. The sentences are templates.
@@ -33,7 +35,8 @@ def inr(value: float | None, signed: bool = False) -> str:
 
 def decide(groups: list[ChangeGroup], solos: dict[str, dict[str, float | None]], findings: list[StructuralFinding],
            blocked: dict[str, str], policy: Policy, drift: float,
-           joint: Callable[[list[str]], dict[str, float | None]]) -> tuple[list[GroupDecision], float]:
+           joint: Callable[[list[str]], dict[str, float | None]],
+           window_drift: float = 0) -> tuple[list[GroupDecision], float]:
     """(one decision per group, the session's drift afterwards).
 
     solos: group id -> {watched output: solo effect, None if the engine has no number}.
@@ -56,6 +59,10 @@ def decide(groups: list[ChangeGroup], solos: dict[str, dict[str, float | None]],
         size = max((abs(d) for d in solo.values()), default=0)  # one edit moves several outputs: count it once
         if not reasons and drift + size > policy.drift_budget:
             reasons.append(f"Session drift would reach {inr(drift + size)}, over the budget of {inr(policy.drift_budget)}")
+        wide = policy.workbook_drift_budget
+        if not reasons and wide is not None and window_drift + (drift - start) + size > wide:
+            reasons.append(f"Workbook drift over the last {policy.drift_window_hours:g} h would reach "
+                           f"{inr(window_drift + (drift - start) + size)}, over the budget of {inr(wide)}")
         if not reasons:
             drift += size
         out.append(GroupDecision(group_id=g.group_id, status="HELD" if reasons else "PASS", reasons=reasons,

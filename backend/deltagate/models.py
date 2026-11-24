@@ -23,6 +23,8 @@ class Policy(BaseModel):
     watched_outputs: list[WatchedOutput]
     impact_limit_abs: float
     drift_budget: float
+    workbook_drift_budget: float | None = None  # across all sessions on one workbook, so a new session id cannot reset it
+    drift_window_hours: float = 24
     protected: list[str] = []
 
 
