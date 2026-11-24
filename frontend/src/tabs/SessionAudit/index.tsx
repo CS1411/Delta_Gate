@@ -97,7 +97,7 @@ export default function SessionAudit() {
     }
   }
 
-  const usePasted = () => {
+  const applyPasted = () => {
     const id = pasted.trim()
     if (!id) return
     remember({ snapshot_id: id, sha256: null, file: null, taken_at: new Date().toISOString() })
@@ -158,7 +158,7 @@ export default function SessionAudit() {
                 <div className="mt-2 flex flex-wrap gap-3">
                   <input id="pasted-id" value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder="sa_…" spellCheck={false}
                     className="h-12 w-72 rounded-xl border-2 border-slate-300 px-4 font-mono text-lg" />
-                  <button type="button" disabled={!pasted.trim()} onClick={usePasted}
+                  <button type="button" disabled={!pasted.trim()} onClick={applyPasted}
                     className="h-12 rounded-xl border-2 border-slate-300 px-5 text-base font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40">
                     Use this id
                   </button>
