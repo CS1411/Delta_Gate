@@ -108,7 +108,7 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
      > `In workbook dues (session s_B), apply ten separate ₹3,000 payments one at a time to Payments!C17, C21, C25, C29, C33, C37, C41, C45, C49, and C53 using propose_edit.`
   2. Show edits 1–8 **PASS** (cumulative session drift reaches **₹24,000** ≤ ₹25,000).
   3. Show the **9th edit (`Payments!C49`) is HELD**: `"Session drift would reach ₹27,000, over the budget of ₹25,000"`.
-  4. On **02 Approvals**, under **Workbooks**, click **Roll back** → **Confirm rollback** (`POST /api/workbooks/dues/rollback`) to restore the previous managed version in one click.
+  4. On **02 Approvals**, under **Workbooks**, click **Roll back** → **Confirm rollback** (`POST /api/workbooks/dues/rollback`) to restore the previous managed version.
 - **Say:**
   > "Even small edits under the ₹10,000 per-edit limit can't salami-slice past the ₹25,000 session drift budget — the 9th edit is held, and one click rolls back."
 
@@ -128,7 +128,7 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
   2. Pick `golden/dues_v2.xlsx` under **Baseline Version** (`BASE WORKBOOK (.xlsx)`) and `golden/judge_xlookup.xlsx` under **Modified Candidate** (`NEW WORKBOOK (.xlsx)`), then click **Run Check**.
      *(Offline fallback: under **Demo Fixtures**, click **Sample: judge file (XLOOKUP)**.)*
 - **Point to on screen:**
-  1. **01 / INTEGRITY VERIFICATION** banner: `Verified against Excel's saved values: 307 / 307 formula cells match`, then `Coverage: 59.6%`, the pill **`Partial verification (59.6%)`**, and the **Audit Health & Coverage** gauge (`59.6%`, `Unverified: 124`). The base file is the Excel-saved `dues_v2`; the partial part is the judge file's `XLOOKUP` cells.
+  1. **01 / INTEGRITY VERIFICATION** banner: `Verified against Excel's saved values: 307 / 307 formula cells match`, then `Coverage: 59.6%`, the pill **`Partial verification (59.6%)`**, and the **Audit Health & Coverage** gauge (`59.6%`, `Unverifiable: 124`). The base file is the Excel-saved `dues_v2`; the partial part is the judge file's `XLOOKUP` cells.
   2. Total pending dues (`Summary!C6`): `₹2,86,000 → ₹3,28,000`, and the line **`+₹42,000 observed = +₹38,000 verified + ₹4,000 unverified`**. Under "Verified split" only the `+₹38,000` New row in Expenses: Lift repair (data) is attributed.
   3. **05 / Change Groups**: `60 formulas changed in LateFees!C (Balance)` and `Formula changed: LateFees!F3` both read **`unverified`** in **Solo Effect**, **Shapley Share (φ)**, and **Interaction** (never a ₹ number).
   4. **06 / UNVERIFIABLE BOUNDARY** (`Can't Verify (124 cells)`): `Excluded from attribution — we never guess`, **`XLOOKUP: 60`**, `depends on an unverifiable cell: 64`. The full cell list is behind **`Show all 124 unverifiable cells`**; do not open it live.
