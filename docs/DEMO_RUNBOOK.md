@@ -114,18 +114,60 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
 
 ---
 
-### Act 3 — Fail Closed & Session Audit (30 s)
+### Act 3 — Fail Closed & Session Audit (30 s, plus ~60 s if a judge asks about Copilot)
 
-- **Do (Check tab UI clicks):**
-  1. Open `http://localhost:5173/#check`.
-  2. Under **Base version**, select `golden/dues_v2.xlsx`; under **New version**, select `golden/judge_xlookup.xlsx`; click **Run Check** *(offline fallback: click **Sample: judge file (XLOOKUP)**)*.
+> Labels below are copied from the code on `main` as of 24 Nov. **VERIFY AFTER #31** marks anything the page shell (#31) may rename or move: re-read it against the screen once #31 merges. #31 already renames the Check tab's file pickers to "Baseline Version" / "Modified Candidate", so **every Check-tab label in part A is VERIFY AFTER #31**.
+
+**Before Act 3 (once, during the pre-demo checklist):**
+- Stage `golden/dues_v2.xlsx`, `golden/dues_v3_REAL.xlsx` and `golden/judge_xlookup.xlsx` where the file picker opens.
+- Open the Session Audit tab once and, if it shows a snapshot id left from rehearsal, click **Start over (forget this snapshot)**. The id lives in this browser's `localStorage`, so a rehearsal id would otherwise still be on screen.
+- Do **not** run `scripts\demo_reset.ps1` between taking a snapshot and finishing the audit: it empties `data\`, which is where snapshots and kept Checks live, and the audit then fails with `Unknown snapshot '…'`.
+
+#### Part A: Fail closed (judge file, ~30 s)
+
+- **Do:**
+  1. Open `http://localhost:5173/#check`. **VERIFY AFTER #31** (tab names and hash keys).
+  2. Pick `golden/dues_v2.xlsx` under **Base version** and `golden/judge_xlookup.xlsx` under **New version**, then click **Run Check**. **VERIFY AFTER #31** (the labels become "Baseline Version" / "Modified Candidate").
+     *(No-backend fallback: click **Sample: judge file (XLOOKUP)**.)*
 - **Point to on screen:**
-  1. `Summary!C6`: **+₹42,000 observed = ₹38,000 verified + ₹4,000 unverified**; **coverage 0.596**; `unverifiable` table lists **60 `XLOOKUP` cells** in `LateFees!C2:C61`.
-  2. If a gated edit touches those cells, it returns **`CANT_VERIFY_HELD`** with empty impacts (never a guessed number).
-- **If asked about Copilot or Claude inside Excel:**
-  - Switch to **Session Audit** (`POST /api/session-audit/snapshot` → edit in Excel → `POST /api/session-audit/complete`) `[Nikita/P2: confirm Session Audit tab/buttons]`: take a snapshot before the in-Excel AI session, let the tool edit the sheet, upload the saved file after → Delta Gate runs a full Check (`mode = "session_audit"`).
+  1. Banner: `Verified against Excel's saved values: 307 / 307 formula cells match`, then `coverage 59.6%` and the label **`Partial verification (59.6%)`**. The base file is the Excel-saved dues_v2; the partial part is the judge file's XLOOKUP cells.
+  2. Total pending dues (`Summary!C6`): `₹2,86,000 → ₹3,28,000`, and the line **`+₹42,000 observed = +₹38,000 verified + ₹4,000 unverified`**. Under "Verified split" only the `+₹38,000` New row in Expenses: Lift repair (data) is attributed.
+  3. Change groups: `60 formulas changed in LateFees!C (Balance)` and `Formula changed: LateFees!F3` both read **`unverified`** in Solo, Share and Interaction (never a ₹ number). **VERIFY AFTER #31** (the table is restyled).
+  4. The **`Can't verify (124 cells)`** panel: `Excluded from attribution — we never guess.`, **`XLOOKUP: 60`**, `depends on an unverifiable cell: 64`. The full cell list is behind **`Show all 124 unverifiable cells`**; do not open it live. **VERIFY AFTER #31**.
 - **Say:**
-  > "We verify ₹38,000 of the ₹42,000 change; the remaining ₹4,000 flows through 60 XLOOKUP cells we don't support yet, so we list them and hold. We never guess. And for AI inside Excel that we can't sit in front of, Session Audit snapshots before and checks everything afterwards."
+  > "We can prove ₹38,000 of the ₹42,000. The other ₹4,000 flows through sixty XLOOKUP cells we can't verify, so we list them, leave them out of the split, and hold any agent edit that touches them. We never guess."
+
+#### Part B: Session Audit, only if a judge asks about Copilot or Claude inside Excel (~60 s)
+
+- **Do:**
+  1. Open the **Session Audit** tab: `http://localhost:5173/#session`. **VERIFY AFTER #31**: today `SessionAudit` is not wired into `App.tsx` on `main`, and #31 is expected to add it as tab "Session Audit" with hash `#session`. If the tab is not in the nav, use the fallback table below.
+  2. Under **1. Snapshot the workbook before the AI session**, click the file picker labelled **Workbook before the session** and choose `golden/dues_v2.xlsx`.
+  3. Click **Take snapshot**.
+  4. *(The pause: this is where the AI session happens in Excel. On stage, say it, do not wait.)* Optional proof that the id survives: press **F5**. The same snapshot id is still on screen.
+  5. Under **2. After the session, upload the workbook as it is now**, click the file picker labelled **Workbook after the session** and choose `golden/dues_v3_REAL.xlsx` (it stands in for the file saved after the AI session).
+  6. Click **Check what the session changed**.
+- **Point to on screen, in order:**
+  1. After step 3, step 1 gets a green ✓ and reads `Snapshot of dues_v2.xlsx kept. It survives a reload; write it down anyway.` The **Snapshot id** is shown big, in the form `sa_` plus 12 characters (it is different every run; read it from the screen), with a **copy** button and `file hash e5ea5f376d40…`.
+  2. After step 6, step 2 gets a ✓ and a blue line appears: **`Session audit: everything that changed in the workbook while the AI session ran (snapshot sa_… against the file you just uploaded). This is not a normal two-file Check.`**
+  3. Banner: `Verified against Excel's saved values: 307 / 307 formula cells match`, then `mode: session_audit · coverage 100%` and an **Export CSV** button.
+  4. Cards: **Total pending dues `Summary!C6` `+₹42,000`** and **Collected `Summary!C4` `₹0`**; `₹2,86,000 → ₹3,28,000`; `+₹42,000 = +₹38,000 New row in Expenses: Lift repair (data) + ₹4,000 Formula changed: LateFees!F3 (logic)`.
+  5. The red **LOST LINK · Summary!C4** card: `Collected no longer depends on Payments!C (Amount paid)`, `change ₹0`, with the graph: dashed red `Payments!C` to `Summary!C4` labelled `no longer connected`, and grey `Payments!C → Payments!D → LateFees!C → LateFees!D → LateFees!F → Summary!C → Summary!C6` labelled `still connected`. Under it: `Typed over a formula: Summary!C4 held the formula =SUM(Payments!C2:C61) and now holds a typed value`, and the grey **Protected cell edited** list (`LateFees!F3`, `Summary!C4`). **VERIFY AFTER #31** (layout of everything under the banner).
+  6. `Change groups (3)`: All (3), Data (1), Logic (1), Structural (1), Unverified (0), each row with **Prove it** (works: the server keeps the two files). **VERIFY AFTER #31**.
+- **Say:**
+  > "We can't stand in front of an AI that runs inside Excel, so we audit its session instead. Snapshot before, let it work, upload the result afterwards: it changed Total pending dues by ₹42,000, and it broke the Collected link with no visible change at all."
+- **Don't say** that the audit is signed or appears in the Audit tab: Session Audit writes no audit-log entry. Say "snapshot before, Check after", nothing more.
+
+#### Act 3 fallbacks (each line is what to do if that step fails live)
+
+| Step | If it fails | Do this |
+|---|---|---|
+| A.1–A.2 Run Check on the judge file | Server down, or the click does nothing | Click **Sample: judge file (XLOOKUP)**; it is real engine output. Say it is a sample. |
+| B.1 Session Audit tab missing from the nav | #31 not merged on the demo laptop | Open the Session Audit tab by its hash, `http://localhost:5173/#session`; if it still does not appear, stop Part B and say "Session Audit is snapshot, then Check, and it reuses the same Check you just saw." |
+| B.2 File not accepted | A red line `x.xlsx is not a readable workbook (.xlsx or .xlsm)` | Wrong file or an Excel lock file (`~$dues_v2.xlsx`): pick `golden/dues_v2.xlsx` again. |
+| B.3 Take snapshot fails | `Couldn't reach the server. Is it running? …` plus the grey `offline — showing sample data` and a sample result | The API is down. Restart it (`uv run uvicorn deltagate.api:app --port 8000`, from `backend/`) and click **Take snapshot** again; or say the sample on screen is canned engine output and move on. |
+| B.4 Snapshot id gone after F5 | The step-1 file picker is back, no id | Type or paste the id into **Already took one? Paste its snapshot id** and click **Use this id**. If it is lost, click **Start over (forget this snapshot)** and take a new snapshot (10 s). Keep the id written on a sticky note during Part B. |
+| B.6 Check what the session changed fails | Red line `Unknown snapshot 'sa_…'` | The id is wrong, or `data\` was reset since the snapshot (never run `demo_reset.ps1` mid-demo). Start over and redo the snapshot. |
+| B.6 Result slow | Button reads `Checking…` | Wait up to 5 s (a Check takes about 1.5 s). If it exceeds 10 s, say "this is the same Check engine as Act 1" and switch to the backup recording. |
 
 ---
 
