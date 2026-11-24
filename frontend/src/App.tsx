@@ -1,30 +1,10 @@
 import { useEffect, useState } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fetchHeld, fetchWorkbooks, type WorkbookSummary } from './api'
+
+import { fetchHeld, fetchWorkbooks, fetchPolicy, type WorkbookSummary, type Policy } from './api'
+import { inr, savedByBanner } from './format'
 import Approvals from './tabs/Approvals'
 import Audit from './tabs/Audit'
 import Check from './tabs/Check'
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
-})
-
-// Honest verification banner helper according to Non-Negotiable Contract Rule 5:
-// - "Microsoft Excel" -> "Verified against Excel's saved values"
-// - "LibreOffice" -> "Verified against LibreOffice's saved values"
-// - "pending" -> "Verification pending (LibreOffice sidecar running…)"
-// - Anything else / "none" -> "Not verifiable against saved values"
-function formatSavedByBanner(savedBy: string | null | undefined): string {
-  if (savedBy === 'Microsoft Excel') return "Verified against Excel's saved values"
-  if (savedBy === 'LibreOffice') return "Verified against LibreOffice's saved values"
-  if (savedBy === 'pending') return "Verification pending (LibreOffice sidecar running…)"
-  return "Not verifiable against saved values"
-}
 
 const TABS = {
   check: {
@@ -58,30 +38,29 @@ const POLL_WORKBOOKS_MS = 5000
 const POLL_HELD_MS = 3000
 
 export default function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AppShell />
-    </QueryClientProvider>
-  )
+  return <AppShell />
 }
 
 function AppShell() {
   const [tab, setTab] = useState<TabKey>(fromHash)
   const [workbooks, setWorkbooks] = useState<WorkbookSummary[] | null>(null)
   const [heldCount, setHeldCount] = useState<number | null>(null)
+  const [policy, setPolicy] = useState<Policy | null>(null)
 
+  // URL hash sync
   useEffect(() => {
     const onHash = () => setTab(fromHash())
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
+  // Poll workbooks
   useEffect(() => {
     let live = true
     const load = () => {
       fetchWorkbooks().then(
         (w) => live && setWorkbooks(w),
-        () => live && setWorkbooks(null)
+        () => live && setWorkbooks(null),
       )
     }
     void load()
@@ -92,12 +71,13 @@ function AppShell() {
     }
   }, [])
 
+  // Poll held count
   useEffect(() => {
     let live = true
     const checkHeld = () => {
       fetchHeld().then(
         (held) => live && setHeldCount(held.length),
-        () => live && setHeldCount(null)
+        () => live && setHeldCount(null),
       )
     }
     void checkHeld()
@@ -108,19 +88,26 @@ function AppShell() {
     }
   }, [])
 
+  // Fetch policy once
+  useEffect(() => {
+    let live = true
+    fetchPolicy()
+      .then((p) => live && setPolicy(p))
+      .catch(() => live && setPolicy(null))
+    return () => { live = false }
+  }, [])
+
   const currentTab = TABS[tab]
   const { Tab } = currentTab
 
   return (
     <div className="min-h-screen bg-[#F8F7F4] text-[#36452B] selection:bg-[#8A9646]/20">
-      {/* Editorial Command Header (Landing / Overview Strip) */}
+      {/* Editorial Command Header */}
       <header className="sticky top-0 z-40 border-b border-[#D7D0C5]/80 bg-[#F8F7F4]/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-y-3 px-4 py-3 sm:px-6 lg:px-8">
-          {/* Left: Delta Gate Title + Subtitle */}
+          {/* Left: Logo + Title */}
           <div className="flex items-center gap-3.5">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#36452B] text-white shadow-sm ring-1 ring-[#D7D0C5]">
-              <span className="font-mono text-xl font-black">Δ</span>
-            </div>
+            <img src="/logo.png" alt="Delta Gate logo" className="h-9 w-auto object-contain rounded-lg" />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-black tracking-tight text-[#36452B]">
@@ -136,29 +123,37 @@ function AppShell() {
             </div>
           </div>
 
-          {/* Center: Active Policy Guardrails Pill Bar */}
+          {/* Center: Dynamic Policy Guardrails Pill Bar */}
           <div className="hidden xl:flex items-center gap-2 rounded-full border border-[#D7D0C5] bg-white/80 px-4 py-1.5 shadow-sm font-mono text-xs text-[#36452B]">
             <span className="inline-block h-2 w-2 rounded-full bg-[#8A9646]" />
             <span className="font-bold text-[#7F7D74]">Policy:</span>
-            <span>Impact Limit: <strong className="text-[#36452B]">₹10,000</strong></span>
-            <span className="text-[#D7D0C5]">·</span>
-            <span>Drift Budget: <strong className="text-[#36452B]">₹25,000</strong></span>
-            <span className="text-[#D7D0C5]">·</span>
-            <span>Protected: <strong className="text-[#36452B]">LateFees!F3, Summary!C4, Summary!C6</strong></span>
+            {policy && (
+              <>
+                <span>Impact Limit: <strong className="text-[#36452B]">{inr(policy.impact_limit_abs)}</strong></span>
+                <span className="text-[#D7D0C5]">·</span>
+                <span>Drift Budget: <strong className="text-[#36452B]">{inr(policy.drift_budget)}</strong></span>
+                <span className="text-[#D7D0C5]">·</span>
+                <span>Protected: <strong className="text-[#36452B]">{policy.protected.join(', ')}</strong></span>
+              </>
+            )}
           </div>
 
-          {/* Right: Honest Verification Banner driven by verification.saved_by */}
+          {/* Right: Honest Verification Banner */}
           <HeaderVerificationBanner workbooks={workbooks} />
         </div>
 
-        {/* Mobile/Tablet Policy Guardrails Sub-bar */}
+        {/* Mobile/Tablet Policy Sub-bar */}
         <div className="xl:hidden flex items-center justify-center gap-2 border-t border-[#D7D0C5]/40 bg-white/40 px-4 py-1 font-mono text-[11px] text-[#7F7D74]">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#8A9646]" />
-          <span>Limit: <strong>₹10,000</strong></span>
-          <span>·</span>
-          <span>Drift: <strong>₹25,000</strong></span>
-          <span>·</span>
-          <span>Protected: <strong>LateFees!F3, Summary!C4, Summary!C6</strong></span>
+          {policy && (
+            <>
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#8A9646]" />
+              <span>Impact: <strong>{inr(policy.impact_limit_abs)}</strong></span>
+              <span>·</span>
+              <span>Drift: <strong>{inr(policy.drift_budget)}</strong></span>
+              <span>·</span>
+              <span>Protected: <strong>{policy.protected.join(', ')}</strong></span>
+            </>
+          )}
         </div>
       </header>
 
@@ -177,25 +172,23 @@ function AppShell() {
             const active = tab === key
             const item = TABS[key]
             const showBadge = key === 'approvals' && heldCount !== null && heldCount > 0
+            const tabClass = active
+              ? 'bg-[#8A9646] text-white shadow-sm'
+              : 'text-[#D7D0C5] hover:bg-white/10 hover:text-white'
 
             return (
               <a
                 key={key}
                 href={`#${key}`}
                 aria-current={active ? 'page' : undefined}
-                className={`relative flex items-center gap-2 rounded-full px-6 py-2.5 text-base font-bold transition-all duration-200 ${
-                  active
-                    ? 'bg-[#8A9646] text-white shadow-sm'
-                    : 'text-[#D7D0C5] hover:bg-white/10 hover:text-white'
-                }`}
+                className={`relative flex items-center gap-2 rounded-full px-6 py-2.5 text-base font-bold transition-all duration-200 ${tabClass}`}
               >
                 <span className="font-mono text-xs opacity-75">{item.id}</span>
                 <span>{item.label}</span>
                 {showBadge && (
                   <span
-                    className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 font-mono text-xs font-bold ${
-                      active ? 'bg-[#36452B] text-white' : 'bg-[#EEDADA] text-[#36452B]'
-                    }`}
+                    className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 font-mono text-xs font-bold ${active ? 'bg-[#36452B] text-white' : 'bg-[#EEDADA] text-[#36452B]'
+                      }`}
                   >
                     {heldCount}
                   </span>
@@ -213,14 +206,9 @@ function HeaderVerificationBanner({ workbooks }: { workbooks: WorkbookSummary[] 
   if (workbooks === null) {
     return (
       <div className="flex items-center gap-2 rounded-xl border border-[#D7D0C5] bg-white/75 px-3.5 py-1.5 shadow-sm">
-        <span className="h-2 w-2 rounded-full bg-[#8A9646] animate-pulse" />
+        <span className="h-2 w-2 rounded-full bg-[#7F7D74] animate-pulse" />
         <div className="text-right">
-          <p className="font-mono text-[11px] font-bold text-[#36452B]">
-            Verified against Excel&apos;s saved values
-          </p>
-          <p className="font-mono text-[10px] text-[#7F7D74]">
-            307 / 307 formula cells match (golden test)
-          </p>
+          <p className="font-mono text-[11px] font-bold text-[#7F7D74]">API Offline</p>
         </div>
       </div>
     )
@@ -229,7 +217,7 @@ function HeaderVerificationBanner({ workbooks }: { workbooks: WorkbookSummary[] 
   if (workbooks.length === 0) {
     return (
       <div className="flex items-center gap-2 rounded-xl border border-[#D7D0C5] bg-white/75 px-3.5 py-1.5 shadow-sm">
-        <span className="font-mono text-xs text-[#7F7D74]">No active workbook registered</span>
+        <span className="font-mono text-xs text-[#7F7D74]">No workbooks registered</span>
       </div>
     )
   }
@@ -237,26 +225,20 @@ function HeaderVerificationBanner({ workbooks }: { workbooks: WorkbookSummary[] 
   return (
     <div className="flex flex-col items-end gap-1">
       {workbooks.map((w) => {
-        const isExcel = w.saved_by === 'Microsoft Excel'
-        const isLO = w.saved_by === 'LibreOffice'
-        const isPending = w.saved_by === 'pending'
-        const bannerText = formatSavedByBanner(w.saved_by)
-
+        const bannerText = savedByBanner(w.saved_by)
+        const badgeClass =
+          w.saved_by === 'Microsoft Excel' || w.saved_by === 'LibreOffice'
+            ? 'bg-[#8A9646]/15 text-[#36452B] border border-[#8A9646]/40'
+            : w.saved_by === 'pending'
+              ? 'bg-[#EEDADA]/60 text-[#36452B] border border-[#D7D0C5]'
+              : 'bg-[#EEDADA] text-[#36452B] border border-[#D7D0C5]'
         return (
           <div
             key={w.workbook_id}
             className="flex flex-wrap items-center gap-2 rounded-xl border border-[#D7D0C5]/80 bg-white/80 px-3.5 py-1.5 shadow-sm"
           >
             <span className="font-bold text-[#36452B] text-xs">{w.name}</span>
-            <span
-              className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] font-bold ${
-                isExcel || isLO
-                  ? 'bg-[#8A9646]/15 text-[#36452B] border border-[#8A9646]/40'
-                  : isPending
-                  ? 'bg-[#EEDADA]/60 text-[#36452B] border border-[#D7D0C5]'
-                  : 'bg-[#EEDADA] text-[#36452B] border border-[#D7D0C5]'
-              }`}
-            >
+            <span className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] font-bold ${badgeClass}`}>
               {bannerText}
             </span>
             <span
