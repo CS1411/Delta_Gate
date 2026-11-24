@@ -74,11 +74,11 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
   1. Open `http://localhost:5173/#check` (or click **01 Check** in the bottom dock).
   2. Under **Baseline Version** (`BASE WORKBOOK (.xlsx)`), select `golden/dues_v2.xlsx`; under **Modified Candidate** (`NEW WORKBOOK (.xlsx)`), select `golden/dues_v3_REAL.xlsx`; click **Run Check** *(offline fallback: under **Demo Fixtures**, click **Sample: dues v2 → v3**)*.
   3. Show headline: `Summary!C6` moved **₹2,86,000 → ₹3,28,000 (+₹42,000)**, split into **₹38,000** (Lift repair, `data`) + **₹4,000** (`LateFees!F3`, `logic`). Interaction is ₹0, so the bars add up exactly to Δ.
-  4. Click the **+₹4,000** waterfall bar (or `LateFees!F3` group in **05 / Change Groups**) → click **Prove it** (`POST /api/checks/{id}/proof/{group_id}`) to download the solo proof workbook (Excel recalculates `Summary!C6 = ₹2,90,000`), and optionally point to **Export CSV Ledger** in **01 / Integrity Verification**.
+  4. Click the **+₹4,000** bar in **03 / What caused the change** (or `LateFees!F3` group in **05 / Change Groups**) → click **Prove it** (`POST /api/checks/{id}/proof/{group_id}`) to download the solo proof workbook (Excel recalculates `Summary!C6 = ₹2,90,000`), and optionally point to **Export CSV Ledger** in **01 / Integrity Verification**.
   5. Point to the red Structural Alert in **04 / Structural Integrity Audit** on `Summary!C4` (Collected): `typed_over_formula` and **`lost_link`** (*"Collected no longer depends on Payments!C (Amount paid)"*) at **₹0** change; the mini-graph shows the dashed red `Payments!C → Summary!C4` link.
 - **Point to on screen:**
   1. **Verification banner:** `"Verified against Excel's saved values: 307 / 307 formula cells match"`.
-  2. **Waterfall & Attribution:** `+₹42,000 = ₹38,000 + ₹4,000` with zero interaction.
+  2. **Change by cause:** `+₹38,000` and `+₹4,000` bars, then **Total change** `+₹42,000`, with zero interaction.
   3. **Solo Proof & Broken Link:** `LateFees!F3` solo effect verified by Excel itself; `Summary!C4` disconnected link flagged despite zero rupee movement.
 - **Say:**
   > "Total pending dues rose ₹42,000: ₹38,000 from a new Lift repair expense row, ₹4,000 from a late-fee formula change, and you can open Prove it in Excel to verify the ₹4,000 yourself. Even better, Collected didn't move by a single rupee — ₹1,00,000 before and after — yet Delta Gate caught that someone typed over its formula and broke its link to Payments."
