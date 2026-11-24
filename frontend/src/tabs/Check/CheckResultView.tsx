@@ -89,7 +89,7 @@ export default function CheckResultView({
               {bannerText}
             </h3>
             <p className="font-mono text-xs text-[#7F7D74]">
-              Check ID: <span className="font-semibold text-[#36452B]">{check.check_id}</span> · Mode: {check.mode} · Coverage: {coveragePct}%
+              Coverage: {coveragePct}%
               {hasMismatches && ` · ${v.mismatched.length} mismatched`}
             </p>
           </div>

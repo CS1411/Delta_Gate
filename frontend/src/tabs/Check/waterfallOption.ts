@@ -54,6 +54,7 @@ export function buildWaterfallOption(
   const heights: number[] = [Math.abs(output.base)]
 
   let running = output.base
+  const levels: number[] = [output.base] // where each bar ends; a thin line carries it to the next bar
   const extremes: number[] = [output.base, output.new]
 
   for (const a of causes) {
@@ -62,6 +63,7 @@ export function buildWaterfallOption(
     bases.push(start)
     heights.push(Math.abs(a.share))
     running += a.share
+    levels.push(running)
     extremes.push(running)
     metas.push({
       kind: 'group',
@@ -81,6 +83,7 @@ export function buildWaterfallOption(
     bases.push(start)
     heights.push(Math.abs(unv))
     running += unv
+    levels.push(running)
     extremes.push(running)
     metas.push({ kind: 'unverified', label: 'Unverified', value: unv })
   }
@@ -97,7 +100,7 @@ export function buildWaterfallOption(
 
   return {
     backgroundColor: 'transparent',
-    grid: { left: 104, right: 32, top: 48, bottom: 64 },
+    grid: { left: 104, right: 32, top: 48, bottom: 88 },
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
@@ -135,7 +138,10 @@ export function buildWaterfallOption(
         fontWeight: '500',
         color: '#7F7D74',
         margin: 12,
-        formatter: (value: string) => (value.length > 24 ? `${value.slice(0, 22)}…` : value),
+        width: 120,
+        overflow: 'break',
+        lineHeight: 16,
+        formatter: (value: string) => (value.length > 40 ? `${value.slice(0, 38)}…` : value),
       },
     },
     yAxis: {
@@ -144,6 +150,7 @@ export function buildWaterfallOption(
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: {
+        showMinLabel: false, // the cut-off floor (e.g. ₹2,65,000) crowds the first round tick
         fontSize: 13,
         fontWeight: 'bold',
         color: '#7F7D74',
@@ -172,6 +179,14 @@ export function buildWaterfallOption(
         type: 'bar',
         stack: 'wf',
         barMaxWidth: 76,
+        // Connector from the top (or bottom) where each bar ends to the next bar, so the bars read as steps.
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          label: { show: false },
+          lineStyle: { color: '#7F7D74', type: 'dashed', width: 1.5, opacity: 0.7 },
+          data: levels.map((level, i) => [{ coord: [i, level] }, { coord: [i + 1, level] }]),
+        },
         label: {
           show: true,
           position: 'top',

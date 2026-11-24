@@ -25,8 +25,8 @@ export default function Workbooks() {
     setConfirming(null)
     setBusy(id)
     try {
-      const restored = await rollbackWorkbook(id)
-      setNotes((n) => ({ ...n, [id]: { ok: true, text: `Rolled back: version ${restored.sha256.slice(0, 8)} is current again.` } }))
+      await rollbackWorkbook(id)
+      setNotes((n) => ({ ...n, [id]: { ok: true, text: 'Rolled back: the previous version is current again.' } }))
     } catch (problem) {
       const text = problem instanceof ApiError ? problem.message : "Couldn't reach the server. Try again."
       setNotes((n) => ({ ...n, [id]: { ok: false, text } }))
@@ -47,8 +47,7 @@ export default function Workbooks() {
             <div className="min-w-0 flex-1">
               <p className="text-xl font-semibold">{w.name}</p>
               <p className="text-base text-slate-600">
-                Current version <span className="font-mono" title={w.current_version}>{w.current_version.slice(0, 8)}</span>
-                {' · '}{savedByBanner(w.saved_by)}
+                {savedByBanner(w.saved_by)}
                 {w.source === 'unmanaged' && <span className="font-semibold text-red-700"> · changed outside Delta Gate</span>}
               </p>
             </div>

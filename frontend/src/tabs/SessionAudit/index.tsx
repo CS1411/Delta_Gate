@@ -196,7 +196,7 @@ export default function SessionAudit() {
         <>
           <p className="rounded-xl border-l-8 border-indigo-500 bg-indigo-50 px-5 py-3 text-xl text-indigo-950">
             {result.live
-              ? <>Session audit: everything that changed in the workbook while the AI session ran{stored ? <> (snapshot <span className="font-mono">{stored.snapshot_id}</span> against the file you just uploaded)</> : null}. This is not a normal two-file Check.</>
+              ? <>Session audit: everything that changed in the workbook while the AI session ran (the snapshot against the file you just uploaded). This is not a normal two-file Check.</>
               : <>Sample: real engine output for dues v2 → v3, shown because the server is unreachable. Prove it and CSV need a live Session Audit.</>}
           </p>
           <CheckResultView
@@ -250,7 +250,6 @@ function SnapshotId({ stored }: { stored: Stored }) {
           {copied ? 'copied' : 'copy'}
         </button>
       </p>
-      {stored.sha256 && <p className="font-mono text-sm text-slate-500" title={stored.sha256}>file hash {stored.sha256.slice(0, 12)}…</p>}
     </div>
   )
 }

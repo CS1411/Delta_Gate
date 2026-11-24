@@ -248,12 +248,6 @@ function HeaderVerificationBanner({ workbooks }: { workbooks: WorkbookSummary[] 
             <span className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] font-bold ${badgeClass}`}>
               {bannerText}
             </span>
-            <span
-              className="font-mono text-[11px] text-[#7F7D74]"
-              title={`Commit Version: ${w.current_version}`}
-            >
-              {w.current_version.slice(0, 8)}
-            </span>
             {w.source === 'unmanaged' && (
               <span className="rounded-md bg-[#EEDADA] px-2 py-0.5 font-mono text-[10px] font-black uppercase tracking-wider text-red-950 border border-red-300">
                 Out-of-band edit
