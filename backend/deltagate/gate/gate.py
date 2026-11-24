@@ -11,6 +11,7 @@ import sqlite3
 import sys
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from openpyxl import load_workbook
 from pydantic import TypeAdapter
@@ -65,8 +66,11 @@ def _propose(conn: sqlite3.Connection, workbook_id: str, ops: list, session_id: 
     solos = {g.group_id: engine.delta(a, [g.group_id]) for g in a.groups}
     blocked = {g.group_id: why for g in a.groups if (why := engine.cant_verify(a, g))}
     session = conn.execute("SELECT drift FROM sessions WHERE id = ?", (session_id,)).fetchone()
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=policy.drift_window_hours)).isoformat(timespec="milliseconds")
+    window = conn.execute("SELECT COALESCE(SUM(amount), 0) FROM drift_log WHERE workbook_id = ? AND ts >= ?",
+                          (workbook_id, cutoff)).fetchone()[0]
     groups, drift = rules.decide(a.groups, solos, a.structural, blocked, policy, session["drift"] if session else 0,
-                                 lambda ids: engine.delta(a, ids))
+                                 lambda ids: engine.delta(a, ids), window)
     decided = time.perf_counter()
 
     passing = {g.group_id for g in groups if g.status == "PASS"}
@@ -85,6 +89,10 @@ def _propose(conn: sqlite3.Connection, workbook_id: str, ops: list, session_id: 
             conn.execute("INSERT INTO checks (id, json) VALUES (?, ?)", (full.check_id, full.model_dump_json()))
         conn.execute("INSERT INTO sessions (id, drift) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET drift = excluded.drift",
                      (session_id, drift))
+        added = drift - (session["drift"] if session else 0)
+        if added > 0:
+            conn.execute("INSERT INTO drift_log (workbook_id, session_id, amount, ts) VALUES (?, ?, ?, ?)",
+                         (workbook_id, session_id, added, db.now()))
         conn.execute("INSERT INTO edits (id, session_id, workbook_id, ops_json, status, decision_json, created_at) "
                      "VALUES (?, ?, ?, ?, ?, ?, ?)",
                      (edit_id, session_id, workbook_id, _OPS.dump_json(ops).decode(), decision.status,

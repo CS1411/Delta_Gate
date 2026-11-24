@@ -383,6 +383,9 @@ Nothing. Phase 2 is built, the Claude Desktop connection is confirmed, and `phas
 - **`scripts/demo_reset.ps1`:** one command back to the demo start state (empties `store/` and `data/` except the LibreOffice profile, registers `dues_v2.xlsx` as `dues`). It ran cleanly with Desktop's servers connected: they open the database per call and hold nothing open in between.
 - **Claude Desktop on this machine:** config at `%APPDATA%\Claude\claude_desktop_config.json` (backup `…json.bak`), `command` = the absolute path of `uv.exe`. Logs are in `%LOCALAPPDATA%\Claude\Logs`; the connection lines are in `main.log`, and `mcp-server-delta-gate.log` is created but stays empty in this build. Desktop starts **two** server processes for one config entry (chat and the local bridge); both share the SQLite database, which is what WAL mode is for.
 
+**Drift across sessions (judge feedback, 2026-11-24)**
+- The per-session drift budget alone could be reset by an agent opening a new `session_id` (the id is client-chosen). Added optional `workbook_drift_budget` (demo: ₹50,000) over a rolling `drift_window_hours` (24 h), summed over all sessions on the workbook from the new `drift_log` table. Per-session budget unchanged, so the Act 2 numbers (8 × ₹3,000 pass, 9th held) are unchanged. Policy fields are optional and default to off. Test: `test_new_session_cannot_reset_workbook_drift`.
+
 ## Known issues
 - **uv on this machine:** `uv sync` failed with "Missing expected target directory for Python minor version link". Workaround: `uv venv --python %APPDATA%\uv\python\cpython-3.12.16-windows-x86_64-none\python.exe`, then `uv sync`. May not affect other machines.
 - Re-running `make_golden.py` strips cached values and un-freezes the golden files; `recalc.sh` and then `excel_resave.ps1` must follow.

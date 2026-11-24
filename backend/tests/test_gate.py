@@ -403,3 +403,13 @@ def test_every_approver_action_signs_a_checkpoint(dues):
     gate.rollback(dues, "dues")
     assert signed_head() == head()
     assert audit.verify(dues) == {"ok": True, "entries": head(), "checkpoints": 3, "error": None}
+
+
+def test_new_session_cannot_reset_workbook_drift(dues, monkeypatch):
+    """Smurfing: the per-session budget alone is reset by a fresh session id; the workbook window is not."""
+    tight = config.load_policy().model_copy(update={"workbook_drift_budget": 20000})
+    monkeypatch.setattr(config, "load_policy", lambda *a, **k: tight)
+    statuses = [gate.propose_edit(dues, "dues", [{"op": "set_value", "cell": f"Payments!C{5 + 4 * n}", "value": 3000}],
+                                  f"s_new{n}").status for n in range(8)]  # a new session per edit
+    assert statuses == ["PASS"] * 6 + ["HELD"] * 2  # 6 x 3,000 = 18,000; the 7th would reach 21,000 > 20,000
+    assert gate.held(dues)[0].groups[0].reasons[0].startswith("Workbook drift over the last 24 h would reach")
