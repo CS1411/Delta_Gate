@@ -2,13 +2,10 @@ import { lazy, Suspense } from 'react'
 import { signedInr } from '../format'
 import type { CheckResult, StructuralFinding } from '../types'
 import GraphBoundary from './GraphBoundary'
+import { IconAlertTriangle, IconCheckCircle } from './Icons'
 
 // Lazy: @xyflow/react only loads when a lost link is on screen. The text alert below does not depend on it.
 const LostLinkGraph = lazy(() => import('./LostLinkGraph'))
-
-// Structural findings for the Check tab. One card per cell; a lost link is the card's red headline and the
-// cell's other findings sit under it as small grey lines. Protected-cell edits go in a small grey list at the
-// end so they never bury a lost link. Every string and number comes from the CheckResult.
 
 const PROTECTED = 'protected_formula_edit'
 const KIND_LABEL: Record<StructuralFinding['kind'], string> = {
@@ -19,16 +16,26 @@ const KIND_LABEL: Record<StructuralFinding['kind'], string> = {
   protected_formula_edit: 'Protected cell edited',
 }
 
-interface Card { cell: string; headline: StructuralFinding; rest: StructuralFinding[] }
+interface Card {
+  cell: string
+  headline: StructuralFinding
+  rest: StructuralFinding[]
+}
 
 function cards(findings: StructuralFinding[]): Card[] {
   const byCell = new Map<string, StructuralFinding[]>()
-  for (const f of findings) if (f.kind !== PROTECTED) byCell.set(f.cell, [...(byCell.get(f.cell) ?? []), f])
+  for (const f of findings) {
+    if (f.kind !== PROTECTED) {
+      byCell.set(f.cell, [...(byCell.get(f.cell) ?? []), f])
+    }
+  }
   const out = [...byCell].map(([cell, list]) => {
     const headline = list.find((f) => f.kind === 'lost_link') ?? list[0]
     return { cell, headline, rest: list.filter((f) => f !== headline) }
   })
-  return out.sort((a, b) => Number(b.headline.kind === 'lost_link') - Number(a.headline.kind === 'lost_link'))
+  return out.sort(
+    (a, b) => Number(b.headline.kind === 'lost_link') - Number(a.headline.kind === 'lost_link'),
+  )
 }
 
 export default function StructuralPanel({ check }: { check: CheckResult }) {
@@ -38,61 +45,119 @@ export default function StructuralPanel({ check }: { check: CheckResult }) {
   const outputLabels = Object.fromEntries(check.outputs.map((o) => [o.cell, o.label]))
 
   if (check.structural.length === 0) {
-    return <p className="text-xl text-slate-600">No structural findings.</p>
+    return (
+      <div className="ledger-card flex items-center gap-2.5 px-5 py-4 text-sm text-[#36452B]/75">
+        <IconCheckCircle className="h-4 w-4 shrink-0 text-[#8A9646]" />
+        <span>No structural findings detected.</span>
+      </div>
+    )
   }
 
   return (
-    <section aria-label="Structural findings" className="space-y-6">
+    <div className="space-y-4">
       {list.map(({ cell, headline, rest }) => {
         const lost = headline.kind === 'lost_link'
         const output = headline.output ? outputs.get(headline.output) : undefined
         return (
-          <article
-            key={cell}
-            className={`rounded-2xl border-l-8 bg-white px-8 py-6 shadow-md ${lost ? 'border-red-600' : 'border-amber-500'}`}
-          >
-            <p className={`text-lg font-bold uppercase tracking-wide ${lost ? 'text-red-700' : 'text-amber-700'}`}>
-              ⚠ {KIND_LABEL[headline.kind]} · <span className="font-mono normal-case">{cell}</span>
-            </p>
-            <h3 className={`mt-2 text-4xl font-bold leading-tight ${lost ? 'text-red-700' : 'text-slate-900'}`}>
-              {headline.message}
-            </h3>
-            {headline.output && (
-              <p className="mt-3 text-xl text-slate-700">
-                Watched output: {output?.label ?? headline.output}{' '}
-                <span className="font-mono text-lg text-slate-500">{headline.output}</span>
-                {output && (
-                  <>
-                    {' · change '}
-                    <b className="tabular-nums">{output.delta_observed === null ? 'unknown' : signedInr(output.delta_observed)}</b>
-                  </>
+          <article key={cell} className="ledger-card overflow-hidden">
+            <header
+              className={`flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3 ${
+                lost
+                  ? 'border-[#A44A3F]/25 bg-[#EEDADA]/60'
+                  : 'border-[#D7D0C5] bg-[#F0EDE6]'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <IconAlertTriangle
+                  className={`h-4 w-4 shrink-0 ${lost ? 'text-[#A44A3F]' : 'text-[#36452B]'}`}
+                />
+                <span
+                  className={`text-xs font-bold uppercase tracking-wider ${
+                    lost ? 'text-[#A44A3F]' : 'text-[#36452B]'
+                  }`}
+                >
+                  {KIND_LABEL[headline.kind]}
+                </span>
+              </div>
+              <span className="rounded border border-[#D7D0C5] bg-[#FFFFFF] px-2 py-0.5 font-mono text-xs font-semibold text-[#36452B]">
+                {cell}
+              </span>
+            </header>
+
+            <div className="space-y-4 p-5 sm:p-6">
+              <div>
+                <h4
+                  className={`text-xl font-bold leading-snug sm:text-2xl ${
+                    lost ? 'text-[#A44A3F]' : 'text-[#36452B]'
+                  }`}
+                >
+                  {headline.message}
+                </h4>
+                {headline.output && (
+                  <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-[#36452B]/80">
+                    <span>Watched output:</span>
+                    <strong className="font-semibold text-[#36452B]">
+                      {output?.label ?? headline.output}
+                    </strong>
+                    <span className="rounded bg-[#F0EDE6] px-1.5 py-0.5 font-mono text-xs text-[#36452B]">
+                      {headline.output}
+                    </span>
+                    {output && (
+                      <span>
+                        · change{' '}
+                        <strong className="font-mono font-bold tabular-nums text-[#36452B]">
+                          {output.delta_observed === null ? 'unknown' : signedInr(output.delta_observed)}
+                        </strong>
+                      </span>
+                    )}
+                  </p>
                 )}
-              </p>
-            )}
-            {[headline, ...rest].filter((f) => f.kind === 'lost_link').map((f, i) => (
-              <GraphBoundary key={i}>
-                <Suspense fallback={null}><LostLinkGraph finding={f} outputLabels={outputLabels} /></Suspense>
-              </GraphBoundary>
-            ))}
-            {rest.length > 0 && (
-              <ul className="mt-4 space-y-1 border-t border-slate-200 pt-3 text-base text-slate-500">
-                {rest.map((f, i) => <li key={i}>{KIND_LABEL[f.kind]}: {f.message}</li>)}
-              </ul>
-            )}
+              </div>
+
+              {[headline, ...rest]
+                .filter((f) => f.kind === 'lost_link')
+                .map((f, i) => (
+                  <GraphBoundary key={i}>
+                    <Suspense fallback={null}>
+                      <LostLinkGraph finding={f} outputLabels={outputLabels} />
+                    </Suspense>
+                  </GraphBoundary>
+                ))}
+
+              {rest.length > 0 && (
+                <ul className="space-y-1.5 border-t border-[#D7D0C5] pt-3 text-sm text-[#36452B]/80">
+                  {rest.map((f, i) => (
+                    <li key={i} className="flex flex-wrap items-baseline gap-2">
+                      <span className="rounded bg-[#F0EDE6] px-1.5 py-0.5 font-mono text-xs font-medium text-[#36452B]">
+                        {KIND_LABEL[f.kind]}
+                      </span>
+                      <span>{f.message}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </article>
         )
       })}
 
       {protectedEdits.length > 0 && (
-        <div className="px-2">
-          <h4 className="text-base font-semibold text-slate-500">{KIND_LABEL[PROTECTED]}</h4>
-          <ul className="mt-1 space-y-1 text-base text-slate-500">
+        <div className="ledger-card bg-[#F8F7F4] p-4 sm:p-5">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-[#36452B]/75">
+            {KIND_LABEL[PROTECTED]} ({protectedEdits.length})
+          </h4>
+          <ul className="mt-2 space-y-1 text-sm text-[#36452B]/85">
             {protectedEdits.map((f, i) => (
-              <li key={i}><span className="font-mono">{f.cell}</span>: {f.message}</li>
+              <li key={i}>
+                <span className="rounded bg-[#FFFFFF] px-1.5 py-0.5 font-mono text-xs font-semibold text-[#36452B]">
+                  {f.cell}
+                </span>{' '}
+                <span className="ml-1">{f.message}</span>
+              </li>
             ))}
           </ul>
         </div>
       )}
-    </section>
+    </div>
   )
 }

@@ -120,7 +120,7 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
 
 **Before Act 3 (once, during the pre-demo checklist):**
 - Stage `golden/dues_v2.xlsx`, `golden/dues_v3_REAL.xlsx` and `golden/judge_xlookup.xlsx` where the file picker opens.
-- Open **04 Session Audit** (`#session`) in the bottom dock once and, if it shows a snapshot id left from rehearsal, click **Start over (forget this snapshot)**. The id lives in this browser's `localStorage`, so a rehearsal id would otherwise still be on screen.
+- Open **04 Session Audit** (`#session`) in the bottom dock once and, if step 1 already shows a snapshot left from rehearsal, click **Start over (forget this snapshot)**. The snapshot is remembered in this browser's `localStorage`, so a rehearsal one would otherwise still be in use.
 - Do **not** run `scripts\demo_reset.ps1` between taking a snapshot and finishing the audit: it empties `data\`, which is where snapshots and kept Checks live, and the audit then fails with `Unknown snapshot '…'`.
 
 #### Part A: Fail closed (judge file, ~30 s)
@@ -143,11 +143,11 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
   1. Open **04 Session Audit** in the bottom dock (`http://localhost:5173/#session`). If the tab is missing, use the fallback table below.
   2. Under **1. Snapshot the workbook before the AI session**, click the file picker labelled **Workbook before the session** and choose `golden/dues_v2.xlsx`.
   3. Click **Take snapshot**.
-  4. *(The pause: this is where the AI session happens in Excel. On stage, say it, do not wait.)* Optional proof that the id survives: press **F5**. The same snapshot id is still on screen.
+  4. *(The pause: this is where the AI session happens in Excel. On stage, say it, do not wait.)* Optional proof that the snapshot survives: press **F5**. Step 1 still shows the green ✓.
   5. Under **2. After the session, upload the workbook as it is now**, click the file picker labelled **Workbook after the session** and choose `golden/dues_v3_REAL.xlsx` (it stands in for the file saved after the AI session).
   6. Click **Check what the session changed**.
 - **Point to on screen, in order:**
-  1. After step 3, step 1 gets a green ✓ and reads `Snapshot of dues_v2.xlsx kept. It survives a reload; write it down anyway.` The **Snapshot id** is shown big, in the form `sa_` plus 12 characters (it is different every run; read it from the screen), with a **copy** button.
+  1. After step 3, step 1 gets a green ✓ and reads `Snapshot of dues_v2.xlsx kept. It survives a reload.`
   2. After step 6, step 2 gets a ✓ and a blue line appears: **`Session audit: everything that changed in the workbook while the AI session ran (the snapshot against the file you just uploaded). This is not a normal two-file Check.`**
   3. **01 / INTEGRITY VERIFICATION** banner: `Verified against Excel's saved values: 307 / 307 formula cells match`, then `Coverage: 100%` and an **Export CSV Ledger** button.
   4. Cards: **Total pending dues `Summary!C6` `+₹42,000`** and **Collected `Summary!C4` `₹0`**; `₹2,86,000 → ₹3,28,000`; under **What changed it**: `+₹38,000` New row in Expenses: Lift repair (data), `+₹4,000` Formula changed: LateFees!F3 (logic), then **Total change `+₹42,000`**.
@@ -165,8 +165,8 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
 | B.1 `04 Session Audit` missing from bottom dock | `#31` not merged on the demo laptop | Open the Session Audit tab by its hash, `http://localhost:5173/#session`; if it still does not appear, stop Part B and say "Session Audit is snapshot, then Check, and it reuses the same Check you just saw." |
 | B.2 File not accepted | A red line `x.xlsx is not a readable workbook (.xlsx or .xlsm)` | Wrong file or an Excel lock file (`~$dues_v2.xlsx`): pick `golden/dues_v2.xlsx` again. |
 | B.3 Take snapshot fails | `Couldn't reach the server. Is it running? …` plus the grey `offline — showing sample data` and a sample result | The API is down. Restart it (`uv run uvicorn deltagate.api:app --port 8000`, from `backend/`) and click **Take snapshot** again; or say the sample on screen is canned engine output and move on. |
-| B.4 Snapshot id gone after F5 | The step-1 file picker is back, no id | Type or paste the id into **Already took one? Paste its snapshot id** and click **Use this id**. If it is lost, click **Start over (forget this snapshot)** and take a new snapshot (10 s). Keep the id written on a sticky note during Part B. |
-| B.6 Check what the session changed fails | Red line `Unknown snapshot 'sa_…'` | The id is wrong, or `data\` was reset since the snapshot (never run `demo_reset.ps1` mid-demo). Start over and redo the snapshot. |
+| B.4 Snapshot gone after F5 | The step-1 file picker is back | Click **Start over (forget this snapshot)** and take a new snapshot (10 s). |
+| B.6 Check what the session changed fails | Red line `Unknown snapshot …` | `data\` was reset since the snapshot (never run `demo_reset.ps1` mid-demo). Start over and redo the snapshot. |
 | B.6 Result slow | Button reads `Checking…` | Wait up to 5 s (a Check takes about 1.5 s). If it exceeds 10 s, say "this is the same Check engine as Act 1" and switch to the backup recording. |
 
 ---

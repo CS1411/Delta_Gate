@@ -2,22 +2,240 @@
 
 @theme {
   --color-bamboo: #36452B;
+  --color-bamboo-deep: #2B3822;
   --color-moss: #8A9646;
   --color-sand: #D7D0C5;
   --color-wood: #7F7D74;
   --color-blossom: #EEDADA;
+  --color-crimson: #A44A3F;
   --color-canvas: #F8F7F4;
+  --color-recess: #F0EDE6;
+
+  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-body {
-  background-color: #F8F7F4;
-  color: #36452B;
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  html {
+    background-color: #F8F7F4;
+    color: #36452B;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-underline-offset: 3px;
+  }
+
+  body {
+    background-color: #F8F7F4;
+    color: #36452B;
+    caret-color: #36452B;
+  }
+
+  ::selection {
+    background-color: rgba(138, 150, 70, 0.22);
+    color: #36452B;
+  }
+
+  :focus-visible {
+    outline: 2px solid #8A9646;
+    outline-offset: 2px;
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Glassmorphic card styling inspired by editorial glass-portfolio */
+.ledger-card {
+  background-color: #FFFFFF;
+  border: 1px solid #D7D0C5;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px rgba(54, 69, 43, 0.04);
+}
+
+@keyframes dg-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dg-bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes dg-rule-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes dg-dash-flow {
+  from {
+    stroke-dashoffset: 26;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes dg-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+.animate-dg-enter {
+  animation: dg-fade-up 200ms var(--ease-out-expo) both;
+}
+
+.animate-dg-stagger {
+  animation: dg-fade-up 240ms var(--ease-out-expo) both;
+  animation-delay: var(--stagger-ms, 0ms);
+}
+
+.animate-dg-bar {
+  transform-origin: left center;
+  animation: dg-bar-grow 420ms var(--ease-out-expo) both;
+  animation-delay: var(--stagger-ms, 0ms);
+}
+
+.animate-dg-rule {
+  transform-origin: left center;
+  animation: dg-rule-draw 360ms var(--ease-out-expo) both;
+}
+
+.animate-dg-dash {
+  animation: dg-dash-flow 1.6s linear infinite;
+}
+
+.animate-dg-loading {
+  animation: dg-indeterminate 1.2s ease-in-out infinite;
+}
+
+.pressable {
+  transition:
+    transform 120ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.pressable:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-dg-enter,
+  .animate-dg-stagger,
+  .animate-dg-bar,
+  .animate-dg-rule {
+    animation-name: dg-opacity-only;
+    animation-duration: 140ms;
+    animation-delay: 0ms;
+  }
+
+  .animate-dg-dash,
+  .animate-dg-loading {
+    animation: none;
+  }
+
+  .pressable:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+@keyframes dg-opacity-only {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Floating orb halo animations */
+@keyframes floatOrb {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(6px, -12px) scale(1.04);
+  }
+  66% {
+    transform: translate(-8px, 6px) scale(0.96);
+  }
+}
+
+.animate-float-orb {
+  animation: floatOrb 8s ease-in-out infinite;
+}
+
+/* Refractive glass orb */
+.glass-orb {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 9999px;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 6px rgba(54, 69, 43, 0.15),
+    0 8px 24px -4px rgba(54, 69, 43, 0.12);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-orb:hover {
+  transform: scale(1.12) translateY(-4px);
+  box-shadow: 
+    inset 0 3px 6px rgba(255, 255, 255, 0.9),
+    inset 0 -3px 8px rgba(54, 69, 43, 0.2),
+    0 16px 36px -6px rgba(54, 69, 43, 0.22);
+}
+
+/* Specular borders & 3D tilt folder styling */
+.glass-folder {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(215, 208, 197, 0.45) 100%);
+  border: 1px solid rgba(215, 208, 197, 0.9);
+  box-shadow: 0 10px 30px -10px rgba(54, 69, 43, 0.08);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s ease;
+}
+
+.glass-folder:hover {
+  transform: translateY(-8px) scale(1.02);
+  border-color: #8A9646;
+  box-shadow: 0 20px 40px -12px rgba(54, 69, 43, 0.16);
+}
+
+/* Nitika's shell + Home use Tailwind's default fonts, not the app-wide Source Sans / JetBrains Mono */
+.dg-nitika-fonts {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 1;
+}
+
+/* Glassmorphic cards used by the Home page */
 .glass-card {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
