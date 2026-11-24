@@ -1,7 +1,6 @@
-import { useEffect, useState, type ComponentType } from 'react'
+import { useEffect, useState } from 'react'
 
-import { fetchHeld, fetchPolicy, fetchWorkbooks, type Policy, type WorkbookSummary } from './api'
-import { IconSliders } from './components/Icons'
+import { fetchHeld, fetchWorkbooks, fetchPolicy, type WorkbookSummary, type Policy } from './api'
 import { inr, savedByBanner } from './format'
 import Approvals from './tabs/Approvals'
 import Audit from './tabs/Audit'
@@ -9,48 +8,44 @@ import Check from './tabs/Check'
 import { HomeTab } from './tabs/Home'
 import SessionAudit from './tabs/SessionAudit'
 
-interface TabDef {
-  label: string
-  description: string
-  Tab: ComponentType
-}
-
-const goTo = (t: string) => {
-  window.location.hash = `#${t}`
-}
-
 const TABS = {
   home: {
+    id: '00',
     label: 'Home',
-    description: 'What Delta Gate checks, and where to start',
-    Tab: () => <HomeTab onNavigateTab={goTo} />,
+    description: 'System Overview & Verification Halo',
+    Tab: () => <HomeTab onNavigateTab={(t) => { window.location.hash = `#${t}` }} />,
   },
   check: {
+    id: '01',
     label: 'Check',
-    description: 'Two-version comparator & Shapley attribution',
+    description: 'Two-Version Comparator & Shapley Attribution',
     Tab: Check,
   },
   approvals: {
+    id: '02',
     label: 'Approvals',
-    description: 'MCP agent gate & held edits inbox',
+    description: 'Agent Gate & Approvals Inbox',
     Tab: Approvals,
   },
   audit: {
+    id: '03',
     label: 'Audit',
-    description: 'Hash-chained Ed25519 audit ledger',
+    description: 'Tamper-Evident Ed25519 Chain',
     Tab: Audit,
   },
   session: {
+    id: '04',
     label: 'Session Audit',
     description: 'Snapshot before an in-Excel AI session, Check after',
     Tab: SessionAudit,
   },
-} as const satisfies Record<string, TabDef>
+} as const
 
 type TabKey = keyof typeof TABS
 
 const fromHash = (): TabKey => {
-  const key = window.location.hash.slice(1)
+  const raw = window.location.hash.slice(1)
+  const key = raw.split('/')[0].split('?')[0]
   return key in TABS ? (key as TabKey) : 'home'
 }
 
@@ -66,17 +61,16 @@ function AppShell() {
   const [workbooks, setWorkbooks] = useState<WorkbookSummary[] | null>(null)
   const [heldCount, setHeldCount] = useState<number | null>(null)
   const [policy, setPolicy] = useState<Policy | null>(null)
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [isMorphOpen, setIsMorphOpen] = useState(false)
 
+  // URL hash sync
   useEffect(() => {
-    const onHash = () => {
-      setTab(fromHash())
-      setMenuOpen(false)
-    }
+    const onHash = () => setTab(fromHash())
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
+  // Poll workbooks
   useEffect(() => {
     let live = true
     const load = () => {
@@ -93,6 +87,7 @@ function AppShell() {
     }
   }, [])
 
+  // Poll held count
   useEffect(() => {
     let live = true
     const checkHeld = () => {
@@ -109,108 +104,210 @@ function AppShell() {
     }
   }, [])
 
+  // Fetch policy once
   useEffect(() => {
     let live = true
     fetchPolicy()
       .then((p) => live && setPolicy(p))
       .catch(() => live && setPolicy(null))
-    return () => {
-      live = false
-    }
+    return () => { live = false }
   }, [])
 
   const currentTab = TABS[tab]
-  const { Tab } = currentTab
+  const TabComponent = currentTab.Tab
+
+  const navigateTab = (targetTab: TabKey) => {
+    window.location.hash = `#${targetTab}`
+    setTab(targetTab)
+    setIsMorphOpen(false)
+  }
 
   return (
-    <div className="min-h-screen bg-[#F8F7F4] text-[#36452B]">
-      <header className="sticky top-0 z-30 border-b border-[#D7D0C5] bg-[#F8F7F4]/95 backdrop-blur-sm">
-        <div className="mx-auto flex min-h-14 max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
-          <a href="#home" className="flex items-center gap-3">
-            <img src="/logo.png" alt="Delta Gate logo" className="h-8 w-8 shrink-0 rounded-md object-contain" />
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-              <span className="text-base font-bold tracking-tight text-[#36452B]">Delta Gate</span>
-              <span className="text-sm font-semibold text-[#36452B]/80">{currentTab.label}</span>
-              <span className="hidden text-xs text-[#36452B]/75 sm:inline">{currentTab.description}</span>
+    <div className="min-h-screen bg-[#F8F7F4] text-[#36452B] selection:bg-[#8A9646]/20">
+      {/* Editorial Command Header */}
+      <header className="dg-nitika-fonts sticky top-0 z-40 border-b border-[#D7D0C5]/80 bg-[#F8F7F4]/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-y-3 px-4 py-3 sm:px-6 lg:px-8">
+          {/* Left: Logo + Title (clicking navigates to #home) */}
+          <a
+            href="#home"
+            onClick={() => navigateTab('home')}
+            className="flex items-center gap-3.5 group cursor-pointer"
+          >
+            <img src="/logo.png" alt="Delta Gate logo" className="h-9 w-auto object-contain rounded-lg transition-transform group-hover:scale-105" />
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-black tracking-tight text-[#36452B]">
+                  DELTA GATE
+                </h1>
+                <span className="rounded-full border border-[#D7D0C5] bg-white/70 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-[#7F7D74]">
+                  Track 1: Make MCP Matter
+                </span>
+              </div>
+              <p className="text-xs font-medium text-[#7F7D74]">
+                Independent verification &amp; policy gate for AI spreadsheet edits
+              </p>
             </div>
           </a>
+
+          {/* Center: Dynamic Policy Guardrails Pill Bar */}
+          <div className="hidden xl:flex items-center gap-2 rounded-full border border-[#D7D0C5] bg-white/80 px-4 py-1.5 shadow-sm font-mono text-xs text-[#36452B]">
+            <span className="inline-block h-2 w-2 rounded-full bg-[#8A9646]" />
+            <span className="font-bold text-[#7F7D74]">Policy:</span>
+            {policy && (
+              <>
+                <span>Impact Limit: <strong className="text-[#36452B]">{inr(policy.impact_limit_abs)}</strong></span>
+                <span className="text-[#D7D0C5]">·</span>
+                <span>Drift Budget: <strong className="text-[#36452B]">{inr(policy.drift_budget)}</strong></span>
+                <span className="text-[#D7D0C5]">·</span>
+                <span>Protected: <strong className="text-[#36452B]">{policy.protected.join(', ')}</strong></span>
+              </>
+            )}
+          </div>
+
+          {/* Right: Honest Verification Banner */}
           <HeaderVerificationBanner workbooks={workbooks} />
+        </div>
+
+        {/* Mobile/Tablet Policy Sub-bar */}
+        <div className="xl:hidden flex items-center justify-center gap-2 border-t border-[#D7D0C5]/40 bg-white/40 px-4 py-1 font-mono text-[11px] text-[#7F7D74]">
+          {policy && (
+            <>
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#8A9646]" />
+              <span>Impact: <strong>{inr(policy.impact_limit_abs)}</strong></span>
+              <span>·</span>
+              <span>Drift: <strong>{inr(policy.drift_budget)}</strong></span>
+              <span>·</span>
+              <span>Protected: <strong>{policy.protected.join(', ')}</strong></span>
+            </>
+          )}
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pb-36 pt-6 sm:px-6 lg:px-8">
-        <div key={tab} className="animate-dg-enter">
-          <Tab />
-        </div>
+      {/* Main Tab Content */}
+      <main className="mx-auto max-w-7xl px-4 pb-36 pt-4 sm:px-6 lg:px-8">
+        {tab === 'home' ? (
+          <div className="dg-nitika-fonts">
+            <HomeTab onNavigateTab={(t) => navigateTab(t)} />
+          </div>
+        ) : (
+          <div key={tab} className="animate-dg-enter">
+            <TabComponent />
+          </div>
+        )}
       </main>
 
-      {menuOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-[#36452B]/20 p-4 backdrop-blur-sm"
-          onClick={() => setMenuOpen(false)}
-        >
-          <div
-            className="mb-24 w-full max-w-md rounded-2xl border border-[#D7D0C5] bg-[#F8F7F4] p-5 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+      {/* Morph Drawer (Expands Upward from Bottom Dock) */}
+      {isMorphOpen && (
+        <div className="dg-nitika-fonts fixed inset-0 z-50 flex items-end justify-center p-4 bg-[#36452B]/20 backdrop-blur-sm transition-opacity">
+          <div className="w-full max-w-lg mb-24 rounded-3xl border border-[#D7D0C5] bg-[#F8F7F4]/95 p-6 shadow-2xl backdrop-blur-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-[#D7D0C5] pb-3">
-              <div className="flex items-center gap-1.5 text-sm font-semibold">
-                <IconSliders className="h-4 w-4 text-[#8A9646]" />
-                <span>Policy guardrails</span>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#8A9646]" />
+                <h3 className="font-serif font-bold text-[#36452B] text-lg">Quick Jump Navigation</h3>
               </div>
               <button
-                type="button"
-                onClick={() => setMenuOpen(false)}
-                className="rounded-full px-3 py-1 font-mono text-xs text-[#7F7D74] hover:bg-[#D7D0C5]/40"
+                onClick={() => setIsMorphOpen(false)}
+                className="px-3 py-1 rounded-full text-xs font-mono font-medium text-[#7F7D74] hover:bg-[#D7D0C5]/40 transition"
               >
                 Close ✕
               </button>
             </div>
-            {policy ? (
-              <dl className="mt-3 space-y-2 text-sm">
-                <div className="flex items-baseline justify-between gap-2">
-                  <dt className="text-[#36452B]/75">Impact limit</dt>
-                  <dd className="font-mono font-semibold tabular-nums">{inr(policy.impact_limit_abs)}</dd>
-                </div>
-                <div className="flex items-baseline justify-between gap-2">
-                  <dt className="text-[#36452B]/75">Drift budget</dt>
-                  <dd className="font-mono font-semibold tabular-nums">{inr(policy.drift_budget)}</dd>
-                </div>
-                <div className="border-t border-[#D7D0C5] pt-2">
-                  <dt className="text-[#36452B]/75">Protected cells</dt>
-                  <dd className="mt-1 flex flex-wrap gap-1">
-                    {policy.protected.map((cell) => (
-                      <span key={cell} className="rounded bg-[#36452B] px-1.5 py-0.5 font-mono text-xs text-[#F8F7F4]">
-                        {cell}
-                      </span>
-                    ))}
-                  </dd>
-                </div>
-              </dl>
-            ) : (
-              <p className="mt-3 text-sm text-[#36452B]/75">Connect backend API to inspect active policy limits.</p>
-            )}
+
+            <div className="space-y-2">
+              <div className="text-[11px] font-mono font-semibold uppercase tracking-wider text-[#7F7D74]">
+                Editorial Jump Links
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <a
+                  href="#overview"
+                  onClick={() => { navigateTab('home'); setIsMorphOpen(false); }}
+                  className="p-2.5 rounded-xl bg-white/70 hover:bg-white border border-[#D7D0C5]/60 text-[#36452B] font-medium transition"
+                >
+                  <span className="font-mono text-xs text-[#8A9646] mr-1">1</span> Overview
+                </a>
+                <a
+                  href="#engine"
+                  onClick={() => { navigateTab('home'); setIsMorphOpen(false); }}
+                  className="p-2.5 rounded-xl bg-white/70 hover:bg-white border border-[#D7D0C5]/60 text-[#36452B] font-medium transition"
+                >
+                  <span className="font-mono text-xs text-[#8A9646] mr-1">2</span> Engine
+                </a>
+                <a
+                  href="#pipeline"
+                  onClick={() => { navigateTab('home'); setIsMorphOpen(false); }}
+                  className="p-2.5 rounded-xl bg-white/70 hover:bg-white border border-[#D7D0C5]/60 text-[#36452B] font-medium transition"
+                >
+                  <span className="font-mono text-xs text-[#8A9646] mr-1">3</span> Pipeline
+                </a>
+                <a
+                  href="#workspaces"
+                  onClick={() => { navigateTab('home'); setIsMorphOpen(false); }}
+                  className="p-2.5 rounded-xl bg-white/70 hover:bg-white border border-[#D7D0C5]/60 text-[#36452B] font-medium transition"
+                >
+                  <span className="font-mono text-xs text-[#8A9646] mr-1">4</span> Workspaces
+                </a>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-[#D7D0C5]/60">
+              <div className="text-[11px] font-mono font-semibold uppercase tracking-wider text-[#7F7D74]">
+                Workspaces
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-xs">
+                <button
+                  onClick={() => navigateTab('check')}
+                  className="p-2 rounded-xl bg-white/70 hover:bg-white border border-[#D7D0C5]/60 text-[#36452B] font-medium transition"
+                >
+                  01 Check
+                </button>
+                <button
+                  onClick={() => navigateTab('approvals')}
+                  className="p-2 rounded-xl bg-white/70 hover:bg-white border border-[#D7D0C5]/60 text-[#36452B] font-medium transition"
+                >
+                  02 Approvals
+                </button>
+                <button
+                  onClick={() => navigateTab('audit')}
+                  className="p-2 rounded-xl bg-white/70 hover:bg-white border border-[#D7D0C5]/60 text-[#36452B] font-medium transition"
+                >
+                  03 Audit
+                </button>
+                <button
+                  onClick={() => navigateTab('session')}
+                  className="p-2 rounded-xl bg-white/70 hover:bg-white border border-[#D7D0C5]/60 text-[#36452B] font-medium transition"
+                >
+                  04 Session
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Floating bottom dock */}
-      <nav aria-label="Main Navigation" className="fixed bottom-6 left-1/2 z-50 max-w-[calc(100vw-1rem)] -translate-x-1/2">
-        <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] rounded-full border border-[#D7D0C5]/40 bg-[#36452B]/95 p-2 shadow-2xl backdrop-blur-xl">
-          {(Object.keys(TABS) as TabKey[]).map((key, i) => {
+      {/* Floating Bottom Pill Dock (#36452B Deep Bamboo Green) */}
+      <nav
+        aria-label="Bottom Dock Navigation"
+        className="dg-nitika-fonts fixed bottom-6 left-1/2 z-50 max-w-[calc(100vw-1rem)] -translate-x-1/2"
+      >
+        <div className="flex items-center gap-1.5 rounded-full border border-[#D7D0C5]/40 bg-[#36452B]/95 p-2 shadow-2xl backdrop-blur-xl overflow-x-auto [scrollbar-width:none]">
+          {(Object.keys(TABS) as TabKey[]).map((key) => {
             const active = tab === key
+            const item = TABS[key]
             const showBadge = key === 'approvals' && heldCount !== null && heldCount > 0
+            const tabClass = active
+              ? 'bg-[#8A9646] text-white shadow-sm'
+              : 'text-[#D7D0C5] hover:bg-white/10 hover:text-white'
+
             return (
               <a
                 key={key}
                 href={`#${key}`}
+                onClick={() => navigateTab(key)}
                 aria-current={active ? 'page' : undefined}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-bold transition-all duration-200 sm:gap-2 sm:px-5 sm:text-base ${
-                  active ? 'bg-[#8A9646] text-white shadow-sm' : 'text-[#D7D0C5] hover:bg-white/10 hover:text-white'
-                }`}
+                className={`relative flex shrink-0 items-center gap-1.5 sm:gap-2 rounded-full px-3.5 sm:px-5 py-2 text-sm sm:text-base font-bold transition-all duration-200 ${tabClass}`}
               >
-                <span className="font-mono text-xs opacity-75">{String(i).padStart(2, '0')}</span>
-                <span>{TABS[key].label}</span>
+                <span className="font-mono text-xs opacity-75">{item.id}</span>
+                <span>{item.label}</span>
                 {showBadge && (
                   <span
                     className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 font-mono text-xs font-bold ${
@@ -223,12 +320,13 @@ function AppShell() {
               </a>
             )
           })}
+
+          {/* Morph Menu Toggle Button (≡) */}
           <button
             type="button"
-            onClick={() => setMenuOpen((o) => !o)}
-            title="Policy guardrails"
-            aria-label="Policy guardrails"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-mono text-lg font-bold text-[#D7D0C5] transition hover:bg-white/10 hover:text-white"
+            onClick={() => setIsMorphOpen(!isMorphOpen)}
+            title="Toggle Quick Navigation Drawer"
+            className="flex items-center justify-center rounded-full w-9 h-9 text-[#D7D0C5] hover:bg-white/10 hover:text-white transition font-mono text-lg font-bold"
           >
             ≡
           </button>
@@ -241,47 +339,50 @@ function AppShell() {
 function HeaderVerificationBanner({ workbooks }: { workbooks: WorkbookSummary[] | null }) {
   if (workbooks === null) {
     return (
-      <div className="inline-flex items-center gap-2 rounded-md border border-[#D7D0C5] bg-[#FFFFFF] px-3 py-1 text-xs font-medium text-[#36452B]/75">
-        <span className="h-2 w-2 rounded-full bg-[#7F7D74]" />
-        <span>API offline</span>
+      <div className="flex items-center gap-2 rounded-xl border border-[#D7D0C5] bg-white/75 px-3.5 py-1.5 shadow-sm">
+        <span className="h-2 w-2 rounded-full bg-[#7F7D74] animate-pulse" />
+        <div className="text-right">
+          <p className="font-mono text-[11px] font-bold text-[#7F7D74]">API Offline</p>
+        </div>
       </div>
     )
   }
 
   if (workbooks.length === 0) {
     return (
-      <div className="inline-flex items-center rounded-md border border-[#D7D0C5] bg-[#FFFFFF] px-3 py-1 text-xs text-[#36452B]/75">
-        No workbooks registered
+      <div className="flex items-center gap-2 rounded-xl border border-[#D7D0C5] bg-white/75 px-3.5 py-1.5 shadow-sm">
+        <span className="font-mono text-xs text-[#7F7D74]">No workbooks registered</span>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
+    <div className="flex flex-col items-end gap-1">
       {workbooks.map((w) => {
         const bannerText = savedByBanner(w.saved_by)
-        const isTrusted = w.saved_by === 'Microsoft Excel' || w.saved_by === 'LibreOffice'
+        const badgeClass =
+          w.saved_by === 'Microsoft Excel' || w.saved_by === 'LibreOffice'
+            ? 'bg-[#8A9646]/15 text-[#36452B] border border-[#8A9646]/40'
+            : w.saved_by === 'pending'
+              ? 'bg-[#EEDADA]/60 text-[#36452B] border border-[#D7D0C5]'
+              : 'bg-[#EEDADA] text-[#36452B] border border-[#D7D0C5]'
         return (
           <div
             key={w.workbook_id}
-            className="flex flex-wrap items-center gap-2 rounded-md border border-[#D7D0C5] bg-[#FFFFFF] px-3 py-1 text-xs"
+            className="flex flex-wrap items-center gap-2 rounded-xl border border-[#D7D0C5]/80 bg-white/80 px-3.5 py-1.5 shadow-sm"
           >
-            <span
-              className={`h-2 w-2 rounded-full ${isTrusted ? 'bg-[#8A9646]' : 'bg-[#A44A3F]'}`}
-              aria-hidden="true"
-            />
-            <span className="font-semibold text-[#36452B]">{w.name}</span>
-            <span
-              className={`rounded px-2 py-0.5 font-medium ${
-                isTrusted
-                  ? 'bg-[#8A9646]/15 text-[#36452B]'
-                  : 'bg-[#EEDADA]/70 text-[#36452B]'
-              }`}
-            >
+            <span className="font-bold text-[#36452B] text-xs">{w.name}</span>
+            <span className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] font-bold ${badgeClass}`}>
               {bannerText}
             </span>
+            <span
+              className="font-mono text-[11px] text-[#7F7D74]"
+              title={`Commit Version: ${w.current_version}`}
+            >
+              {w.current_version.slice(0, 8)}
+            </span>
             {w.source === 'unmanaged' && (
-              <span className="rounded border border-[#A44A3F]/30 bg-[#EEDADA] px-2 py-0.5 font-mono text-[11px] font-semibold text-[#A44A3F]">
+              <span className="rounded-md bg-[#EEDADA] px-2 py-0.5 font-mono text-[10px] font-black uppercase tracking-wider text-[#36452B] border border-[#D7D0C5]">
                 Out-of-band edit
               </span>
             )}
