@@ -5,6 +5,7 @@ import { inr, savedByBanner } from './format'
 import Approvals from './tabs/Approvals'
 import Audit from './tabs/Audit'
 import Check from './tabs/Check'
+import SessionAudit from './tabs/SessionAudit'
 
 const TABS = {
   check: {
@@ -24,6 +25,12 @@ const TABS = {
     label: 'Audit',
     description: 'Tamper-Evident Ed25519 Chain',
     Tab: Audit,
+  },
+  session: {
+    id: '04',
+    label: 'Session Audit',
+    description: 'Snapshot before an in-Excel AI session, Check after',
+    Tab: SessionAudit,
   },
 } as const
 
@@ -167,7 +174,7 @@ function AppShell() {
         aria-label="Bottom Dock Navigation"
         className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2"
       >
-        <div className="flex items-center gap-1.5 rounded-full border border-[#D7D0C5]/40 bg-[#36452B]/95 p-2 shadow-2xl backdrop-blur-xl">
+        <div className="flex items-center gap-1 rounded-full border border-[#D7D0C5]/40 bg-[#36452B]/95 p-1.5 shadow-2xl backdrop-blur-xl sm:gap-1.5 sm:p-2">
           {(Object.keys(TABS) as TabKey[]).map((key) => {
             const active = tab === key
             const item = TABS[key]
@@ -181,9 +188,9 @@ function AppShell() {
                 key={key}
                 href={`#${key}`}
                 aria-current={active ? 'page' : undefined}
-                className={`relative flex items-center gap-2 rounded-full px-6 py-2.5 text-base font-bold transition-all duration-200 ${tabClass}`}
+                className={`relative flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-2.5 text-sm font-bold transition-all duration-200 sm:px-6 sm:text-base ${tabClass}`}
               >
-                <span className="font-mono text-xs opacity-75">{item.id}</span>
+                <span className="hidden font-mono text-xs opacity-75 sm:inline">{item.id}</span>
                 <span>{item.label}</span>
                 {showBadge && (
                   <span

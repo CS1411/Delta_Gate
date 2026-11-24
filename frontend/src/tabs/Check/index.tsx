@@ -10,17 +10,17 @@ import Waterfall from './Waterfall'
 const SAMPLES: { label: string; desc: string; data: CheckResult }[] = [
   {
     label: 'Sample: dues v2 → v3',
-    desc: 'Excel-Saved Golden (Full Match, Lost-Link on C4)',
+    desc: `${v2v3Fixture.verification.matched} / ${v2v3Fixture.verification.formula_cells} formula cells match Excel's saved values`,
     data: v2v3Fixture as CheckResult,
   },
   {
     label: 'Sample: judge file (XLOOKUP)',
-    desc: 'Partial Verification (60 XLOOKUP cells unverifiable)',
+    desc: `Partial verification: ${judgeFixture.unverifiable.length} cells can't be verified (XLOOKUP and what depends on it)`,
     data: judgeFixture as CheckResult,
   },
 ]
 
-const OFFLINE = "Could not reach backend API at http://localhost:8000. Showing demo fixture."
+const OFFLINE = "Couldn't reach the server. Is it running? (cd backend && uv run uvicorn deltagate.api:app --port 8000) The samples above work without it."
 
 export default function Check() {
   const [base, setBase] = useState<File | null>(null)
@@ -184,7 +184,7 @@ export default function Check() {
                 Calculating Exact Shapley Coalitions…
               </>
             ) : (
-              'Run Check (POST /api/checks)'
+              'Run Check'
             )}
           </button>
 

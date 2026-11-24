@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import StructuralPanel from '../../components/StructuralPanel'
-import { inr, signedInr } from '../../format'
+import { inr, savedByBanner, signedInr } from '../../format'
 import type { CheckResult, Group, Output } from '../../types'
 import GroupsTable from './GroupsTable'
 
@@ -25,14 +25,6 @@ export interface CheckResultViewProps {
 
 const fmtValue = (n: number | null) => (n === null ? 'unknown' : inr(n))
 const fmtDelta = (n: number | null) => (n === null ? 'unknown' : signedInr(n))
-
-// Honest verification banner helper complying with rule 5
-function getSavedByBannerText(savedBy: string | null | undefined): string {
-  if (savedBy === 'Microsoft Excel') return "Verified against Excel's saved values"
-  if (savedBy === 'LibreOffice') return "Verified against LibreOffice's saved values"
-  if (savedBy === 'pending') return "Verification pending (LibreOffice sidecar running…)"
-  return "Not verifiable against saved values"
-}
 
 export default function CheckResultView({
   check,
@@ -64,7 +56,7 @@ export default function CheckResultView({
   const isLO = v.saved_by === 'LibreOffice'
   const isVerifiable = isExcel || isLO
 
-  const bannerBase = getSavedByBannerText(v.saved_by)
+  const bannerBase = savedByBanner(v.saved_by)
   const bannerText = isVerifiable
     ? `${bannerBase}: ${v.matched.toLocaleString('en-IN')} / ${v.formula_cells.toLocaleString('en-IN')} formula cells match`
     : bannerBase
@@ -244,8 +236,9 @@ function HeadlineCard({
           <div className="space-y-4">
             <p className="text-4xl sm:text-5xl font-black tabular-nums tracking-tight text-[#36452B]">
               {signedInr(output.delta_observed!)} observed ={' '}
-              <span className="text-[#8A9646]">{signedInr(output.delta_verified)} verified</span> +{' '}
-              <span className="text-[#A44A3F]">{signedInr(output.delta_unverified!)} unverified</span>
+              <span className="text-[#8A9646]">{signedInr(output.delta_verified)} verified</span>
+              {output.delta_unverified! < 0 ? ' − ' : ' + '}
+              <span className="text-[#A44A3F]">{inr(Math.abs(output.delta_unverified!))} unverified</span>
             </p>
             {causes.length > 0 && (
               <p className="text-xl text-[#7F7D74]">

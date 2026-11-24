@@ -73,7 +73,7 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
   2. Under **Base version**, select `golden/dues_v2.xlsx`; under **New version**, select `golden/dues_v3_REAL.xlsx`; click **Run Check** *(offline fallback: click **Sample: dues v2 → v3**)*.
   3. Show headline: `Summary!C6` moved **₹2,86,000 → ₹3,28,000 (+₹42,000)**, split into **₹38,000** (Lift repair, `data`) + **₹4,000** (`LateFees!F3`, `logic`). Interaction is ₹0, so the bars add up exactly to Δ.
   4. Click the **+₹4,000** waterfall bar (or `LateFees!F3` group) → click **Prove it** (`POST /api/checks/{id}/proof/{group_id}`) to download the solo proof workbook (Excel recalculates `Summary!C6 = ₹2,90,000`).
-  5. Point to the red Structural Alert on `Summary!C4` (Collected): **lost_link** (`typed_over_formula`) caught at net **₹0** change with broken link to `Payments!C`.
+  5. Point to the red Structural Alert on `Summary!C4` (Collected): `typed_over_formula` and **`lost_link`** (*"Collected no longer depends on Payments!C (Amount paid)"*) at **₹0** change; the mini-graph shows the dashed red `Payments!C → Summary!C4` link.
 - **Point to on screen:**
   1. **Verification banner:** `"Verified against Excel's saved values: 307 / 307 formula cells match"`.
   2. **Waterfall & Attribution:** `+₹42,000 = ₹38,000 + ₹4,000` with zero interaction.
