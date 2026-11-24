@@ -321,6 +321,20 @@ Pipeline: `make_golden.py` (no cached values) → `recalc.sh` (LibreOffice) → 
   - **Fix:** `db.connect()` opens connections with `check_same_thread=False`. Each connection still belongs to one request or one process and is never used concurrently.
   - **Tests:** `test_a_connection_can_be_handed_to_another_thread` (fails without the fix) and `test_parallel_polls_never_500`.
 
+## Done (P1): page shell with Nitika's design, the engine-honesty fixes, and the Session Audit tab (branch `p1-page-shell`)
+- **Built on Nitika's `feat/page-shell`** (Zen Bamboo design, logo, policy pills from `GET /api/policy`, bottom dock with the held count). The shell and the Check tab are P1's since SPLIT v3, so P1 made the data-logic fixes; her styling is unchanged.
+- **Fixes (build rules 1 and 4):**
+  - `CheckResultView` uses `savedByBanner`: no "Verification pending…" wording; anything not Excel or LibreOffice reads "Not verifiable against saved values".
+  - The observed line puts the sign as the operator: "observed = +₹38,000 verified + ₹4,000 unverified", never "+ +₹" or "+ −₹".
+  - `HealthCoverageCard` no longer adds shares into ₹ totals per type (a number the engine never produced). It shows the group count per type. The verified / unverified bar is hidden when the unverified Δ is unknown (null), and its tooltips no longer show computed percentages.
+  - Sample tooltips come from the fixtures (307 / 307; 124 cells can't be verified). The old text said 60, which counted only the XLOOKUP cells.
+  - The offline message no longer claims a fixture is shown (nothing is loaded on failure). It says how to start the server and that the samples work without it.
+  - `package-lock.json` is main's (an unrelated `@emnapi` beta had crept in).
+- **Session Audit tab** (Nikita's #30) is in the dock as 04, `#session`. The dock fits a 375 px phone (it overflowed by about 150 px with four tabs).
+- **Runbook Act 1** is now 45 s (Nitika's edit), so the four acts fit the 180 s slot. The structural step names both findings and the mini-graph.
+- **Checked live** (uvicorn + Vite): Run Check v2 → judge_xlookup gives the banner "Verified against Excel's saved values: 307 / 307" and "+₹42,000 observed = +₹38,000 verified + ₹4,000 unverified"; the lost-link graph shows; the Session Audit tab opens from the dock.
+- **Results:** `npm run build` clean; lint only the two existing warnings; `uv run pytest -q`: 179 passed, 6 skipped.
+
 ## Done (P1): Excel lock test, and a clear refusal when Excel holds current.xlsx (branch `p1-excel-lock`)
 - **Tested with real Excel over COM** (24 Nov, throwaway `DELTAGATE_HOME`):
   - `store/dues/current.xlsx` open in Excel for editing: the commit failed with `PermissionError: [WinError 5] Access is denied` on `os.replace`. The database rolled back (no version, edit, audit entry or drift), but the agent got a raw Python error, and `current.tmp` plus an unreferenced snapshot were left behind. A PARTIAL edit fails as a whole, so in Act 2 Session A would show no HELD card. Approve and Rollback go through the same commit.
