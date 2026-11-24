@@ -105,7 +105,12 @@ export default function GroupsTable({
                 <th className="py-3.5 pr-4">Change Group & Target Cells</th>
                 <th className="px-4 py-3.5 text-right">Solo Effect</th>
                 <th className="px-4 py-3.5 text-right">Shapley Share (φ)</th>
-                <th className="px-4 py-3.5 text-right">Interaction</th>
+                <th className="px-4 py-3.5 text-right" title="interaction = φ(g) − solo(g)">
+                  <span className="inline-flex items-center gap-1 cursor-help">
+                    Interaction
+                    <span className="text-[10px] text-[#7F7D74] border border-[#D7D0C5] rounded-full w-3.5 h-3.5 inline-flex items-center justify-center font-normal">?</span>
+                  </span>
+                </th>
                 {onProve && <th className="py-3.5 pl-4 text-right">Independent Proof</th>}
               </tr>
             </thead>

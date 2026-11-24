@@ -75,8 +75,12 @@ export default function Waterfall({ check, outputCell, selectedGroupId = null, o
         Bars add up exactly to Δ · Click any group bar to highlight its source cells in the ledger below
       </p>
 
-      <div className="mt-4">
-        <ReactECharts option={option} style={{ height: 360, width: '100%' }} onEvents={onEvents} />
+      <div className="mt-4 min-h-[320px] w-full">
+        <ReactECharts
+          option={option}
+          style={{ height: 360, width: '100%', minHeight: 320 }}
+          onEvents={onEvents}
+        />
       </div>
     </section>
   )
