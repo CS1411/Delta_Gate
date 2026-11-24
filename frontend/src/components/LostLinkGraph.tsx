@@ -110,7 +110,7 @@ export default function LostLinkGraph({ finding, outputLabels }: Props) {
   return (
     <figure className="mt-5 space-y-3" aria-label="Lost link graph">
       <div className="rounded-xl border border-slate-200 bg-white" style={{ height }}>
-        <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} fitView fitViewOptions={{ padding: 0.05, minZoom: 0.9, maxZoom: 1 }}
+        <ReactFlow className="light" nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} fitView fitViewOptions={{ padding: 0.05, minZoom: 0.9, maxZoom: 1 }}
           nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} zoomOnScroll={false}
           zoomOnPinch={false} zoomOnDoubleClick={false} panOnDrag={false} preventScrolling={false} />
       </div>
