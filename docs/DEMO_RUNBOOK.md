@@ -37,7 +37,8 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
    - `golden/dues_v2.xlsx`
    - `golden/dues_v3_REAL.xlsx`
    - `golden/judge_xlookup.xlsx`
-8. **Never open `store\dues\current.xlsx` in Excel while the gate runs.** Excel holds it open for editing, Windows refuses the commit, and every edit with a PASS group fails with *"current.xlsx is open in another program (Excel?)"*. In Act 2 that means Session A shows no HELD card. To show the committed workbook in Excel, open a **copy** (or open read-only after the last edit and close with *Don't Save*; a read-only window does not refresh).
+8. **Run `scripts\demo_reset.ps1` only before a run, never once Act 1 has started.** It empties `data\` and `store\`, which removes Session Audit snapshots (Act 3 then fails with `Unknown snapshot '…'`), Act 2's held edits and the audit log.
+9. **Never open `store\dues\current.xlsx` in Excel while the gate runs.** Excel holds it open for editing, Windows refuses the commit, and every edit with a PASS group fails with *"current.xlsx is open in another program (Excel?)"*. In Act 2 that means Session A shows no HELD card. To show the committed workbook in Excel, open a **copy** (or open read-only after the last edit and close with *Don't Save*; a read-only window does not refresh).
 
 ---
 
@@ -112,9 +113,9 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
      > `In workbook dues (session s_B), apply ten separate ₹3,000 payments one at a time to Payments!C17, C21, C25, C29, C33, C37, C41, C45, C49, and C53 using propose_edit.`
   2. Show edits 1–8 **PASS** (cumulative session drift reaches **₹24,000** ≤ ₹25,000).
   3. Show the **9th edit (`Payments!C49`) is HELD**: `"Session drift would reach ₹27,000, over the budget of ₹25,000"`.
-  4. On the **Approvals** tab, click **Rollback** (`POST /api/workbooks/dues/rollback`) `[Nikita/P2: confirm Rollback button label]` to restore the previous managed version in one click.
+  4. On the **Approvals** tab, scroll **below the held cards** to the **Workbooks** section. On the `dues` row click **Roll back**, then **Confirm rollback** (two clicks by design, so a stray click can't undo anything; **Cancel** backs out). It calls `POST /api/workbooks/dues/rollback` and restores the managed version before the current one.
 - **Say:**
-  > "Even small edits under the ₹10,000 per-edit limit can't salami-slice past the ₹25,000 session drift budget — the 9th edit is held, and one click rolls back."
+  > "Even small edits under the ₹10,000 per-edit limit can't salami-slice past the ₹25,000 session drift budget — the 9th edit is held, and the approver can roll back with a confirmed click."
 
 ---
 
