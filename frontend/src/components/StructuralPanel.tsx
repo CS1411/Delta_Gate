@@ -1,5 +1,10 @@
+import { lazy, Suspense } from 'react'
 import { signedInr } from '../format'
 import type { CheckResult, StructuralFinding } from '../types'
+import GraphBoundary from './GraphBoundary'
+
+// Lazy: @xyflow/react only loads when a lost link is on screen. The text alert below does not depend on it.
+const LostLinkGraph = lazy(() => import('./LostLinkGraph'))
 
 // Structural findings for the Check tab. One card per cell; a lost link is the card's red headline and the
 // cell's other findings sit under it as small grey lines. Protected-cell edits go in a small grey list at the
@@ -30,6 +35,7 @@ export default function StructuralPanel({ check }: { check: CheckResult }) {
   const outputs = new Map(check.outputs.map((o) => [o.cell, o]))
   const protectedEdits = check.structural.filter((f) => f.kind === PROTECTED)
   const list = cards(check.structural)
+  const outputLabels = Object.fromEntries(check.outputs.map((o) => [o.cell, o.label]))
 
   if (check.structural.length === 0) {
     return <p className="text-xl text-slate-600">No structural findings.</p>
@@ -63,6 +69,11 @@ export default function StructuralPanel({ check }: { check: CheckResult }) {
                 )}
               </p>
             )}
+            {[headline, ...rest].filter((f) => f.kind === 'lost_link').map((f, i) => (
+              <GraphBoundary key={i}>
+                <Suspense fallback={null}><LostLinkGraph finding={f} outputLabels={outputLabels} /></Suspense>
+              </GraphBoundary>
+            ))}
             {rest.length > 0 && (
               <ul className="mt-4 space-y-1 border-t border-slate-200 pt-3 text-base text-slate-500">
                 {rest.map((f, i) => <li key={i}>{KIND_LABEL[f.kind]}: {f.message}</li>)}

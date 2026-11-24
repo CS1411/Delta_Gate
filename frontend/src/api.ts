@@ -89,3 +89,21 @@ export const fetchPolicy = () => call<Policy>('/api/policy')
 export interface RollbackResult { workbook_id: string; sha256: string; saved_by: SavedBy | 'pending'; source: 'managed' | 'unmanaged'; created_at: string }
 export const rollbackWorkbook = (workbookId: string) =>
   call<RollbackResult>(`/api/workbooks/${encodeURIComponent(workbookId)}/rollback`, { method: 'POST' })
+
+// --- Session Audit (defined in api.py, not models.py) ---------------------------------------------------------
+
+/** POST /api/session-audit/snapshot: an exact copy of the workbook, kept before an in-Excel AI session. */
+export interface SnapshotTaken { snapshot_id: string; sha256: string }
+export function takeSnapshot(file: File) {
+  const form = new FormData()
+  form.append('file', file)
+  return call<SnapshotTaken>('/api/session-audit/snapshot', { method: 'POST', body: form })
+}
+
+/** POST /api/session-audit/complete: the snapshot against the file after the session, as a CheckResult (mode session_audit). */
+export function completeSessionAudit(snapshotId: string, file: File) {
+  const form = new FormData()
+  form.append('snapshot_id', snapshotId)
+  form.append('file', file)
+  return call<CheckResult>('/api/session-audit/complete', { method: 'POST', body: form })
+}
