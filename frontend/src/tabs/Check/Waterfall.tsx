@@ -2,13 +2,6 @@ import ReactECharts from 'echarts-for-react'
 import type { CheckResult } from '../../types'
 import { buildWaterfallOption } from './waterfallOption'
 
-// ECharts waterfall for the Check tab: Base -> non-zero group shares (+ Unverified if any) -> New.
-// Styled according to the Visual Design System:
-// - Total bars in Deep Bamboo Green (#36452B)
-// - Positive attribution bars in Mossy Rock Green (#8A9646)
-// - Unverified in Cherry Blossom Pink (#EEDADA)
-// - Axis labels & captions in Weathered Wood Grey (#7F7D74)
-
 interface Props {
   check: CheckResult
   outputCell?: string | null
@@ -23,13 +16,10 @@ export default function Waterfall({ check, outputCell, selectedGroupId = null, o
   const option = buildWaterfallOption(output, check.groups, selectedGroupId)
   if (!option) {
     return (
-      <section aria-label="Attribution waterfall" className="glass-card p-6 sm:p-8">
-        <p className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
-          03 / ATTRIBUTION WATERFALL
-        </p>
-        <h3 className="mt-1 text-2xl font-extrabold text-[#36452B]">Attribution Waterfall</h3>
-        <p className="mt-2 text-base text-[#7F7D74]">
-          Waterfall unavailable: base or new value is unknown for {output.label} ({output.cell}).
+      <section aria-label="Attribution waterfall" className="ledger-card p-5">
+        <h3 className="text-base font-bold text-[#36452B]">Waterfall · {output.label}</h3>
+        <p className="mt-1.5 text-sm text-[#36452B]/75">
+          Waterfall unavailable because base or new value is unknown for {output.label} ({output.cell}).
         </p>
       </section>
     )
@@ -45,38 +35,35 @@ export default function Waterfall({ check, outputCell, selectedGroupId = null, o
     : undefined
 
   return (
-    <section aria-label="Attribution waterfall" className="glass-card p-6 sm:p-8">
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[#D7D0C5]/60 pb-4">
+    <section aria-label="Attribution waterfall" className="ledger-card p-5 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D7D0C5] pb-3.5">
         <div>
-          <p className="font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">
-            03 / WHAT CAUSED THE CHANGE
-          </p>
-          <h3 className="mt-1 text-3xl font-extrabold tracking-tight text-[#36452B]">
-            Change by cause · <span className="text-[#8A9646]">{output.label}</span>
+          <h3 className="text-base font-bold text-[#36452B]">
+            Waterfall · <span className="text-[#8A9646]">{output.label}</span>
           </h3>
+          <p className="mt-0.5 text-xs text-[#36452B]/75">
+            Bars add up exactly to Δ · Click any group bar to highlight its cells below
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-4 text-xs font-semibold">
-          <span className="flex items-center gap-1.5 text-[#8A9646]">
-            <span className="inline-block h-3 w-3 rounded bg-[#8A9646]" />
-            Cause
+
+        <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-[#36452B]/80">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-xs bg-[#36452B]" />
+            Totals (Base/New)
           </span>
-          <span className="flex items-center gap-1.5 text-[#7F7D74]">
-            <span className="inline-block h-3 w-3 rounded border border-[#D7D0C5] bg-[#EEDADA]" />
-            Can&apos;t verify
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-xs bg-[#8A9646]" />
+            Positive attribution
           </span>
-          <span className="flex items-center gap-1.5 text-[#36452B]">
-            <span className="inline-block h-3 w-3 rounded bg-[#36452B]" />
-            Total change
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-xs border border-[#A44A3F] bg-[#EEDADA]" />
+            Unverified
           </span>
         </div>
       </div>
 
-      <p className="mt-3 text-xs text-[#7F7D74]">
-        The bars above the total add up exactly to it · Click a bar to highlight its cells in the table below
-      </p>
-
-      <div className="mt-4">
-        <ReactECharts option={option} style={{ height: 300, width: '100%' }} onEvents={onEvents} />
+      <div className="mt-3">
+        <ReactECharts option={option} style={{ height: 360, width: '100%' }} onEvents={onEvents} />
       </div>
     </section>
   )
