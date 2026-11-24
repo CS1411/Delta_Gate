@@ -225,97 +225,55 @@ function HeadlineCard({
       </div>
 
       <div className="mt-6 rounded-2xl border border-[#D7D0C5]/80 bg-white/70 p-6 sm:p-8">
-        {!observedKnown ? (
-          <div className="space-y-2">
-            <p className="text-4xl sm:text-5xl font-black text-[#36452B]">Observed change: unknown</p>
-            <p className="text-xl text-[#7F7D74]">
-              Verified change computed by engine: <b className="tabular-nums text-[#36452B]">{signedInr(output.delta_verified)}</b>
-            </p>
-          </div>
-        ) : hasUnverified ? (
-          <div className="space-y-4">
-            <p className="text-4xl sm:text-5xl font-black tabular-nums tracking-tight text-[#36452B]">
-              {signedInr(output.delta_observed!)} observed ={' '}
-              <span className="text-[#8A9646]">{signedInr(output.delta_verified)} verified</span>
-              {output.delta_unverified! < 0 ? ' − ' : ' + '}
-              <span className="text-[#A44A3F]">{inr(Math.abs(output.delta_unverified!))} unverified</span>
-            </p>
-            {causes.length > 0 && (
-              <p className="text-xl text-[#7F7D74]">
-                Verified split:{' '}
-                <CauseTokens
-                  causes={causes}
-                  groupById={groupById}
-                  selectedGroupId={selectedGroupId}
-                  onSelectGroup={onSelectGroup}
-                />
-              </p>
+        <p className="mb-4 font-mono text-xs font-bold uppercase tracking-widest text-[#7F7D74]">What changed it</p>
+        <ul className="space-y-2">
+          {causes.map((a) => {
+            const group = groupById.get(a.group_id)
+            const selected = selectedGroupId === a.group_id
+            return (
+              <li key={a.group_id}>
+                <button
+                  type="button"
+                  onClick={() => onSelectGroup(selected ? null : a.group_id)}
+                  className={`grid w-full grid-cols-[11rem_1fr_auto] items-center gap-4 rounded-xl px-4 py-3 text-left transition-colors ${
+                    selected ? 'bg-[#8A9646]/20 ring-1 ring-[#8A9646]' : 'hover:bg-[#F8F7F4]'
+                  }`}
+                >
+                  <span className="whitespace-nowrap text-right text-2xl font-extrabold tabular-nums text-[#36452B]">{signedInr(a.share)}</span>
+                  <span className="text-lg font-semibold text-[#36452B]">{group?.label ?? a.group_id}</span>
+                  <span className="rounded-md bg-[#F0EDE6] px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-[#7F7D74]">
+                    {group?.type ?? 'change'}
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+          {hasUnverified && (
+            <li className="grid grid-cols-[11rem_1fr_auto] items-center gap-4 rounded-xl bg-[#EEDADA]/50 px-4 py-3">
+              <span className="whitespace-nowrap text-right text-2xl font-extrabold tabular-nums text-[#A44A3F]">{signedInr(output.delta_unverified!)}</span>
+              <span className="text-lg font-semibold text-[#A44A3F]">Can&apos;t verify (excluded, never guessed)</span>
+              <span />
+            </li>
+          )}
+          {causes.length === 0 && !hasUnverified && (
+            <li className="px-4 py-3 text-lg text-[#7F7D74]">No change to attribute</li>
+          )}
+        </ul>
+        <div className="mt-3 grid grid-cols-[11rem_1fr] items-baseline gap-4 border-t-2 border-[#36452B] px-4 pt-4">
+          <span className="whitespace-nowrap text-right text-4xl font-black tabular-nums text-[#36452B]">
+            {observedKnown ? signedInr(output.delta_observed!) : 'unknown'}
+          </span>
+          <span className="text-xl font-bold text-[#36452B]">
+            Total change
+            {!observedKnown && (
+              <span className="ml-2 text-base font-normal text-[#7F7D74]">
+                (no saved value; verified part {signedInr(output.delta_verified)})
+              </span>
             )}
-          </div>
-        ) : (
-          <p className="text-4xl sm:text-5xl font-black leading-snug tabular-nums tracking-tight text-[#36452B]">
-            <span>{signedInr(output.delta_observed!)}</span>
-            {causes.length > 0 ? (
-              <>
-                {' = '}
-                <CauseTokens
-                  causes={causes}
-                  groupById={groupById}
-                  selectedGroupId={selectedGroupId}
-                  onSelectGroup={onSelectGroup}
-                />
-              </>
-            ) : (
-              <span className="ml-3 text-2xl font-normal text-[#7F7D74]">No verified attribution change</span>
-            )}
-          </p>
-        )}
+          </span>
+        </div>
       </div>
     </section>
-  )
-}
-
-function CauseTokens({
-  causes,
-  groupById,
-  selectedGroupId,
-  onSelectGroup,
-}: {
-  causes: Output['attribution']
-  groupById: Map<string, Group>
-  selectedGroupId: string | null
-  onSelectGroup: (groupId: string | null) => void
-}) {
-  return (
-    <>
-      {causes.map((a, index) => {
-        const group = groupById.get(a.group_id)
-        const selected = selectedGroupId === a.group_id
-        const amount = index === 0 ? signedInr(a.share) : inr(Math.abs(a.share))
-        return (
-          <span key={a.group_id}>
-            {index > 0 && <span className="text-[#7F7D74]">{a.share < 0 ? ' − ' : ' + '}</span>}
-            <button
-              type="button"
-              onClick={() => onSelectGroup(selected ? null : a.group_id)}
-              className={`inline-flex items-baseline gap-2 rounded-xl px-3 py-1 text-left transition-all ${
-                selected
-                  ? 'border border-[#8A9646] bg-[#8A9646]/20 text-[#36452B]'
-                  : 'border border-transparent bg-[#F8F7F4] hover:border-[#D7D0C5]'
-              }`}
-            >
-              <span className="font-extrabold text-[#36452B] tabular-nums">{amount}</span>
-              <span className="text-lg font-semibold text-[#36452B]/90">
-                {group?.label ?? a.group_id}{' '}
-                <span className="font-mono text-xs uppercase tracking-wider text-[#7F7D74]">
-                  ({group?.type ?? 'change'})
-                </span>
-              </span>
-            </button>
-          </span>
-        )
-      })}
-    </>
   )
 }
 
