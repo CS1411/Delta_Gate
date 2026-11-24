@@ -123,7 +123,8 @@ export default function SessionAudit() {
     try {
       await downloadProof(result.check.check_id, groupId)
     } catch (problem) {
-      fail(problem)
+      // Only the error: a failed download must never swap the live result for the sample.
+      setError(problem instanceof ApiError && ![502, 503, 504].includes(problem.status) ? problem.message : OFFLINE)
     }
   }
 
