@@ -115,14 +115,17 @@ def test_over_real_stdio(dues, tmp_path):
             result = await session.call_tool("propose_edit", {"workbook_id": "dues", "ops": ops, "session_id": "s_A"})
             refused = await session.call_tool("propose_edit", {"workbook_id": "dues", "session_id": "s_A", "ops": [
                 {"op": "set_value", "cell": "Payments!C5", "value": "=SUM(A1:A9)"}]})
-            return names, result, refused
+            unknown = await session.call_tool("read_range", {"workbook_id": "society", "range": "Summary!C6"})
+            return names, result, refused, unknown
 
-    names, result, refused = asyncio.run(talk())
+    names, result, refused, unknown = asyncio.run(talk())
     assert names == ["explain_delta", "get_decision", "impact_preview", "propose_edit", "read_range"]
     decision = json.loads(result.content[0].text)
     assert not result.is_error and decision["status"] == "PARTIAL" and decision["committed_version"] == store.sha256(
         config.store_dir() / "dues" / "current.xlsx")
     assert refused.is_error  # a formula dressed as a value never reaches the file
+    # the agent is told why, and which workbook ids exist, instead of a bare "Error executing tool"
+    assert unknown.is_error and "Registered: dues" in unknown.content[0].text
 
     # the server process has exited: its session got a signed checkpoint on the way out
     actions = [r["action"] for r in dues.execute("SELECT action FROM audit_log ORDER BY seq")]

@@ -9,6 +9,7 @@ Run:  uv run python -m deltagate.mcp_server        (Claude Desktop starts it thi
 Nothing may be printed to stdout: it carries the protocol. Timings go to stderr.
 """
 
+import functools
 import sys
 from pathlib import Path
 
@@ -16,6 +17,7 @@ if not __package__:  # `mcp dev deltagate/mcp_server.py` loads this file by path
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 
 from deltagate import config, db
 from deltagate.engine import check as engine
@@ -34,6 +36,24 @@ server = MCPServer("delta-gate", instructions=(
     "and why. Do not retry, split or rephrase an edit to get around a hold. Workbooks are named by a "
     "workbook_id; an unknown id returns the list of registered ones."
 ))
+
+
+def tool(fn):
+    """Register fn as an MCP tool whose expected errors reach the agent as text.
+
+    MCPServer shows the agent only "Error executing tool <name>" for anything but ToolError, which hid
+    messages such as "Unknown workbook 'x'. Registered: dues". The module-level function is returned
+    unchanged, so direct callers (and tests) still get the original KeyError / ValueError / Conflict.
+    """
+    @functools.wraps(fn)
+    def explained(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except (KeyError, ValueError, store.Conflict) as exc:
+            raise ToolError(exc.args[0] if exc.args else type(exc).__name__) from exc
+
+    server.tool()(explained)
+    return fn
 
 
 def _unmanaged(found: CheckResult | None, version) -> dict | None:
@@ -57,7 +77,7 @@ def _cell(text: str) -> str:
     return ref.name
 
 
-@server.tool()
+@tool
 def read_range(workbook_id: str, range: str) -> dict:
     """Read cells from a managed workbook: formulas as text, and values. Read-only.
 
@@ -105,7 +125,7 @@ def read_range(workbook_id: str, range: str) -> dict:
         conn.close()
 
 
-@server.tool()
+@tool
 def impact_preview(workbook_id: str, cell: str) -> dict:
     """What depends on a cell: its direct dependents, how many cells it reaches, which watched outputs
     it can move, and whether it is protected. Call this before propose_edit, for every cell you plan to
@@ -121,7 +141,7 @@ def impact_preview(workbook_id: str, cell: str) -> dict:
         conn.close()
 
 
-@server.tool()
+@tool
 def explain_delta(base_version: str, new_version: str) -> dict:
     """Explain the difference between two versions of a managed workbook (version = the sha256 that
     read_range and propose_edit return): each watched output's change split into exact amounts per
@@ -137,7 +157,7 @@ def explain_delta(base_version: str, new_version: str) -> dict:
         conn.close()
 
 
-@server.tool()
+@tool
 def propose_edit(workbook_id: str, ops: list[EditOp], session_id: str) -> dict:
     """Propose an edit. This is the only way to write to a workbook. Call impact_preview first.
 
@@ -163,7 +183,7 @@ def propose_edit(workbook_id: str, ops: list[EditOp], session_id: str) -> dict:
         conn.close()
 
 
-@server.tool()
+@tool
 def get_decision(edit_id: str) -> dict:
     """The current state of a proposed edit: PASS, HELD, PARTIAL, APPROVED, DENIED or ROLLED_BACK,
     with per-group reasons. Use it to see whether the approver has acted on a held edit. Read-only.
