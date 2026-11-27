@@ -97,7 +97,7 @@ This runbook lets any teammate (including Nikita/P2) run the 3-minute demo end t
      > `In workbook dues (session s_A), record ₹2,500 payments in Payments!C5, Payments!C9, and Payments!C13, and update LateFees!F3 to =F2*0.04. Call impact_preview first, then propose_edit.`
   3. Watch Claude Desktop call **`impact_preview`** (`LateFees!F3` is marked `protected: true` and reaches `Summary!C6`), then **`propose_edit`**.
   4. Show Claude's response: **`PARTIAL`** — the 3 payments (**-₹7,500** on `Summary!C6`, **+₹7,500** on `Summary!C4`) **PASS** and are committed; `LateFees!F3` (+₹4,000, protected cell) is **HELD**.
-  5. Switch to **02 Approvals** in the bottom dock (`http://localhost:5173/#approvals`; polls `GET /api/edits?status=held` and shows the live held-count badge — the `s_A` HELD card appears automatically).
+  5. Switch to **02 Approvals** in the bottom dock (`http://localhost:5173/#approvals`; polls `GET /api/edits?status=held` and shows the live held-count badge — the HELD card appears automatically).
   6. Point out the HELD card (reasons + ₹ impact), then click **Deny** (`POST /api/edits/{id}/deny`).
   7. Switch to **03 Audit** in the bottom dock (`http://localhost:5173/#audit`, `GET /api/audit`) and click **Verify log** (`GET /api/audit/verify`) → **✅ Chain verified**.
 - **Say:**
